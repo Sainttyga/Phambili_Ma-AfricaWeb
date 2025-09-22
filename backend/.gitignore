@@ -9,6 +9,9 @@ yarn-error.log
 # Environment variables
 .env
 
+# hash-passwords
+hash-passwords.js
+
 # Logs
 logs/
 *.log

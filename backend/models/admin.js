@@ -7,6 +7,13 @@ const Admin = sequelize.define('Admin', {
   Email: { type: DataTypes.STRING(100), unique: true, allowNull: false },
   Phone: { type: DataTypes.STRING(20), allowNull: true },
   Password: { type: DataTypes.STRING(100), allowNull: true }
+}, {
+  defaultScope: {
+    attributes: { exclude: ['Password'] } 
+  },
+  scopes: {
+    withPassword: { attributes: { include: ['Password'] } }
+  }
 });
 
 module.exports = Admin;

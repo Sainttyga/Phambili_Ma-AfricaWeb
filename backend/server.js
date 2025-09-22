@@ -6,6 +6,9 @@ const sequelize = require('./config');
 require('./models');
 const security = require('./middleware/security');
 const swagger = require('./swagger');
+// At the top, after requiring express:
+const helmet = require('helmet');
+
 
 const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
@@ -18,7 +21,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
-
+app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: [

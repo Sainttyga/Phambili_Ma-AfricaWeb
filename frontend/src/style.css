@@ -604,7 +604,7 @@ body.overlay-active {
 /* Hero Section */
 .hero {
     /* Radial gradient: Darker in the center, fading outwards */
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/images/index.jpg');
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/frontend/images/index.jpg');
     background-size: cover;
     background-position: center;
     height: calc(113vh - var(--header-height));

@@ -10,14 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./src/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="src/script.js"></script>
 </head>
+
 <body>
     <div class="auth-container">
         <div class="auth-card">
             <!-- Tabs -->
             <div class="auth-tabs">
-                <div class="auth-tab active" data-tab="login" role="button" aria-selected="true" tabindex="0">Login</div>
-                <div class="auth-tab" data-tab="register" role="button" aria-selected="false" tabindex="0">Register</div>
+                <div class="auth-tab" data-tab="login" role="tab" aria-selected="true">Login</div>
+                <div class="auth-tab" data-tab="register" role="tab" aria-selected="false">Register</div>
             </div>
 
             <!-- Login Form -->
@@ -28,16 +31,15 @@
                 <form id="login-form" class="auth-form" novalidate>
                     <div class="auth-form-group">
                         <label for="auth-email" class="auth-label">Email Address</label>
-                        <input type="email" id="auth-email" class="auth-input" placeholder="your@email.com" required>
+                        <input type="email" id="auth-login-email" class="auth-input" placeholder="your@email.com"
+                            required>
                         <div id="auth-email-error" class="auth-error">Please enter a valid email address</div>
                     </div>
                     <div class="auth-form-group">
                         <label for="auth-password" class="auth-label">Password</label>
                         <div class="input-with-icon">
-                            <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required>
-                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                            <input type="password" id="auth-login-password" class="auth-input" placeholder="••••••••"
+                                required>
                         </div>
                         <div id="auth-password-error" class="auth-error">Password is required</div>
                     </div>
@@ -73,47 +75,39 @@
                         <input type="text" id="auth-fullname" class="auth-input" placeholder="John Doe" required>
                         <div id="auth-fullname-error" class="auth-error">Please enter your full name</div>
                     </div>
+
                     <div class="auth-form-group">
                         <label for="auth-register-email" class="auth-label">Email Address</label>
-                        <input type="email" id="auth-register-email" class="auth-input" placeholder="your@email.com" required>
+                        <input type="email" id="auth-register-email" class="auth-input" placeholder="your@email.com"
+                            required>
                         <div id="auth-register-email-error" class="auth-error">Please enter a valid email address</div>
                     </div>
+
                     <div class="auth-form-group">
                         <label for="auth-register-password" class="auth-label">Password</label>
-                        <div class="input-with-icon">
-                            <input type="password" id="auth-register-password" class="auth-input" placeholder="••••••••" required>
-                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                        <input type="password" id="auth-register-password" class="auth-input" placeholder="••••••••"
+                            required>
+                        <div id="auth-register-password-error" class="auth-error">Password must be at least 6 characters
                         </div>
-                        <div id="auth-register-password-error" class="auth-error">Password must be at least 6 characters</div>
                     </div>
+
                     <div class="auth-form-group">
                         <label for="auth-confirm-password" class="auth-label">Confirm Password</label>
-                        <div class="input-with-icon">
-                            <input type="password" id="auth-confirm-password" class="auth-input" placeholder="••••••••" required>
-                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
+                        <input type="password" id="auth-confirm-password" class="auth-input" placeholder="••••••••"
+                            required>
                         <div id="auth-confirm-password-error" class="auth-error">Passwords do not match</div>
                     </div>
-                    <div class="auth-form-group">
-                        <label for="auth-phone" class="auth-label">Phone Number (Optional)</label>
-                        <input type="tel" id="auth-phone" class="auth-input" placeholder="+27 12 345 6789">
-                        <div id="auth-phone-error" class="auth-error">Please enter a valid phone number</div>
-                    </div>
-                    <div class="auth-form-group">
-                        <label for="auth-address" class="auth-label">Address (Optional)</label>
-                        <textarea id="auth-address" class="auth-input" placeholder="Your address" rows="2"></textarea>
-                    </div>
+
                     <div class="auth-terms">
-                        By registering, you agree to our <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
+                        By registering, you agree to our <a href="#" target="_blank">Terms of Service</a> and
+                        <a href="#" target="_blank">Privacy Policy</a>
                     </div>
+
                     <button type="submit" class="auth-btn">
                         <span>Create Account</span>
                         <div class="spinner"></div>
                     </button>
+
                     <div class="auth-social-divider">or sign up with</div>
                     <div class="auth-social-buttons">
                         <button type="button" class="auth-social-btn" aria-label="Sign up with Google">
@@ -126,66 +120,12 @@
                 </form>
             </div>
 
+
             <div class="auth-footer">
                 © 2023 Phambili Ma-Africa Cleaning Services. All rights reserved.
             </div>
         </div>
     </div>
-
-    <script>
-        // Only tab switching and placeholder alerts
-        function switchTab(tabName) {
-            document.querySelectorAll('.auth-tab-content').forEach(content => {
-                content.classList.remove('active');
-                content.setAttribute('aria-hidden', 'true');
-            });
-            document.querySelectorAll('.auth-tab').forEach(tab => {
-                tab.classList.remove('active');
-                tab.setAttribute('aria-selected', 'false');
-            });
-            const tabContent = document.getElementById(tabName + '-tab');
-            const tabButton = document.querySelector(`.auth-tab[data-tab="${tabName}"]`);
-            if (tabContent && tabButton) {
-                tabContent.classList.add('active');
-                tabContent.setAttribute('aria-hidden', 'false');
-                tabButton.classList.add('active');
-                tabButton.setAttribute('aria-selected', 'true');
-                // Focus on first input in the active tab
-                const firstInput = tabContent.querySelector('input');
-                if (firstInput) {
-                    firstInput.focus();
-                }
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            // Set up tab switching
-            document.querySelectorAll('.auth-tab').forEach(tab => {
-                tab.addEventListener('click', function () {
-                    const tabName = this.getAttribute('data-tab');
-                    switchTab(tabName);
-                });
-                // Keyboard navigation for tabs
-                tab.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        const tabName = this.getAttribute('data-tab');
-                        switchTab(tabName);
-                    }
-                });
-            });
-            // Social login buttons
-            document.querySelectorAll('.auth-social-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    alert('Social login functionality would be implemented here');
-                });
-            });
-            // Forgot password link
-            document.querySelector('.auth-forgot')?.addEventListener('click', function (e) {
-                e.preventDefault();
-                alert('Password reset functionality would be implemented here');
-            });
-        });
-    </script>
 </body>
+
 </html>

@@ -12,7 +12,10 @@ const Customer = sequelize.define('Customer', {
 {
     defaultScope: {
       attributes: { exclude: ['Password'] } 
-    }
+    },
+    scopes: {
+    withPassword: { attributes: { include: ['Password'] } }
+  }
   }
 );
 
