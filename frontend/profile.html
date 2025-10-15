@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phambili Ma-Africa | Professional Cleaning Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/profile.css">
+
+</head>
+<body>
+    <!-- Updated Header Section -->
+    <header class="header">
+        <!-- Hamburger Menu Button -->
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
+            <img src="/frontend/images/menu.png" alt="Close">
+        </button>
+
+        <!-- Logo -->
+        <div class="logo">
+            <a href="index.html">
+                <img src="/frontend/images/PM-LogoB.png" alt="Phambili Ma-Africa Logo">
+            </a>
+        </div>
+
+        <!-- Icons (Right) -->
+        <div class="header-icons">
+            <a href="login.html" class="icon-link" aria-label="User Profile" id="user-profile-link">
+                <img src="/frontend/images/user.png" alt="Login" class="icon" id="user-icon">
+            </a>
+            <button class="cart-btn" id="cart-btn" aria-label="Shopping Cart">
+                <img src="/frontend/images/shopping-bag.png" alt="" class="icon">
+                <span class="cart-badge">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Profile Main Content -->
+    <main class="profile-main">
+        <div class="profile-container">
+            <!-- Profile Header -->
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-circle avatar-img"></i>
+                    <button class="avatar-edit-btn">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+                <div class="profile-info">
+                    <h1 class="profile-name" id="profile-fullname">Loading...</h1>
+                    <p class="profile-email" id="profile-email">Loading...</p>
+                    <p class="profile-role" id="profile-role">Customer</p>
+                </div>
+            </div>
+
+            <!-- Profile Sections -->
+            <div class="profile-sections">
+                <!-- Personal Information Section -->
+                <section class="profile-section active" id="personal-info">
+                    <div class="section-header">
+                        <h2>Personal Information</h2>
+                        <button class="edit-section-btn" data-section="personal-info">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
+                    </div>
+                    <div class="section-content">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Full Name</label>
+                                <p id="info-fullname">Loading...</p>
+                                <input type="text" class="edit-input" id="edit-fullname" style="display: none;">
+                            </div>
+                            <div class="info-item">
+                                <label>Email Address</label>
+                                <p id="info-email">Loading...</p>
+                                <input type="email" class="edit-input" id="edit-email" style="display: none;">
+                            </div>
+                            <div class="info-item">
+                                <label>Phone Number</label>
+                                <p id="info-phone">Not set</p>
+                                <input type="tel" class="edit-input" id="edit-phone" style="display: none;">
+                            </div>
+                            <div class="info-item">
+                                <label>Member Since</label>
+                                <p id="info-join-date">Loading...</p>
+                            </div>
+                        </div>
+                        <div class="section-actions" style="display: none;">
+                            <button class="btn-secondary cancel-edit">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </button>
+                            <button class="btn-primary save-edit">
+                                <i class="fas fa-save"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Address Section -->
+                <section class="profile-section" id="address-info">
+                    <div class="section-header">
+                        <h2>Address Information</h2>
+                        <button class="edit-section-btn" data-section="address-info">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
+                    </div>
+                    <div class="section-content">
+                        <div class="info-grid">
+                            <div class="info-item full-width">
+                                <label>Street Address</label>
+                                <p id="info-address">Not set</p>
+                                <input type="text" class="edit-input" id="edit-address" style="display: none;">
+                            </div>
+                            <div class="info-item">
+                                <label>City</label>
+                                <p id="info-city">Not set</p>
+                                <input type="text" class="edit-input" id="edit-city" style="display: none;">
+                            </div>
+                            <div class="info-item">
+                                <label>State</label>
+                                <p id="info-state">Not set</p>
+                                <input type="text" class="edit-input" id="edit-state" style="display: none;">
+                            </div>
+                            <div class="info-item">
+                                <label>ZIP Code</label>
+                                <p id="info-zip">Not set</p>
+                                <input type="text" class="edit-input" id="edit-zip" style="display: none;">
+                            </div>
+                        </div>
+                        <div class="section-actions" style="display: none;">
+                            <button class="btn-secondary cancel-edit">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </button>
+                            <button class="btn-primary save-edit">
+                                <i class="fas fa-save"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Account Settings Section -->
+                <section class="profile-section" id="account-settings">
+                    <div class="section-header">
+                        <h2>Account Settings</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="settings-list">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4><i class="fas fa-key"></i> Change Password</h4>
+                                    <p>Update your password regularly for security</p>
+                                </div>
+                                <button class="btn-outline change-password-btn">Change Password</button>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4><i class="fas fa-bell"></i> Notification Preferences</h4>
+                                    <p>Manage how you receive notifications</p>
+                                </div>
+                                <button class="btn-outline notification-btn">Manage</button>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4><i class="fas fa-shield-alt"></i> Privacy Settings</h4>
+                                    <p>Control your privacy and data</p>
+                                </div>
+                                <button class="btn-outline privacy-btn">Manage</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Booking History Section -->
+                <section class="profile-section" id="booking-history">
+                    <div class="section-header">
+                        <h2>Booking History</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="booking-history">
+                            <div class="empty-state">
+                                <i class="fas fa-calendar-check empty-icon"></i>
+                                <h3>No Bookings Yet</h3>
+                                <p>You haven't made any bookings yet. Start by booking our cleaning services!</p>
+                                <a href="services.html" class="btn-primary">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    Book Services
+                                </a>
+                            </div>
+                            <!-- Booking items will be dynamically added here -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Change Password Modal -->
+    <div class="modal-overlay" id="password-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-key"></i> Change Password</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="change-password-form">
+                    <div class="form-group">
+                        <label for="current-password">
+                            <i class="fas fa-lock"></i>
+                            Current Password
+                        </label>
+                        <input type="password" id="current-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password">
+                            <i class="fas fa-key"></i>
+                            New Password
+                        </label>
+                        <input type="password" id="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">
+                            <i class="fas fa-key"></i>
+                            Confirm New Password
+                        </label>
+                        <input type="password" id="confirm-password" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary cancel-password">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-save"></i>
+                            Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/auth-manager.js"></script>
+    <script src="./js/profile.js"></script>
+    
+    
+    
+</body>
+</html>

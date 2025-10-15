@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "seed:admin": "node script/seedAdmin.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "mysql2": "^3.15.0",
     "nodemailer": "^7.0.6",
     "otp-generator": "^4.0.1",

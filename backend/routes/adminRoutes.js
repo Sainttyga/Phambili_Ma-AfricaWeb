@@ -1,23 +1,139 @@
+// adminRoutes.js - Cleaned up version
 const express = require('express');
 const { body } = require('express-validator');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const productController = require('../controllers/productController');
 const validate = require('../middleware/validate');
+const auth = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
-// Send OTP
-router.post('/send-otp', [body('Email').isEmail()], validate, adminController.sendOTP);
+// Public route for first login setup
+router.post('/first-login', [
+  body('Email').isEmail().normalizeEmail(),
+  body('TemporaryPassword').isLength({ min: 1 }),
+  body('NewPassword').isLength({ min: 8 })
+], validate, adminController.firstLoginSetup);
 
-// Verify OTP & set password
-router.post('/verify-otp', [
-  body('Admin_ID').isInt(),
-  body('OTP').isLength({ min: 6, max: 6 }),
-  body('Password').isLength({ min: 6 })
-], validate, adminController.verifyOTPAndSetPassword);
+// Protected routes
+router.use(auth);
 
-// Login
-router.post('/login', [
-  body('Email').isEmail(),
-  body('Password').notEmpty()
-], validate, adminController.login);
+// Password management
+router.get('/password-status', adminController.checkPasswordStatus);
+router.post('/reset-password', [
+  body('currentPassword').notEmpty(),
+  body('newPassword').isLength({ min: 8 })
+], validate, adminController.resetPassword);
+
+// Sub-admin management
+router.post('/admins', [
+  body('Name').isLength({ min: 2, max: 100 }),
+  body('Email').isEmail().normalizeEmail(),
+  body('Phone').optional().isLength({ min: 10, max: 15 }),
+  body('Role').optional().isIn(['main_admin', 'sub_admin'])
+], validate, adminController.createAdmin);
+
+router.get('/admins', adminController.getAllAdmins);
+router.get('/admins/:id', adminController.getAdminDetails);
+router.put('/admins/:id', adminController.updateAdmin);
+router.delete('/admins/:id', adminController.deleteAdmin);
+
+// Dashboard routes
+router.get('/dashboard/stats', adminController.getDashboardStats);
+router.get('/dashboard/analytics', adminController.getBookingAnalytics);
+
+// Management routes
+router.get('/bookings', adminController.getAllBookings);
+router.post('/bookings', adminController.createBooking);
+router.put('/bookings/:id', adminController.updateBooking);
+router.delete('/bookings/:id', adminController.deleteBooking);
+
+router.get('/customers', adminController.getAllCustomers);
+router.get('/services', adminController.getAllServices);
+
+// ==================== PRODUCT MANAGEMENT ROUTES ====================
+// Use productController for all product routes (choose one approach)
+router.post('/products', 
+  upload.single('image'),
+  [
+    body('Name').notEmpty().withMessage('Product name is required'),
+    body('Price').isDecimal({ min: 0 }).withMessage('Price must be a positive number'),
+    body('Stock_Quantity').isInt({ min: 0 }).withMessage('Stock quantity must be a positive number')
+  ],
+  validate,
+  productController.createProduct
+);
+
+router.get('/products', productController.getProducts);
+
+router.put('/products/:id',
+  upload.single('image'),
+  productController.updateProduct
+);
+
+router.delete('/products/:id', productController.deleteProduct);
+
+router.patch('/products/:id/availability', [
+  body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
+], validate, productController.toggleProductAvailability);
+// ==================== END PRODUCT ROUTES ====================
+
+// Service routes
+router.post('/services',
+  upload.single('image'),
+  [
+    body('Name').notEmpty().withMessage('Service name is required'),
+    body('Price').isDecimal({ min: 0 }).withMessage('Price must be a positive number'),
+    body('Duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 minute')
+  ],
+  validate,
+  adminController.createService
+);
+
+router.put('/services/:id',
+  upload.single('image'),
+  adminController.updateService
+);
+
+router.delete('/services/:id', adminController.deleteService);
+
+// Service availability
+router.patch('/services/:id/availability', [
+  body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
+], validate, adminController.toggleServiceAvailability);
+
+router.get('/quotations', adminController.getAllQuotations);
+router.post('/quotations/:id/respond', adminController.respondToQuotation);
+
+router.get('/orders', adminController.getAllOrders);
+
+// Reports
+router.get('/reports/booking-summary', adminController.getBookingSummary);
+router.get('/reports/revenue', adminController.getRevenueReport);
+
+// System
+router.get('/system/health', adminController.getSystemHealth);
+
+// Profile routes
+router.get('/profile', adminController.getAdminProfile);
+router.put('/profile', adminController.updateAdminProfile);
+
+// Detailed view routes
+router.get('/customers/:id', adminController.getCustomerDetails);
+router.put('/customers/:id', adminController.updateCustomer);
+
+router.get('/services/:id', adminController.getServiceDetails);
+router.get('/products/:id', adminController.getProductDetails);
+router.get('/quotations/:id', adminController.getQuotationDetails);
+
+// Test route for debugging
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Admin routes are working!',
+    timestamp: new Date().toISOString(),
+    user: req.user
+  });
+});
 
 module.exports = router;

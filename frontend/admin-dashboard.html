@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Phambili Ma-Africa</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/admin-dashboard.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="logo-link">
+                    <img src="/frontend/images/PM-LogoB.png" alt="Phambili Ma-Africa Logo" class="sidebar-logo">
+                </a>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <!-- FIXED: Proper tablist structure for navigation -->
+            <nav class="sidebar-nav" role="navigation" aria-label="Admin dashboard navigation">
+                <ul role="tablist" aria-label="Admin sections">
+                    <div class="home-link-container">
+                        <a href="index.html" class="home-link" role="link">
+                            <i class="fas fa-home"></i>
+                            <span>Home</span>
+                        </a>
+                    </div>
+                    <li role="presentation">
+                        <a href="#dashboard" class="nav-link active" role="tab" aria-selected="true"
+                            aria-controls="dashboard" id="dashboard-tab" data-section="dashboard">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#bookings" class="nav-link" role="tab" aria-selected="false" aria-controls="bookings"
+                            id="bookings-tab" data-section="bookings">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Bookings</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#customers" class="nav-link" role="tab" aria-selected="false" aria-controls="customers"
+                            id="customers-tab" data-section="customers">
+                            <i class="fas fa-users"></i>
+                            <span>Customers</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#services" class="nav-link" role="tab" aria-selected="false" aria-controls="services"
+                            id="services-tab" data-section="services">
+                            <i class="fas fa-concierge-bell"></i>
+                            <span>Services</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#products" class="nav-link" role="tab" aria-selected="false" aria-controls="products"
+                            id="products-tab" data-section="products">
+                            <i class="fas fa-box"></i>
+                            <span>Products</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#quotations" class="nav-link" role="tab" aria-selected="false"
+                            aria-controls="quotations" id="quotations-tab" data-section="quotations">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <span>Quotations</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#reports" class="nav-link" role="tab" aria-selected="false" aria-controls="reports"
+                            id="reports-tab" data-section="reports">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <!-- Add this to your sidebar navigation -->
+                    <li role="presentation">
+                        <a href="#admin-management" class="nav-link" role="tab" aria-selected="false"
+                            aria-controls="admin-management" id="admin-management-tab" data-section="admin-management">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Admin Management</span>
+                        </a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#admin-profile" class="nav-link" role="tab" aria-selected="false"
+                            aria-controls="admin-profile" id="admin-profile-tab" data-section="admin-profile">
+                            <i class="fas fa-user-cog"></i>
+                            <span>My Profile</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="logout-btn" id="logoutBtn" role="button">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" role="main">
+            <!-- Header -->
+            <header class="header" role="banner">
+                <div class="header-left">
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="user-info" id="admin-profile-link" role="button" aria-haspopup="true"
+                        aria-expanded="false">
+                        <span id="adminName">Admin User</span>
+                        <div class="user-avatar">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="loading-spinner" role="status" aria-live="polite">
+                <div class="spinner" aria-hidden="true"></div>
+                <p>Loading...</p>
+            </div>
+
+            <!-- Content Sections - Tab Panels -->
+            <div class="content-sections" role="tabpanel" aria-labelledby="dashboard-tab">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="content-section active" role="tabpanel" aria-labelledby="dashboard-tab"
+                    tabindex="0">
+                    <div class="stats-grid" id="statsGrid">
+                        <!-- Stats will be loaded dynamically -->
+                        <div class="stat-card">
+                            <div class="stat-icon revenue">
+                                <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalRevenue">R 0.00</h3>
+                                <p>Total Revenue</p>
+                                <span class="stat-change positive">+12% this month</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bookings">
+                                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalBookings">0</h3>
+                                <p>Total Bookings</p>
+                                <span class="stat-change positive">+8% this month</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon customers">
+                                <i class="fas fa-users" aria-hidden="true"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalCustomers">0</h3>
+                                <p>Total Customers</p>
+                                <span class="stat-change positive">+15% this month</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon pending">
+                                <i class="fas fa-clock" aria-hidden="true"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="pendingBookings">0</h3>
+                                <p>Pending Bookings</p>
+                                <span class="stat-change negative">-5% this month</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-content">
+                        <div class="content-row">
+                            <div class="card recent-bookings">
+                                <div class="card-header">
+                                    <h3>Recent Bookings</h3>
+                                    <a href="#bookings" class="view-all" role="link">View All</a>
+                                </div>
+                                <div class="card-body">
+                                    <div id="recentBookings">
+                                        <div class="empty-state">
+                                            <i class="fas fa-calendar-plus" aria-hidden="true"></i>
+                                            <p>No recent bookings</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card quick-actions">
+                                <div class="card-header">
+                                    <h3>Quick Actions</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="action-buttons">
+                                        <button class="action-btn" onclick="showSection('bookings')" role="button">
+                                            <i class="fas fa-plus-circle" aria-hidden="true"></i>
+                                            <span>New Booking</span>
+                                        </button>
+                                        <button class="action-btn" onclick="showSection('services')" role="button">
+                                            <i class="fas fa-cog" aria-hidden="true"></i>
+                                            <span>Manage Services</span>
+                                        </button>
+                                        <button class="action-btn" onclick="sendBulkReminders()" role="button">
+                                            <i class="fas fa-bell" aria-hidden="true"></i>
+                                            <span>Send Reminders</span>
+                                        </button>
+                                        <button class="action-btn" onclick="showSection('reports')" role="button">
+                                            <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                            <span>View Reports</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-row">
+                            <div class="card revenue-chart">
+                                <div class="card-header">
+                                    <h3>Revenue Overview</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div id="revenueChart" class="chart-placeholder">
+                                        <div class="chart-bars">
+                                            <div class="chart-bar" style="height: 60%">
+                                                <span>Mon</span>
+                                            </div>
+                                            <div class="chart-bar" style="height: 80%">
+                                                <span>Tue</span>
+                                            </div>
+                                            <div class="chart-bar" style="height: 45%">
+                                                <span>Wed</span>
+                                            </div>
+                                            <div class="chart-bar" style="height: 90%">
+                                                <span>Thu</span>
+                                            </div>
+                                            <div class="chart-bar" style="height: 75%">
+                                                <span>Fri</span>
+                                            </div>
+                                            <div class="chart-bar" style="height: 85%">
+                                                <span>Sat</span>
+                                            </div>
+                                            <div class="chart-bar" style="height: 70%">
+                                                <span>Sun</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card activity-feed">
+                                <div class="card-header">
+                                    <h3>Recent Activity</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="activity-list">
+                                        <div class="activity-item">
+                                            <i class="fas fa-user-plus activity-icon new-customer"
+                                                aria-hidden="true"></i>
+                                            <div class="activity-content">
+                                                <p>New customer registered</p>
+                                                <span>2 minutes ago</span>
+                                            </div>
+                                        </div>
+                                        <div class="activity-item">
+                                            <i class="fas fa-calendar-check activity-icon new-booking"
+                                                aria-hidden="true"></i>
+                                            <div class="activity-content">
+                                                <p>New booking confirmed</p>
+                                                <span>15 minutes ago</span>
+                                            </div>
+                                        </div>
+                                        <div class="activity-item">
+                                            <i class="fas fa-check-circle activity-icon completed"
+                                                aria-hidden="true"></i>
+                                            <div class="activity-content">
+                                                <p>Service completed</p>
+                                                <span>1 hour ago</span>
+                                            </div>
+                                        </div>
+                                        <div class="activity-item">
+                                            <i class="fas fa-comment activity-icon feedback" aria-hidden="true"></i>
+                                            <div class="activity-content">
+                                                <p>New customer feedback</p>
+                                                <span>2 hours ago</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Admin Profile Section -->
+                <section id="admin-profile" class="content-section" role="tabpanel" aria-labelledby="admin-profile-tab"
+                    tabindex="0" hidden>
+                    <div class="profile-container">
+                        <!-- Profile Header -->
+                        <div class="profile-header">
+                            <div class="profile-avatar">
+                                <i class="fas fa-user-shield avatar-img" aria-hidden="true"></i>
+                                <button class="avatar-edit-btn" role="button">
+                                    <i class="fas fa-camera" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <div class="profile-info">
+                                <h1 class="profile-name" id="admin-profile-fullname">Loading...</h1>
+                                <p class="profile-email" id="admin-profile-email">Loading...</p>
+                                <p class="profile-role" id="admin-profile-role">Administrator</p>
+                            </div>
+                        </div>
+
+                        <!-- Profile Sections -->
+                        <div class="profile-sections">
+                            <!-- Personal Information Section -->
+                            <section class="profile-section active" id="admin-personal-info">
+                                <div class="section-header">
+                                    <h2>Personal Information</h2>
+                                    <button class="edit-section-btn" data-section="admin-personal-info" role="button">
+                                        <i class="fas fa-edit" aria-hidden="true"></i>
+                                        Edit
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <div class="info-grid">
+                                        <div class="info-item">
+                                            <label>Full Name</label>
+                                            <p id="admin-info-fullname">Loading...</p>
+                                            <input type="text" class="edit-input" id="admin-edit-fullname"
+                                                style="display: none;">
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Email Address</label>
+                                            <p id="admin-info-email">Loading...</p>
+                                            <input type="email" class="edit-input" id="admin-edit-email"
+                                                style="display: none;">
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Phone Number</label>
+                                            <p id="admin-info-phone">Not set</p>
+                                            <input type="tel" class="edit-input" id="admin-edit-phone"
+                                                style="display: none;">
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Admin Since</label>
+                                            <p id="admin-info-join-date">Loading...</p>
+                                        </div>
+                                    </div>
+                                    <div class="section-actions" style="display: none;">
+                                        <button class="btn-secondary cancel-edit" role="button">
+                                            <i class="fas fa-times" aria-hidden="true"></i>
+                                            Cancel
+                                        </button>
+                                        <button class="btn-primary save-edit" role="button">
+                                            <i class="fas fa-save" aria-hidden="true"></i>
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Security Section -->
+                            <section class="profile-section" id="admin-security">
+                                <div class="section-header">
+                                    <h2>Security Settings</h2>
+                                </div>
+                                <div class="section-content">
+                                    <div class="settings-list">
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <h4><i class="fas fa-key" aria-hidden="true"></i> Change Password</h4>
+                                                <p>Update your admin password for security</p>
+                                            </div>
+                                            <button class="btn-outline change-password-btn"
+                                                onclick="openAdminPasswordModal()" role="button">
+                                                Change Password
+                                            </button>
+                                        </div>
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <h4><i class="fas fa-shield-alt" aria-hidden="true"></i> Two-Factor
+                                                    Authentication</h4>
+                                                <p>Add an extra layer of security to your account</p>
+                                            </div>
+                                            <button class="btn-outline" onclick="enableTwoFactor()" role="button">
+                                                Enable 2FA
+                                            </button>
+                                        </div>
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <h4><i class="fas fa-history" aria-hidden="true"></i> Login History</h4>
+                                                <p>View your recent login activity</p>
+                                            </div>
+                                            <button class="btn-outline" onclick="viewLoginHistory()" role="button">
+                                                View History
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- System Settings Section -->
+                            <section class="profile-section" id="admin-system">
+                                <div class="section-header">
+                                    <h2>System Settings</h2>
+                                </div>
+                                <div class="section-content">
+                                    <div class="settings-list">
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <h4><i class="fas fa-bell" aria-hidden="true"></i> Notifications</h4>
+                                                <p>Manage system notifications and alerts</p>
+                                            </div>
+                                            <button class="btn-outline" onclick="manageNotifications()" role="button">
+                                                Configure
+                                            </button>
+                                        </div>
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <h4><i class="fas fa-palette" aria-hidden="true"></i> Theme Settings
+                                                </h4>
+                                                <p>Customize the dashboard appearance</p>
+                                            </div>
+                                            <button class="btn-outline" onclick="changeTheme()" role="button">
+                                                Change Theme
+                                            </button>
+                                        </div>
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <h4><i class="fas fa-database" aria-hidden="true"></i> Backup & Restore
+                                                </h4>
+                                                <p>Manage system backups and data restoration</p>
+                                            </div>
+                                            <button class="btn-outline" onclick="manageBackups()" role="button">
+                                                Manage
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Bookings Section -->
+                <section id="bookings" class="content-section" role="tabpanel" aria-labelledby="bookings-tab"
+                    tabindex="0" hidden>
+                    <div class="section-header">
+                        <h2>Booking Management</h2>
+                        <button class="btn btn-primary" onclick="openBookingModal()" role="button">
+                            <i class="fas fa-plus" aria-hidden="true"></i> New Booking
+                        </button>
+                    </div>
+
+                    <div class="filters">
+                        <input type="text" id="bookingSearch" placeholder="Search bookings..." class="search-input"
+                            aria-label="Search bookings">
+                        <select id="bookingStatusFilter" class="filter-select" aria-label="Filter by booking status">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" aria-label="Bookings management table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Service</th>
+                                    <th scope="col">Date & Time</th>
+                                    <th scope="col">Amount</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bookingsTable">
+                                <!-- Bookings will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Customers Section -->
+                <section id="customers" class="content-section" role="tabpanel" aria-labelledby="customers-tab"
+                    tabindex="0" hidden>
+                    <div class="section-header">
+                        <h2>Customer Management</h2>
+                    </div>
+
+                    <div class="filters">
+                        <input type="text" id="customerSearch" placeholder="Search customers..." class="search-input"
+                            aria-label="Search customers">
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" aria-label="Customers management table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">Phone</th>
+                                    <th scope="col">Address</th>
+                                    <th scope="col">Join Date</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTable">
+                                <!-- Customers will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Services Section -->
+                <section id="services" class="content-section" role="tabpanel" aria-labelledby="services-tab"
+                    tabindex="0" hidden>
+                    <div class="section-header">
+                        <h2>Service Management</h2>
+                        <button class="btn btn-primary" onclick="openServiceModal()" role="button">
+                            <i class="fas fa-plus" aria-hidden="true"></i> Add Service
+                        </button>
+                    </div>
+
+                    <div class="cards-grid" id="servicesGrid">
+                        <!-- Services will be loaded here as cards -->
+                    </div>
+                    <!-- Service Modal -->
+                    <div id="serviceModal" class="modal" style="display: none;" role="dialog"
+                        aria-labelledby="serviceModalTitle" aria-hidden="true">
+                        <div class="modal-content" style="max-width: 600px;">
+                            <div class="modal-header">
+                                <h2 id="serviceModalTitle"><i class="fas fa-plus"></i> Add New Service</h2>
+                                <button class="modal-close" onclick="closeServiceModal()" aria-label="Close modal">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="service-form" enctype="multipart/form-data">
+                                    <input type="hidden" id="service-id" name="id">
+                                    <input type="hidden" id="currentServiceImage" name="current_image">
+
+                                    <div class="form-group">
+                                        <label for="service-name">Service Name *</label>
+                                        <input type="text" id="service-name" name="Name" class="form-input" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="service-description">Description</label>
+                                        <textarea id="service-description" name="Description" class="form-input"
+                                            rows="3" placeholder="Service description..."></textarea>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="service-price">Price (R) *</label>
+                                            <input type="number" id="service-price" name="Price" class="form-input"
+                                                step="0.01" min="0" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="service-duration">Duration (minutes) *</label>
+                                            <input type="number" id="service-duration" name="Duration"
+                                                class="form-input" min="1" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="service-category">Category</label>
+                                        <input type="text" id="service-category" name="Category" class="form-input"
+                                            placeholder="e.g., Residential, Commercial, Deep Cleaning">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="service-image">Service Image</label>
+                                        <input type="file" id="service-image" name="image" class="form-input"
+                                            accept="image/*" onchange="previewServiceImage(event)">
+                                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                                        <div id="serviceImagePreview" class="image-preview">
+                                            <div class="no-image">No image selected</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="service-available" name="Is_Available" checked>
+                                            <span class="checkmark"></span>
+                                            Service is available for booking
+                                        </label>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="button" class="btn-secondary"
+                                            onclick="closeServiceModal()">Cancel</button>
+                                        <button type="submit" class="btn-primary">Save Service</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Products Section -->
+                <section id="products" class="content-section" role="tabpanel" aria-labelledby="products-tab"
+                    tabindex="0" hidden>
+                    <div class="section-header">
+                        <h2>Product Management</h2>
+                        <button class="btn btn-primary" onclick="openProductModal()" role="button">
+                            <i class="fas fa-plus" aria-hidden="true"></i> Add Product
+                        </button>
+                    </div>
+
+                    <div class="cards-grid" id="productsGrid">
+                        <!-- Products will be loaded here as cards -->
+                    </div>
+                    <div id="productModal" class="modal" style="display: none;" role="dialog"
+                        aria-labelledby="productModalTitle">
+                        <div class="modal-content" style="max-width: 600px;">
+                            <div class="modal-header">
+                                <h2 id="productModalTitle"><i class="fas fa-plus"></i> Add New Product</h2>
+                                <button class="modal-close" onclick="closeProductModal()" aria-label="Close modal">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="product-form" enctype="multipart/form-data">
+                                    <input type="hidden" id="product-id" name="id">
+                                    <input type="hidden" id="currentProductImage" name="current_image">
+
+                                    <div class="form-group">
+                                        <label for="product-name">Product Name *</label>
+                                        <input type="text" id="product-name" name="Name" class="form-input" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="product-description">Description</label>
+                                        <textarea id="product-description" name="Description" class="form-input"
+                                            rows="3" placeholder="Product description..."></textarea>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="product-price">Price (R) *</label>
+                                            <input type="number" id="product-price" name="Price" class="form-input"
+                                                step="0.01" min="0" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="product-stock">Stock Quantity *</label>
+                                            <input type="number" id="product-stock" name="Stock_Quantity"
+                                                class="form-input" min="0" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="product-category">Category</label>
+                                        <input type="text" id="product-category" name="Category" class="form-input"
+                                            placeholder="e.g., Cleaning Supplies, Equipment">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="product-image">Product Image</label>
+                                        <input type="file" id="product-image" name="image" class="form-input"
+                                            accept="image/*" onchange="previewProductImage(event)">
+                                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                                        <div id="productImagePreview" class="image-preview">
+                                            <div class="no-image">No image selected</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="product-available" name="Is_Available" checked>
+                                            <span class="checkmark"></span>
+                                            Product is available for purchase
+                                        </label>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="button" class="btn-secondary"
+                                            onclick="closeProductModal()">Cancel</button>
+                                        <button type="submit" class="btn-primary">Save Product</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quotations Section -->
+                <section id="quotations" class="content-section" role="tabpanel" aria-labelledby="quotations-tab"
+                    tabindex="0" hidden>
+                    <div class="section-header">
+                        <h2>Quotation Management</h2>
+                    </div>
+
+                    <div class="filters">
+                        <select id="quotationStatusFilter" class="filter-select"
+                            aria-label="Filter by quotation status">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="responded">Responded</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" aria-label="Quotations management table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Service</th>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Amount</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotationsTable">
+                                <!-- Quotations will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Reports Section -->
+                <section id="reports" class="content-section" role="tabpanel" aria-labelledby="reports-tab" tabindex="0"
+                    hidden>
+                    <div class="section-header">
+                        <h2>Reports & Analytics</h2>
+                        <div class="report-controls">
+                            <select id="reportPeriod" class="filter-select" aria-label="Select report period">
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly" selected>Monthly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="exportReport()" role="button">
+                                <i class="fas fa-download" aria-hidden="true"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="reports-grid">
+                        <div class="report-card">
+                            <h3>Revenue Overview</h3>
+                            <div id="revenueChart" class="chart-placeholder">
+                                <!-- Chart will be implemented here -->
+                            </div>
+                        </div>
+
+                        <div class="report-card">
+                            <h3>Booking Trends</h3>
+                            <div id="bookingsChart" class="chart-placeholder">
+                                <!-- Chart will be implemented here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detailed-stats">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Performance Metrics</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="performanceMetrics">
+                                    <!-- Performance metrics will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Admin Password Change Modal -->
+    <div id="adminPasswordModal" class="modal" style="display: none;" role="dialog"
+        aria-labelledby="adminPasswordModalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="adminPasswordModalTitle"><i class="fas fa-key" aria-hidden="true"></i> Change Admin Password
+                </h2>
+                <button class="modal-close" onclick="closeAdminPasswordModal()" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="admin-password-form">
+                    <div class="form-group">
+                        <label for="admin-current-password">
+                            <i class="fas fa-lock" aria-hidden="true"></i>
+                            Current Password
+                        </label>
+                        <input type="password" id="admin-current-password" class="form-input" required
+                            aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-new-password">
+                            <i class="fas fa-key" aria-hidden="true"></i>
+                            New Password
+                        </label>
+                        <input type="password" id="admin-new-password" class="form-input" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-confirm-password">
+                            <i class="fas fa-key" aria-hidden="true"></i>
+                            Confirm New Password
+                        </label>
+                        <input type="password" id="admin-confirm-password" class="form-input" required
+                            aria-required="true">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeAdminPasswordModal()" role="button">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn-primary" role="button">
+                            <i class="fas fa-save" aria-hidden="true"></i>
+                            Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Reset Modal -->
+    <div id="passwordResetModal" class="modal" style="display: none;" role="dialog"
+        aria-labelledby="passwordResetModalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="passwordResetModalTitle">🔐 Security First: Set New Password</h2>
+                <p>For security reasons, please set a new password for your admin account.</p>
+            </div>
+
+            <div class="modal-body">
+                <div id="password-reset-error" class="error-message" style="display: none;" role="alert">
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i> <span id="reset-error-text"></span>
+                </div>
+
+                <form id="password-reset-form">
+                    <div class="form-group">
+                        <label for="current-password">Current Password</label>
+                        <input type="password" id="current-password" class="form-input"
+                            placeholder="Enter your current password" required aria-required="true">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="new-password">New Password</label>
+                        <input type="password" id="new-password" class="form-input"
+                            placeholder="Create a strong new password" required aria-required="true">
+                        <div id="password-strength" class="password-strength" style="display: none;">
+                            <div class="strength-bar">
+                                <div class="strength-fill"></div>
+                            </div>
+                            <span class="strength-text"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm-password">Confirm New Password</label>
+                        <input type="password" id="confirm-password" class="form-input"
+                            placeholder="Confirm your new password" required aria-required="true">
+                    </div>
+
+                    <div class="password-requirements">
+                        <strong>Password must include:</strong>
+                        <ul>
+                            <li id="req-len">At least 8 characters</li>
+                            <li id="req-upper">One uppercase letter</li>
+                            <li id="req-lower">One lowercase letter</li>
+                            <li id="req-number">One number</li>
+                            <li id="req-special">One special character</li>
+                        </ul>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary" role="button">
+                            <i class="fas fa-lock" aria-hidden="true"></i> Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Details Modal -->
+    <div id="customerModal" class="modal" style="display: none;" role="dialog" aria-labelledby="customerModalTitle"
+        aria-hidden="true">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="customerModalTitle"><i class="fas fa-user" aria-hidden="true"></i> Customer Details</h2>
+                <button class="modal-close" onclick="closeCustomerModal()" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="customerModalLoading" class="loading-spinner">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p>Loading customer details...</p>
+                </div>
+                <div id="customerModalContent" style="display: none;">
+                    <!-- Customer Info -->
+                    <div class="customer-section">
+                        <h3>Personal Information</h3>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Full Name</label>
+                                <p id="customer-modal-name">-</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Email</label>
+                                <p id="customer-modal-email">-</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Phone</label>
+                                <p id="customer-modal-phone">-</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Address</label>
+                                <p id="customer-modal-address">-</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Member Since</label>
+                                <p id="customer-modal-join-date">-</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Last Login</label>
+                                <p id="customer-modal-last-login">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Bookings -->
+                    <div class="customer-section">
+                        <h3>Recent Bookings</h3>
+                        <div id="customer-recent-bookings" class="booking-list">
+                            <!-- Bookings will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Recent Quotations -->
+                    <div class="customer-section">
+                        <h3>Recent Quotations</h3>
+                        <div id="customer-recent-quotations" class="quotation-list">
+                            <!-- Quotations will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Customer Feedback -->
+                    <div class="customer-section">
+                        <h3>Recent Feedback</h3>
+                        <div id="customer-recent-feedback" class="feedback-list">
+                            <!-- Feedback will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeCustomerModal()">Close</button>
+                <button type="button" class="btn-primary" onclick="editCustomerFromModal()">Edit Customer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Management Section -->
+    <section id="admin-management" class="content-section" role="tabpanel" aria-labelledby="admin-management-tab"
+        tabindex="0" hidden>
+        <div class="section-header">
+            <h2>Admin Management</h2>
+            <button class="btn btn-primary" onclick="openAdminModal()" role="button">
+                <i class="fas fa-plus" aria-hidden="true"></i> Add Admin
+            </button>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table" aria-label="Admin management table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Phone</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Last Login</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="adminsTable">
+                    <!-- Admins will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Add Admin Modal -->
+    <div id="adminModal" class="modal" style="display: none;" role="dialog" aria-labelledby="adminModalTitle"
+        aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="adminModalTitle"><i class="fas fa-user-plus" aria-hidden="true"></i> Add New Admin</h2>
+                <button class="modal-close" onclick="closeAdminModal()" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="admin-form">
+                    <div class="form-group">
+                        <label for="admin-name">Full Name</label>
+                        <input type="text" id="admin-name" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-email">Email Address</label>
+                        <input type="email" id="admin-email" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-phone">Phone Number</label>
+                        <input type="tel" id="admin-phone" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-role">Admin Role</label>
+                        <select id="admin-role" class="form-input" required>
+                            <option value="sub_admin">Sub Admin</option>
+                            <option value="main_admin">Main Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeAdminModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Create Admin</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" class="modal-overlay" aria-hidden="true"></div>
+
+    <!-- Scripts -->
+    <script src="./js/auth-manager.js"></script>
+    <script src="./js/Admin/admin-api.js"></script>
+    <script src="./js/admin-dashboard.js"></script>
+</body>
+
+</html>

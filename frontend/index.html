@@ -9,10 +9,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./src/style.css">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
 
 <body>
-    <!-- Header Section -->
+    <!-- Updated Header Section -->
     <header class="header">
         <!-- Hamburger Menu Button -->
         <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
@@ -28,8 +29,8 @@
 
         <!-- Icons (Right) -->
         <div class="header-icons">
-            <a href="login.html" class="icon-link" aria-label="User Profile">
-                <img src="/frontend/images/user.png" alt="" class="icon">
+            <a href="login.html" class="icon-link" aria-label="User Profile" id="user-profile-link">
+                <img src="/frontend/images/user.png" alt="Login" class="icon" id="user-icon">
             </a>
             <button class="cart-btn" id="cart-btn" aria-label="Shopping Cart">
                 <img src="/frontend/images/shopping-bag.png" alt="" class="icon">
@@ -54,6 +55,7 @@
                 </svg>
             </button>
         </div>
+        <!-- In your navigation menu -->
         <ul class="nav-list">
             <li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
             <li class="nav-item"><a href="about.html" class="nav-link">About</a></li>
@@ -61,17 +63,26 @@
             <li class="nav-item"><a href="services.html" class="nav-link">Services</a></li>
             <li class="nav-item"><a href="products.html" class="nav-link">Products</a></li>
             <li class="nav-item"><a href="gallery.html" class="nav-link">Gallery</a></li>
-            <li class="nav-item"><a href="login.html" class="nav-link">Log In</a></li>
-            <li class="nav-item"><a href="admin.html" class="nav-link">Admin</a></li>
+
+            <!-- Dynamic login/logout -->
+            <li class="nav-item" id="auth-nav-item">
+                <a href="login.html" class="nav-link">Log In</a>
+            </li>
+
+            <!-- Admin link (only shows for admins) -->
+            <li class="nav-item admin-only">
+                <a href="admin-dashboard.html" class="nav-link">Admin</a>
+            </li>
+
             <li class="nav-item">
-                <a href="booking.html" class="nav-link book-now-btn">
+                <a href="booking.html" class="nav-link book-now-btn ">
                     Book Now
                     <svg viewBox="0 0 24 24" width="20" height="20" style="margin-left: 8px;">
                         <path fill="currentColor" d="M4 12v1h13v-1H4zm13 5v-1H4v1h13zm0-9V7H4v1h13z" />
                     </svg>
+
                 </a>
             </li>
-
         </ul>
         <div class="nav-footer">
             <div class="social-links">
@@ -182,7 +193,8 @@
                     <!-- Original 9 service cards -->
                     <a href="services.html#deep-cleaning" class="home-service-card" tabindex="0">
                         <div class="home-card-image">
-                            <img src="/frontend/images/deepcleaning.jpg" alt="Standard and Deep Cleaning Service" loading="lazy">
+                            <img src="/frontend/images/deepcleaning.jpg" alt="Standard and Deep Cleaning Service"
+                                loading="lazy">
                             <div class="home-image-overlay"></div>
                         </div>
                         <div class="home-service-info">
@@ -535,7 +547,8 @@
         </button>
     </footer>
 
-    <script type="module" src="/frontend/src/script.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
+    <script type="module" src="./js/script.js"></script>
 
 </body>
 

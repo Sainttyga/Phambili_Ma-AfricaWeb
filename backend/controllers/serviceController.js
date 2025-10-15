@@ -1,57 +1,208 @@
 const { Service } = require('../models');
+const path = require('path');
+const fs = require('fs');
 
-// CRUD Operations
-// CREATE
+// Create a new service
 exports.createService = async (req, res) => {
   try {
-    const service = await Service.create(req.body);
-    res.status(201).json(service);
+    const { Name, Description, Price, Duration, Category, Is_Available } = req.body;
+
+    if (!Name || !Price || !Duration) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Name, Price, and Duration are required.' 
+      });
+    }
+
+    // Handle image upload
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = `/upload/services/${req.file.filename}`;
+    }
+
+    const service = await Service.create({ 
+      Name, 
+      Description, 
+      Price, 
+      Duration,
+      Category,
+      Is_Available: Is_Available !== undefined ? Is_Available : true,
+      Image_URL: imageUrl
+    });
+
+    res.status(201).json({ 
+      success: true,
+      message: 'Service created successfully', 
+      service 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Create service error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error creating service: ' + err.message 
+    });
   }
 };
 
-// READ
+// Get all services
 exports.getServices = async (req, res) => {
   try {
-    const services = await Service.findAll();
-    res.json(services);
+    const services = await Service.findAll({
+      order: [['created_at', 'DESC']]
+    });
+    
+    res.json({ 
+      success: true,
+      services 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Get services error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching services: ' + err.message 
+    });
   }
 };
 
-// READ
+// Get service by ID
 exports.getServiceById = async (req, res) => {
+  const { id } = req.params;
   try {
-    const service = await Service.findByPk(req.params.id);
-    if (!service) return res.status(404).json({ message: 'Service not found.' });
-    res.json(service);
+    const service = await Service.findByPk(id);
+    if (!service) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Service not found.' 
+      });
+    }
+    
+    res.json({ 
+      success: true,
+      service 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Get service error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching service: ' + err.message 
+    });
   }
 };
 
-// UPDATE
+// Update a service
 exports.updateService = async (req, res) => {
+  const { id } = req.params;
+  const { Name, Description, Price, Duration, Category, Is_Available } = req.body;
+
   try {
-    const service = await Service.findByPk(req.params.id);
-    if (!service) return res.status(404).json({ message: 'Service not found.' });
-    await service.update(req.body);
-    res.json(service);
+    const service = await Service.findByPk(id);
+    if (!service) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Service not found.' 
+      });
+    }
+
+    // Handle image upload
+    let imageUrl = service.Image_URL;
+    if (req.file) {
+      // Delete old image if exists
+      if (service.Image_URL) {
+        const oldImagePath = path.join(__dirname, '..', 'public', service.Image_URL);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      imageUrl = `/upload/services/${req.file.filename}`;
+    }
+
+    await service.update({
+      Name: Name || service.Name,
+      Description: Description !== undefined ? Description : service.Description,
+      Price: Price != null ? Price : service.Price,
+      Duration: Duration != null ? Duration : service.Duration,
+      Category: Category !== undefined ? Category : service.Category,
+      Is_Available: Is_Available !== undefined ? Is_Available : service.Is_Available,
+      Image_URL: imageUrl
+    });
+
+    const updatedService = await Service.findByPk(id);
+    
+    res.json({ 
+      success: true,
+      message: 'Service updated successfully', 
+      service: updatedService 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Update service error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating service: ' + err.message 
+    });
   }
 };
 
-// DELETE
+// Delete a service
 exports.deleteService = async (req, res) => {
+  const { id } = req.params;
   try {
-    const service = await Service.findByPk(req.params.id);
-    if (!service) return res.status(404).json({ message: 'Service not found.' });
+    const service = await Service.findByPk(id);
+    if (!service) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Service not found.' 
+      });
+    }
+
+    // Delete associated image if exists
+    if (service.Image_URL) {
+      const imagePath = path.join(__dirname, '..', 'public', service.Image_URL);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
     await service.destroy();
-    res.json({ message: 'Service deleted.' });
+    
+    res.json({ 
+      success: true,
+      message: 'Service deleted successfully' 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Delete service error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting service: ' + err.message 
+    });
+  }
+};
+
+// Toggle service availability
+exports.toggleServiceAvailability = async (req, res) => {
+  const { id } = req.params;
+  const { isAvailable } = req.body;
+
+  try {
+    const service = await Service.findByPk(id);
+    if (!service) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Service not found.' 
+      });
+    }
+
+    await service.update({ Is_Available: isAvailable });
+    
+    res.json({ 
+      success: true,
+      message: `Service ${isAvailable ? 'activated' : 'deactivated'} successfully`,
+      service 
+    });
+  } catch (err) {
+    console.error('Toggle service availability error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating service availability: ' + err.message 
+    });
   }
 };

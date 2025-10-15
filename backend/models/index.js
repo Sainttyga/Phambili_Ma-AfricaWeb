@@ -1,25 +1,61 @@
-const sequelize = require('../config');
+// models/index.js
 const Customer = require('./customer');
 const Admin = require('./admin');
-const Service = require('./service');
 const Booking = require('./booking');
+const Service = require('./service');
 const Quotation = require('./quotation');
-const Payment = require('./payment');
 const Product = require('./product');
 const Order = require('./order');
+const Payment = require('./payment');
+const sequelize = require('../config'); // Import sequelize instance
 
-// Sync all models
-sequelize.sync({ alter: true })
-  .then(() => console.log('Database synced'))
-  .catch(err => console.error('DB sync error:', err));
+// Customer associations
+Customer.hasMany(Booking, { foreignKey: 'Customer_ID' });
+Customer.hasMany(Quotation, { foreignKey: 'Customer_ID' });
+Customer.hasMany(Order, { foreignKey: 'Customer_ID' });
+
+// Booking associations
+Booking.belongsTo(Customer, { foreignKey: 'Customer_ID' });
+Booking.belongsTo(Service, { foreignKey: 'Service_ID' });
+Booking.hasOne(Payment, { foreignKey: 'Booking_ID' });
+
+// Service associations
+Service.hasMany(Booking, { foreignKey: 'Service_ID' });
+Service.hasMany(Quotation, { foreignKey: 'Service_ID' });
+
+// Quotation associations
+Quotation.belongsTo(Customer, { foreignKey: 'Customer_ID' });
+Quotation.belongsTo(Service, { foreignKey: 'Service_ID' });
+
+// Product associations
+Product.hasMany(Order, { foreignKey: 'Product_ID' });
+
+// Order associations
+Order.belongsTo(Customer, { foreignKey: 'Customer_ID' });
+Order.belongsTo(Product, { foreignKey: 'Product_ID' });
+Order.belongsTo(Payment, { 
+  foreignKey: 'Payment_ID',
+  allowNull: true // Payment is optional for orders
+});
+
+// Payment associations
+Payment.belongsTo(Booking, { foreignKey: 'Booking_ID' });
+Payment.hasOne(Order, { foreignKey: 'Payment_ID' });
+
+// Admin associations (self-referential for sub-admins)
+Admin.belongsTo(Admin, { 
+  as: 'Creator', 
+  foreignKey: 'Created_By' 
+});
 
 module.exports = {
   Customer,
   Admin,
-  Service,
   Booking,
+  Service,
   Quotation,
-  Payment,
   Product,
-  Order
+  Order,
+  Payment,
+  sequelize
 };

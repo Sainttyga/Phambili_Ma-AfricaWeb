@@ -1,5 +1,7 @@
 /* Phambili Ma-Africa - Main Stylesheet */
 @import url(https://fonts.googleapis.com/css?family=Poppins);
+/* Make sure Font Awesome is loaded for icons */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
 
 * {
     box-sizing: border-box;
@@ -97,6 +99,222 @@ body {
 
 .header-scrolled .logo img {
     height: 120px;
+}
+
+/* Login required badge for cart */
+.login-required-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #ff4444;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* Login required message modal */
+.login-required-message {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.login-required-message .message-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.login-required-message h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.login-required-message p {
+    margin-bottom: 1.5rem;
+    color: #666;
+}
+
+.message-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+/* User Dropdown Styles - Fixed Version */
+/* User Dropdown Styles - Ensure these are loaded */
+.user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    min-width: 280px;
+    z-index: 1000;
+    display: none;
+    margin-top: 8px;
+    border: 1px solid #e1e8ed;
+    overflow: hidden;
+    font-family: inherit;
+}
+
+.user-dropdown.show {
+    display: block;
+    animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-user-info {
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dropdown-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+.dropdown-user-details {
+    flex: 1;
+}
+
+.dropdown-user-details strong {
+    display: block;
+    color: #333;
+    font-size: 16px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.dropdown-user-details span {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 2px;
+}
+
+.dropdown-user-details small {
+    font-size: 12px;
+    color: var(--primary-color);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: #e1e8ed;
+    margin: 8px 0;
+}
+
+.dropdown-links {
+    padding: 8px 0;
+}
+
+.dropdown-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: #333;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+    gap: 12px;
+    font-family: inherit;
+}
+
+.dropdown-link:hover {
+    background: #f8f9fa;
+    color: var(--primary-color);
+}
+
+.dropdown-link i {
+    width: 16px;
+    text-align: center;
+}
+
+.logout-btn {
+    color: #e74c3c !important;
+}
+
+.logout-btn:hover {
+    background: #fee !important;
+    color: #c0392b !important;
+}
+
+/* Make sure the user icon container is positioned relatively */
+#user-profile-link {
+    position: relative;
+    display: inline-block;
+}
+
+/* Ensure the user icon is clickable */
+#user-icon {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+#user-profile-link:hover #user-icon {
+    transform: scale(1.1);
+}
+
+
+.profile-required {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* Role-based visibility */
+.admin-only {
+    display: none;
+}
+
+.role-admin .admin-only {
+    display: block;
+}
+
+/* Cart visibility */
+.cart-btn {
+    transition: all 0.3s ease;
 }
 
 /* ====== Navigation Sidebar ====== */
@@ -243,14 +461,13 @@ body {
     margin: 0;
 }
 
-/* ====== Cart Sidebar ====== */
+/* ========================================== Cart Sidebar Start ========================================== */
+
 .cart-sidebar {
     position: fixed;
     top: 0;
     right: -480px;
-    /* Increased width */
     width: 480px;
-    /* Increased from 380px */
     height: 100vh;
     background-color: #fff;
     box-shadow: -4px 0 30px rgba(0, 0, 0, 0.1);
@@ -258,14 +475,11 @@ body {
     display: flex;
     flex-direction: column;
     transition: right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    /* Changed from transform to right */
     overflow-y: auto;
-    /* Changed from hidden to auto */
 }
 
 .cart-sidebar.active {
     right: 0;
-    /* Changed from transform to right positioning */
 }
 
 /* Ensure sidebars appear above overlay */
@@ -315,15 +529,23 @@ body.overlay-active {
     transform: rotate(90deg);
 }
 
+/* Cart Items Container */
+.cart-items-container {
+    flex: 1;
+    padding: 0 25px;
+    overflow-y: auto;
+}
+
 .cart-item {
     display: flex;
     flex-direction: column;
-    padding: 15px 25px;
+    padding: 15px 0;
     margin: 10px 0;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .cart-item:hover {
@@ -399,30 +621,90 @@ body.overlay-active {
     background-color: rgba(255, 77, 79, 0.1);
 }
 
+.cart-item-unit-price {
+    font-size: 12px;
+    color: #999;
+    margin-top: 5px;
+}
+
+/* Empty Cart Styles */
 .empty-cart {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #999;
-    padding: 40px;
+    color: #333;
+    padding: 40px 30px;
     text-align: center;
+    min-height: 400px;
 }
 
-.empty-cart img {
-    margin-bottom: 20px;
-    color: #ddd;
+.empty-cart-icon {
+    margin-bottom: 2rem;
+    color: #666;
+    opacity: 0.7;
 }
 
-.empty-cart p {
+.empty-cart-icon svg {
+    width: 80px;
+    height: 80px;
+}
+
+.empty-cart-text {
+    margin-bottom: 1rem;
+}
+
+.empty-cart-title {
+    font-size: 1.5rem;
+    font-weight: 400;
     margin: 0;
-    font-size: 16px;
+    color: #333;
+    line-height: 1.2;
 }
 
+.empty-cart-title-emphasis {
+    font-weight: 600;
+    color: #000;
+    margin-bottom: 1rem;
+}
+
+.empty-cart-message {
+    color: #666;
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    line-height: 1.4;
+}
+
+.start-shopping-btn,
+.login-cart-btn {
+    background-color: #000;
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.start-shopping-btn:hover,
+.login-cart-btn:hover {
+    background-color: #333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Cart Footer */
 .cart-footer {
     padding: 25px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
+    background: #fff;
+    margin-top: auto;
 }
 
 .cart-summary {
@@ -455,11 +737,20 @@ body.overlay-active {
     font-weight: 600;
     transition: all 0.3s ease;
     margin-bottom: 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
 }
 
 .checkout-btn:hover {
     background-color: var(--accent-color-dark);
     transform: translateY(-2px);
+}
+
+.checkout-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .cart-payment-methods {
@@ -471,6 +762,57 @@ body.overlay-active {
     color: #999;
 }
 
+/* Animation styles */
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.9); }
+}
+
+.animate-bounce {
+    animation: bounce 0.5s;
+}
+
+.empty-animation {
+    animation: fadeOut 0.3s ease-out;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .cart-sidebar {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .cart-header {
+        padding: 20px;
+    }
+    
+    .cart-items-container {
+        padding: 0 20px;
+    }
+    
+    .cart-footer {
+        padding: 20px;
+    }
+    
+    .empty-cart {
+        padding: 30px 20px;
+    }
+    
+    .empty-cart-icon svg {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .empty-cart-title {
+        font-size: 1.3rem;
+    }
+}
 .social-links {
     display: flex;
     gap: 20px;
@@ -552,6 +894,10 @@ body.overlay-active {
     justify-content: center;
     font-weight: 600;
 }
+
+
+/* ========================================== Cart Sidebar End ========================================== */
+
 
 /* ====== Overlay ====== */
 .menu-overlay {
@@ -2666,6 +3012,18 @@ body.overlay-active {
     animation: fadeIn 0.5s ease-out;
 }
 
+/* Error Message */
+.auth-error-message{
+    display: none;
+    background: #e74c3c;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
 /* Footer */
 .auth-footer {
     text-align: center;
@@ -2995,4 +3353,439 @@ body.overlay-active {
 .cta-btn:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Logout Notification Styles */
+.logout-notification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+.logout-notification {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 12px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.4s ease;
+}
+
+.notification-icon {
+    width: 80px;
+    height: 80px;
+    background: #10B981;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: white;
+}
+
+.notification-icon svg {
+    width: 40px;
+    height: 40px;
+}
+
+.notification-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.75rem 0;
+}
+
+.notification-message {
+    color: #6B7280;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin: 0 0 2rem 0;
+}
+
+.notification-confirm-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.875rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.notification-confirm-btn:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+/* First Login Modal Styles - Using Website Colors */
+#firstLoginModal.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+#firstLoginModal.modal-overlay.active {
+    display: flex;
+}
+
+#firstLoginModal .modal {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px; /* Increased from 450px to 600px */
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e1e5e9;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+#firstLoginModal .modal-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0055aa 100%);
+    color: var(--white);
+    padding: 30px 40px; /* Increased padding for larger modal */
+    border-radius: 16px 16px 0 0;
+    text-align: center;
+    position: relative;
+}
+
+#firstLoginModal .modal-header h2 {
+    margin: 0 0 15px 0;
+    font-size: 1.8rem; /* Slightly larger font */
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+#firstLoginModal .modal-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 1.1rem; /* Slightly larger font */
+    line-height: 1.5;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#firstLoginModal .modal-body {
+    padding: 35px 40px; /* Increased padding */
+}
+
+#firstLoginModal .form-group {
+    margin-bottom: 25px; /* More spacing between form groups */
+}
+
+#firstLoginModal .form-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 1rem; /* Slightly larger labels */
+}
+
+#firstLoginModal .form-input {
+    width: 100%;
+    padding: 14px 18px; /* Larger input padding */
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1.05rem; /* Slightly larger font */
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+    background: var(--secondary-color);
+}
+
+#firstLoginModal .form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    background: var(--white);
+}
+
+#firstLoginModal .form-input:read-only {
+    background-color: #f7fafc;
+    color: var(--text-light);
+    cursor: not-allowed;
+}
+
+#firstLoginModal .form-input::placeholder {
+    color: #a0aec0;
+    font-size: 1rem;
+}
+
+#firstLoginModal .password-requirements {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid var(--primary-color);
+}
+
+#firstLoginModal .password-requirements small {
+    color: var(--text-light);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+#firstLoginModal .form-actions {
+    margin-top: 30px; /* More spacing above button */
+    text-align: center;
+}
+
+#firstLoginModal .btn {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0055aa 100%);
+    color: var(--white);
+    border: none;
+    padding: 16px 40px; /* Larger button padding */
+    border-radius: 8px;
+    font-size: 1.1rem; /* Larger button text */
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 250px; /* Wider button */
+    justify-content: center;
+    font-family: inherit;
+    box-shadow: var(--shadow);
+}
+
+#firstLoginModal .btn:hover {
+    background: linear-gradient(135deg, #0055aa 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(0, 102, 204, 0.3);
+}
+
+#firstLoginModal .btn:active {
+    transform: translateY(0);
+}
+
+#firstLoginModal #first-login-error {
+    background: #fed7d7;
+    color: #c53030;
+    padding: 15px 20px; /* Larger error padding */
+    border-radius: 8px;
+    margin-bottom: 25px;
+    border-left: 4px solid #f56565;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: shake 0.5s ease-in-out;
+    font-size: 1rem;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+#firstLoginModal #first-login-error i {
+    font-size: 1.2rem;
+}
+
+/* Close button for modal */
+#firstLoginModal .modal-close {
+    position: absolute;
+    top: 20px; /* Adjusted for larger header */
+    right: 20px; /* Adjusted for larger header */
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: var(--white);
+    width: 36px; /* Slightly larger close button */
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.3rem;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+#firstLoginModal .modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #firstLoginModal .modal {
+        width: 95%;
+        max-width: 500px; /* Slightly smaller max-width on tablets */
+        margin: 20px;
+    }
+    
+    #firstLoginModal .modal-header {
+        padding: 25px 30px;
+    }
+    
+    #firstLoginModal .modal-body {
+        padding: 25px 30px;
+    }
+    
+    #firstLoginModal .modal-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    #firstLoginModal .btn {
+        min-width: 200px;
+        padding: 14px 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    #firstLoginModal .modal {
+        width: 95%;
+        max-width: 400px; /* Smaller max-width on mobile */
+        margin: 15px;
+    }
+    
+    #firstLoginModal .modal-header {
+        padding: 20px 25px;
+    }
+    
+    #firstLoginModal .modal-body {
+        padding: 20px 25px;
+    }
+    
+    #firstLoginModal .modal-header h2 {
+        font-size: 1.3rem;
+    }
+    
+    #firstLoginModal .modal-header p {
+        font-size: 1rem;
+    }
+    
+    #firstLoginModal .btn {
+        min-width: 180px;
+        padding: 12px 25px;
+        font-size: 1rem;
+    }
+}
+
+/* Ensure the modal appears above everything */
+#firstLoginModal {
+    z-index: 10000;
+}
+
+/* Success state for valid inputs */
+#firstLoginModal .form-input:valid:not(:read-only) {
+    border-color: var(--success);
+}
+
+/* Loading state for button */
+#firstLoginModal .btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+#firstLoginModal .btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--white);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Form layout improvements for wider modal */
+#firstLoginModal .form-row {
+    display: flex;
+    gap: 20px;
+}
+
+#firstLoginModal .form-row .form-group {
+    flex: 1;
+}
+
+/* Enhanced password requirements styling */
+#firstLoginModal .password-strength {
+    margin-top: 8px;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#firstLoginModal .password-strength-fill {
+    height: 100%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Optional: Add a progress bar for auto-redirect */
+.logout-notification::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: #007bff;
+    border-radius: 0 0 12px 12px;
+    animation: progressBar 3s linear;
+}
+
+@keyframes progressBar {
+    from { width: 100%; }
+    to { width: 0%; }
 }
