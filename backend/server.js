@@ -3,7 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs'); // Add this
+const fs = require('fs');
 const sequelize = require('./config');
 require('./models');
 const security = require('./middleware/security');
@@ -21,27 +21,35 @@ const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
-app.use(helmet());
 
-// CORS configuration
+// Configure Helmet with proper CORS settings for images
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
+}));
+
+// CORS configuration - MORE PERMISSIVE
 app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://127.0.0.1:5500',
-    'http://localhost:5000' 
+    'http://localhost:5000',
+    'http://127.0.0.1:3000'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(...security);
 
 // Ensure upload directories exist
 const uploadDirs = [
   path.join(__dirname, 'public/upload/products'),
-  path.join(__dirname, 'public/upload/products') // Create both for compatibility
+  path.join(__dirname, 'public/upload/services'),
+  path.join(__dirname, 'public/upload/general')
 ];
 
 uploadDirs.forEach(dir => {
@@ -51,6 +59,25 @@ uploadDirs.forEach(dir => {
   }
 });
 
+// FIXED: Serve static files with proper CORS headers
+app.use('/upload', (req, res, next) => {
+  // Set CORS headers for all static files
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(path.join(__dirname, 'public/upload'), {
+  // Additional static file options
+  dotfiles: 'ignore',
+  etag: true,
+  extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+  index: false,
+  maxAge: '1d',
+  redirect: false
+}));
+
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/services', serviceRoutes);
@@ -61,37 +88,51 @@ app.use('/api/quotations', quotationRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 
-// Serve static files from BOTH paths for compatibility
-app.use('/upload', express.static(path.join(__dirname, 'public/upload'), {
-  setHeaders: (res, path) => {
-    // Allow images to be embedded from any origin
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uploadPath: path.join(__dirname, 'public/upload')
+  });
+});
+
+// Special route to serve images with proper headers
+app.get('/upload/:type/:filename', (req, res) => {
+  const { type, filename } = req.params;
+  const validTypes = ['products', 'services', 'general'];
+  
+  if (!validTypes.includes(type)) {
+    return res.status(400).json({ error: 'Invalid upload type' });
   }
-}));
 
-app.use('/upload', express.static(path.join(__dirname, 'public/upload'), {
-  setHeaders: (res, path) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-  }
-}));
+  const filePath = path.join(__dirname, 'public/upload', type, filename);
+  
+  // Set proper headers for images
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Content-Type', getContentType(filename));
+  
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('Error serving file:', err);
+      res.status(404).json({ error: 'File not found' });
+    }
+  });
+});
 
-// In server.js - update Helmet configuration
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin images
-  crossOriginEmbedderPolicy: false // Disable embedder policy for images
-}));
-
-// OR disable specific security policies for static files
-app.use('/upload', (req, res, next) => {
-  // Disable certain security headers for image files
-  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.set('Cross-Origin-Embedder-Policy', 'unsafe-none');
-  next();
-}, express.static(path.join(__dirname, 'public/upload')));
+// Helper function to determine content type
+function getContentType(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  const contentTypes = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp'
+  };
+  return contentTypes[ext] || 'application/octet-stream';
+}
 
 swagger(app);
 
@@ -111,6 +152,8 @@ async function startServer() {
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server started on port ${PORT}`);
+      console.log(`📁 Upload directory: ${path.join(__dirname, 'public/upload')}`);
+      console.log(`🌐 CORS enabled for: localhost:3000, 127.0.0.1:5500, localhost:5000`);
     });
   } catch (error) {
     console.error('❌ Unable to start server:', error);
