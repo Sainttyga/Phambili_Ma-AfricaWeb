@@ -2,7 +2,7 @@ const { Service } = require('../models');
 const path = require('path');
 const fs = require('fs');
 
-// Create a new service
+// Create a new service// In your serviceController.js - update the createService method
 exports.createService = async (req, res) => {
   try {
     const { Name, Description, Price, Duration, Category, Is_Available } = req.body;
@@ -17,7 +17,9 @@ exports.createService = async (req, res) => {
     // Handle image upload
     let imageUrl = null;
     if (req.file) {
+      // Return the full URL path for the image
       imageUrl = `/upload/services/${req.file.filename}`;
+      console.log(`📸 Image saved: ${imageUrl}`);
     }
 
     const service = await Service.create({ 

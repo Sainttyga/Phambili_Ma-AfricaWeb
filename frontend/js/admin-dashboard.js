@@ -559,43 +559,54 @@ class AdminDashboard {
       if (!grid) return;
 
       if (response.success && response.services && response.services.length > 0) {
-        grid.innerHTML = response.services.map(service => `
-        <div class="service-card" data-service-id="${service.ID}">
-          <div class="service-image">
-            ${service.Image_URL ?
-            `<img src="${service.Image_URL}" alt="${service.Name}" onerror="this.style.display='none'">` :
-            `<div class="service-image-placeholder">
-                <i class="fas fa-concierge-bell"></i>
-              </div>`
+        grid.innerHTML = response.services.map(service => {
+          // Fix image URL - use absolute URL for development
+          let imageUrl = service.Image_URL;
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            imageUrl = `http://localhost:5000${imageUrl}`;
           }
-            <div class="service-status ${service.Is_Available ? 'available' : 'unavailable'}">
-              ${service.Is_Available ? 'Available' : 'Unavailable'}
-            </div>
-          </div>
-          <div class="service-header">
-            <h3>${service.Name}</h3>
-            <span class="service-price">R ${parseFloat(service.Price || 0).toFixed(2)}</span>
-          </div>
-          <div class="service-body">
-            <p>${service.Description || 'No description available'}</p>
-            <div class="service-meta">
-              <span><i class="fas fa-clock"></i> ${service.Duration || 0} minutes</span>
-              <span><i class="fas fa-tag"></i> ${service.Category || 'General'}</span>
-            </div>
-          </div>
-          <div class="service-actions">
-            <button class="btn-icon" onclick="adminDashboard.editService(${service.ID})" title="Edit">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-icon toggle-availability" onclick="adminDashboard.toggleServiceAvailability(${service.ID}, ${!service.Is_Available})" title="${service.Is_Available ? 'Disable' : 'Enable'}">
-              <i class="fas fa-${service.Is_Available ? 'eye-slash' : 'eye'}"></i>
-            </button>
-            <button class="btn-icon delete" onclick="adminDashboard.deleteService(${service.ID})" title="Delete">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `).join('');
+
+          return `
+<div class="product-card" data-service-id="${service.ID}">
+  <div class="product-image">
+    ${imageUrl ?
+              `<img src="${imageUrl}" alt="${service.Name}" 
+           crossorigin="anonymous"
+           loading="lazy"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+           onload="this.style.opacity='1'">` :
+              `<div class="product-image-placeholder">
+        <i class="fas fa-concierge-bell"></i>
+      </div>`
+            }
+    <div class="product-status ${service.Is_Available ? 'available' : 'unavailable'}">
+      ${service.Is_Available ? 'Available' : 'Unavailable'}
+    </div>
+  </div>
+  <div class="product-header">
+    <h3>${service.Name}</h3>
+    <span class="product-price">R ${parseFloat(service.Price || 0).toFixed(2)}</span>
+  </div>
+  <div class="product-body">
+    <p class="product-description">${service.Description || 'No description available'}</p>
+    <div class="product-meta">
+      <span><i class="fas fa-clock"></i> Duration: ${service.Duration || 0} minutes</span>
+      <span><i class="fas fa-tag"></i> ${service.Category || 'General'}</span>
+    </div>
+  </div>
+  <div class="product-actions">
+    <button class="btn-icon" onclick="adminDashboard.editService(${service.ID})" title="Edit">
+      <i class="fas fa-edit"></i>
+    </button>
+    <button class="btn-icon toggle-availability" onclick="adminDashboard.toggleServiceAvailability(${service.ID}, ${!service.Is_Available})" title="${service.Is_Available ? 'Disable' : 'Enable'}">
+      <i class="fas fa-${service.Is_Available ? 'eye-slash' : 'eye'}"></i>
+    </button>
+    <button class="btn-icon delete" onclick="adminDashboard.deleteService(${service.ID})" title="Delete">
+      <i class="fas fa-trash"></i>
+    </button>
+  </div>
+</div>
+      `}).join('');
       } else {
         grid.innerHTML = `
         <div class="empty-state">
@@ -615,6 +626,158 @@ class AdminDashboard {
     }
   }
 
+  // Service CRUD Operations
+  async createService(serviceData) {
+    try {
+      this.showLoading('Creating service...');
+
+      const formData = new FormData();
+
+      // Convert data to correct format before sending
+      const name = serviceData.get('Name');
+      const description = serviceData.get('Description') || '';
+      const price = parseFloat(serviceData.get('Price'));
+      const duration = parseInt(serviceData.get('Duration'));
+      const category = serviceData.get('Category') || '';
+      const isAvailable = serviceData.get('Is_Available') === 'on';
+      const imageFile = serviceData.get('image');
+      const serviceId = serviceData.get('id');
+      const currentImage = serviceData.get('current_image');
+
+      // Debug: Log form data
+      console.log('📝 Service Form Data:', {
+        name,
+        description,
+        price,
+        duration,
+        category,
+        isAvailable,
+        hasImage: !!imageFile,
+        imageName: imageFile ? imageFile.name : 'No image'
+      });
+
+      // Append data in correct format
+      if (serviceId) formData.append('id', serviceId);
+      formData.append('Name', name);
+      formData.append('Description', description);
+      formData.append('Price', price.toString());
+      formData.append('Duration', duration.toString());
+      formData.append('Category', category);
+      formData.append('Is_Available', isAvailable.toString());
+
+      // Append image file if exists
+      if (imageFile && imageFile.size > 0) {
+        formData.append('image', imageFile);
+        console.log('📸 Image file appended:', imageFile.name, imageFile.size);
+      }
+
+      if (currentImage) formData.append('current_image', currentImage);
+
+      const response = await this.api.createService(formData);
+
+      if (response.success) {
+        this.showNotification('Service created successfully', 'success');
+        this.closeServiceModal();
+        await this.loadServices();
+      }
+    } catch (error) {
+      console.error('❌ Create service error:', error);
+
+      // Enhanced error logging
+      if (error.response) {
+        console.error('📊 Backend response:', error.response.data);
+        console.error('🔧 Backend status:', error.response.status);
+
+        if (error.response.data.errors) {
+          const errorMessages = error.response.data.errors.map(err => err.msg || err.message).join(', ');
+          this.showNotification(`Validation failed: ${errorMessages}`, 'error');
+        } else {
+          this.showNotification(error.response.data.message || 'Failed to create service', 'error');
+        }
+      } else if (error.request) {
+        console.error('🌐 No response received:', error.request);
+        this.showNotification('Network error: Could not connect to server', 'error');
+      } else {
+        this.showNotification('Error: ' + error.message, 'error');
+      }
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  async updateService(id, serviceData) {
+    try {
+      this.showLoading('Updating service...');
+
+      const formData = new FormData();
+      Object.keys(serviceData).forEach(key => {
+        if (serviceData[key] !== null && serviceData[key] !== undefined) {
+          formData.append(key, serviceData[key]);
+        }
+      });
+
+      const response = await this.api.updateService(id, formData);
+
+      if (response.success) {
+        this.showNotification('Service updated successfully', 'success');
+        this.closeServiceModal();
+        await this.loadServices();
+      }
+    } catch (error) {
+      console.error('Update service error:', error);
+      this.showNotification(error.response?.data?.message || 'Failed to update service', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  async editService(id) {
+    try {
+      const response = await this.api.getServiceDetails(id);
+      if (response.success) {
+        openServiceModal(response.service);
+      }
+    } catch (error) {
+      console.error('Error fetching service details:', error);
+      this.showNotification('Failed to load service details', 'error');
+    }
+  }
+
+  async deleteService(id) {
+    if (!confirm('Are you sure you want to delete this service? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      this.showLoading('Deleting service...');
+      const response = await this.api.deleteService(id);
+
+      if (response.success) {
+        this.showNotification('Service deleted successfully', 'success');
+        await this.loadServices();
+      }
+    } catch (error) {
+      console.error('Delete service error:', error);
+      this.showNotification(error.response?.data?.message || 'Failed to delete service', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  async toggleServiceAvailability(id, isAvailable) {
+    try {
+      const response = await this.api.toggleServiceAvailability(id, isAvailable);
+
+      if (response.success) {
+        this.showNotification(response.message, 'success');
+        await this.loadServices();
+      }
+    } catch (error) {
+      console.error('Toggle service availability error:', error);
+      this.showNotification(error.response?.data?.message || 'Failed to update service availability', 'error');
+    }
+  }
+
   // Product CRUD Operations
   async createProduct(productData) {
     try {
@@ -628,7 +791,7 @@ class AdminDashboard {
       const price = parseFloat(productData.get('Price'));
       const stockQuantity = parseInt(productData.get('Stock_Quantity'));
       const category = productData.get('Category') || '';
-      const isAvailable = productData.get('Is_Available') === 'on'; // Convert "on" to boolean
+      const isAvailable = productData.get('Is_Available') === 'on';
       const imageFile = productData.get('image');
       const productId = productData.get('id');
       const currentImage = productData.get('current_image');
@@ -637,19 +800,12 @@ class AdminDashboard {
       if (productId) formData.append('id', productId);
       formData.append('Name', name);
       formData.append('Description', description);
-      formData.append('Price', price.toString()); // Ensure it's a string but numeric
-      formData.append('Stock_Quantity', stockQuantity.toString()); // Ensure it's a string but numeric
+      formData.append('Price', price.toString());
+      formData.append('Stock_Quantity', stockQuantity.toString());
       formData.append('Category', category);
-      formData.append('Is_Available', isAvailable.toString()); // Convert to "true" or "false"
+      formData.append('Is_Available', isAvailable.toString());
       if (currentImage) formData.append('current_image', currentImage);
       if (imageFile) formData.append('image', imageFile);
-
-      // Debug: Log corrected data
-      console.log('✅ Corrected product data:');
-      console.log('  Name:', name);
-      console.log('  Price:', price, '(number)');
-      console.log('  Stock_Quantity:', stockQuantity, '(number)');
-      console.log('  Is_Available:', isAvailable, '(boolean)');
 
       const response = await this.api.createProduct(formData);
 
@@ -663,7 +819,6 @@ class AdminDashboard {
 
       if (error.response?.data) {
         console.error('Backend validation errors:', error.response.data.errors);
-        // Show specific validation errors to user
         if (error.response.data.errors && error.response.data.errors.length > 0) {
           const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
           this.showNotification(`Validation failed: ${errorMessages}`, 'error');
@@ -1011,26 +1166,18 @@ class AdminDashboard {
     this.showNotification(`Edit customer #${id} functionality would open here`, 'info');
   }
 
-  editService(id) {
-    this.showNotification(`Edit service #${id} functionality would open here`, 'info');
-  }
-
-  deleteService(id) {
-    if (confirm('Are you sure you want to delete this service?')) {
-      this.showNotification(`Service #${id} deleted`, 'success');
-    }
-  }
-
-  editProduct(id) {
-    // Fetch product details and open modal
-    this.api.getProductDetails(id).then(response => {
+  // In the AdminDashboard class, update the editProduct method:
+  async editProduct(id) {
+    try {
+      const response = await this.api.getProductDetails(id);
       if (response.success) {
+        // Use the global function
         openProductModal(response.product);
       }
-    }).catch(error => {
+    } catch (error) {
       console.error('Error fetching product details:', error);
       this.showNotification('Failed to load product details', 'error');
-    });
+    }
   }
 
   async deleteProduct(id) {
@@ -1364,7 +1511,7 @@ class AdminDashboard {
       }
     });
 
-    // Product form submission
+    // In the setupEventListeners method, update the product form handler:
     const productForm = document.getElementById('product-form');
     if (productForm) {
       productForm.addEventListener('submit', async (e) => {
@@ -1372,10 +1519,14 @@ class AdminDashboard {
         const formData = new FormData(productForm);
         const productId = formData.get('id');
 
-        if (productId) {
-          await adminDashboard.updateProduct(productId, formData);
-        } else {
-          await adminDashboard.createProduct(formData);
+        try {
+          if (productId) {
+            await this.updateProduct(productId, formData);
+          } else {
+            await this.createProduct(formData);
+          }
+        } catch (error) {
+          console.error('Product form submission error:', error);
         }
       });
     }
@@ -1385,13 +1536,25 @@ class AdminDashboard {
     if (serviceForm) {
       serviceForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        console.log('🔄 Service form submitted');
+
         const formData = new FormData(serviceForm);
         const serviceId = formData.get('id');
 
-        if (serviceId) {
-          await adminDashboard.updateService(serviceId, formData);
-        } else {
-          await adminDashboard.createService(formData);
+        // Log all form data for debugging
+        console.log('📋 All form data entries:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`  ${key}:`, value);
+        }
+
+        try {
+          if (serviceId) {
+            await adminDashboard.updateService(serviceId, formData);
+          } else {
+            await adminDashboard.createService(formData);
+          }
+        } catch (error) {
+          console.error('Service form submission error:', error);
         }
       });
     }
@@ -1545,6 +1708,23 @@ class AdminDashboard {
       'admin-profile': 'Admin Profile'
     };
     return titles[section] || 'Dashboard';
+  }
+  // Add these methods to the AdminDashboard class
+
+  closeServiceModal() {
+    const modal = document.getElementById('serviceModal');
+    if (modal) {
+      modal.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+  }
+
+  closeProductModal() {
+    const modal = document.getElementById('productModal');
+    if (modal) {
+      modal.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
   }
 }
 
@@ -1951,43 +2131,91 @@ function closeProductModal() {
   }
 }
 
+// Replace the existing openServiceModal function with this fixed version
 function openServiceModal(service = null) {
-  const modal = document.getElementById('serviceModal');
-  const form = document.getElementById('service-form');
-  const title = document.getElementById('serviceModalTitle');
-  const imagePreview = document.getElementById('serviceImagePreview');
-  const currentImage = document.getElementById('currentServiceImage');
+  try {
+    const modal = document.getElementById('serviceModal');
+    const form = document.getElementById('service-form');
+    const title = document.getElementById('serviceModalTitle');
+    const imagePreview = document.getElementById('serviceImagePreview');
+    const currentImage = document.getElementById('currentServiceImage');
 
-  if (service) {
-    // Edit mode
-    title.innerHTML = '<i class="fas fa-edit"></i> Edit Service';
-    form.elements['service-id'].value = service.ID;
-    form.elements['name'].value = service.Name || '';
-    form.elements['description'].value = service.Description || '';
-    form.elements['price'].value = service.Price || '';
-    form.elements['duration'].value = service.Duration || '';
-    form.elements['category'].value = service.Category || '';
-    form.elements['is_available'].checked = service.Is_Available !== false;
-
-    // Show current image
-    if (service.Image_URL) {
-      currentImage.value = service.Image_URL;
-      imagePreview.innerHTML = `<img src="${service.Image_URL}" alt="Current service image" style="max-width: 200px; max-height: 200px; border-radius: 8px;">`;
-    } else {
-      imagePreview.innerHTML = '<div class="no-image">No image</div>';
+    if (!modal || !form || !title) {
+      console.error('Required modal elements not found');
+      return;
     }
-  } else {
-    // Create mode
-    title.innerHTML = '<i class="fas fa-plus"></i> Add New Service';
-    form.reset();
-    imagePreview.innerHTML = '<div class="no-image">No image selected</div>';
-    currentImage.value = '';
+
+    // Reset form
+    if (form) form.reset();
+
+    // Clear hidden fields
+    const serviceIdField = document.getElementById('service-id');
+    if (serviceIdField) serviceIdField.value = '';
+    if (currentImage) currentImage.value = '';
+
+    // Reset image preview
+    if (imagePreview) {
+      imagePreview.innerHTML = '<div class="no-image">No image selected</div>';
+    }
+
+    // Reset file input
+    const fileInput = document.getElementById('service-image');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+
+    // Set availability checkbox to checked by default
+    const availableCheckbox = document.getElementById('service-available');
+    if (availableCheckbox) {
+      availableCheckbox.checked = true;
+    }
+
+    if (service) {
+      // Edit mode
+      title.innerHTML = '<i class="fas fa-edit"></i> Edit Service';
+
+      // Safely populate form fields
+      setFormValue('service-id', service.ID);
+      setFormValue('service-name', service.Name);
+      setFormValue('service-description', service.Description);
+      setFormValue('service-price', service.Price);
+      setFormValue('service-duration', service.Duration);
+      setFormValue('service-category', service.Category);
+      setFormValue('currentServiceImage', service.Image_URL);
+
+      // Set availability
+      if (availableCheckbox) {
+        availableCheckbox.checked = Boolean(service.Is_Available);
+      }
+
+      // Set image preview if exists
+      if (service.Image_URL && imagePreview) {
+        let imageUrl = service.Image_URL;
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          imageUrl = `http://localhost:5000${imageUrl}`;
+        }
+        imagePreview.innerHTML = `
+          <img src="${imageUrl}" alt="${service.Name}" 
+               onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-image\\'>Image not available</div>';"
+               style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+        `;
+      }
+    } else {
+      // Add mode
+      title.innerHTML = '<i class="fas fa-plus"></i> Add New Service';
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+
+  } catch (error) {
+    console.error('Error opening service modal:', error);
+    if (window.adminDashboard) {
+      window.adminDashboard.showNotification('Error opening service form', 'error');
+    }
   }
-
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
 }
-
 function closeServiceModal() {
   const modal = document.getElementById('serviceModal');
   if (modal) {

@@ -359,15 +359,16 @@
                                         </div>
                                     </div>
                                     <div class="section-actions" style="display: none;">
-                                        <button class="btn-secondary cancel-edit" role="button">
+                                        <button class="btn btn-secondary cancel-edit" role="button">
                                             <i class="fas fa-times" aria-hidden="true"></i>
                                             Cancel
                                         </button>
-                                        <button class="btn-primary save-edit" role="button">
+                                        <button class="btn btn-primary save-edit" role="button">
                                             <i class="fas fa-save" aria-hidden="true"></i>
                                             Save Changes
                                         </button>
                                     </div>
+                                    
                                 </div>
                             </section>
 
@@ -606,9 +607,14 @@
                                     </div>
 
                                     <div class="form-actions">
-                                        <button type="button" class="btn-secondary"
-                                            onclick="closeServiceModal()">Cancel</button>
-                                        <button type="submit" class="btn-primary">Save Service</button>
+                                        <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">
+                                            <i class="fas fa-times"></i>
+                                            Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i>
+                                            Save Service
+                                        </button>
                                     </div>
                                 </form>
                             </div>
@@ -693,9 +699,14 @@
                                     </div>
 
                                     <div class="form-actions">
-                                        <button type="button" class="btn-secondary"
-                                            onclick="closeProductModal()">Cancel</button>
-                                        <button type="submit" class="btn-primary">Save Product</button>
+                                        <button type="button" class="btn btn-secondary" onclick="closeProductModal()">
+                                            <i class="fas fa-times"></i>
+                                            Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i>
+                                            Save Product
+                                        </button>
                                     </div>
                                 </form>
                             </div>
@@ -828,12 +839,13 @@
                             aria-required="true">
                     </div>
                     <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="closeAdminPasswordModal()" role="button">
-                            <i class="fas fa-times" aria-hidden="true"></i>
+                        <button type="button" class="btn btn-secondary" onclick="closeAdminPasswordModal()"
+                            role="button">
+                            <i class="fas fa-times"></i>
                             Cancel
                         </button>
-                        <button type="submit" class="btn-primary" role="button">
-                            <i class="fas fa-save" aria-hidden="true"></i>
+                        <button type="submit" class="btn btn-primary" role="button">
+                            <i class="fas fa-save"></i>
                             Update Password
                         </button>
                     </div>
@@ -1044,8 +1056,14 @@
                         </select>
                     </div>
                     <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="closeAdminModal()">Cancel</button>
-                        <button type="submit" class="btn-primary">Create Admin</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            Create Admin
+                        </button>
                     </div>
                 </form>
             </div>
@@ -1058,6 +1076,7 @@
     <script src="./js/auth-manager.js"></script>
     <script src="./js/Admin/admin-api.js"></script>
     <script src="./js/admin-dashboard.js"></script>
+    
 </body>
 
 </html>

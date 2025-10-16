@@ -6,12 +6,14 @@ const fs = require('fs');
 const createUploadDirs = () => {
   const dirs = [
     path.join(__dirname, '../public/upload/products'),
-    path.join(__dirname, '../public/upload/services')
+    path.join(__dirname, '../public/upload/services'),
+    path.join(__dirname, '../public/upload/general')
   ];
   
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
+      console.log(`✅ Created upload directory: ${dir}`);
     }
   });
 };
@@ -21,24 +23,27 @@ createUploadDirs();
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let uploadPath = 'public/upload/';
+    let uploadPath = path.join(__dirname, '../public/upload/');
     
     // Determine upload path based on route
     if (req.originalUrl.includes('/products')) {
-      uploadPath += 'products/';
+      uploadPath = path.join(uploadPath, 'products');
     } else if (req.originalUrl.includes('/services')) {
-      uploadPath += 'services/';
+      uploadPath = path.join(uploadPath, 'services');
     } else {
-      uploadPath += 'general/';
+      uploadPath = path.join(uploadPath, 'general');
     }
     
+    console.log(`📁 Saving file to: ${uploadPath}`);
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     // Generate unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const fileExtension = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + fileExtension);
+    const filename = 'image-' + uniqueSuffix + fileExtension;
+    console.log(`📸 Generated filename: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -46,8 +51,10 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   // Check if file is an image
   if (file.mimetype.startsWith('image/')) {
+    console.log(`✅ Accepting image: ${file.originalname}, type: ${file.mimetype}`);
     cb(null, true);
   } else {
+    console.log(`❌ Rejecting non-image: ${file.originalname}, type: ${file.mimetype}`);
     cb(new Error('Only image files are allowed!'), false);
   }
 };

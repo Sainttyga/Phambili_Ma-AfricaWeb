@@ -212,6 +212,23 @@ class AdminAPIService {
             throw error;
         }
     }
+    async createService(formData) {
+    try {
+        console.log('🔄 Sending service creation request...');
+        const response = await axios.post(`${this.baseURL}/admin/services`, formData, {
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'multipart/form-data'
+            },
+            timeout: 30000 // 30 second timeout
+        });
+        console.log('✅ Service creation response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('❌ Service creation API error:', error);
+        throw error;
+    }
+}
 
     async updateService(id, serviceData) {
         try {

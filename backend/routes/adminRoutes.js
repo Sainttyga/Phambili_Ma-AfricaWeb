@@ -1,9 +1,10 @@
-// adminRoutes.js - Cleaned up version
+// adminRoutes.js - Updated and Fixed Version
 const express = require('express');
 const { body } = require('express-validator');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const productController = require('../controllers/productController');
+const serviceController = require('../controllers/serviceController'); // Add this import
 const validate = require('../middleware/validate');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -49,10 +50,38 @@ router.put('/bookings/:id', adminController.updateBooking);
 router.delete('/bookings/:id', adminController.deleteBooking);
 
 router.get('/customers', adminController.getAllCustomers);
-router.get('/services', adminController.getAllServices);
+
+// ==================== SERVICE MANAGEMENT ROUTES ====================
+// Use serviceController for all service routes
+router.post('/services',
+  upload.single('image'),
+  [
+    body('Name').notEmpty().withMessage('Service name is required'),
+    body('Price').isDecimal({ min: 0 }).withMessage('Price must be a positive number'),
+    body('Duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 minute')
+  ],
+  validate,
+  serviceController.createService  // Fixed: Use serviceController
+);
+
+router.get('/services', serviceController.getServices);  // Fixed: Use serviceController
+
+router.get('/services/:id', serviceController.getServiceById);  // Fixed: Use serviceController
+
+router.put('/services/:id',
+  upload.single('image'),
+  serviceController.updateService  // Fixed: Use serviceController
+);
+
+router.delete('/services/:id', serviceController.deleteService);  // Fixed: Use serviceController
+
+router.patch('/services/:id/availability', [
+  body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
+], validate, serviceController.toggleServiceAvailability);  // Fixed: Use serviceController
+// ==================== END SERVICE ROUTES ====================
 
 // ==================== PRODUCT MANAGEMENT ROUTES ====================
-// Use productController for all product routes (choose one approach)
+// Use productController for all product routes
 router.post('/products', 
   upload.single('image'),
   [
@@ -66,6 +95,8 @@ router.post('/products',
 
 router.get('/products', productController.getProducts);
 
+router.get('/products/:id', productController.getProductById);  // Add this route
+
 router.put('/products/:id',
   upload.single('image'),
   productController.updateProduct
@@ -78,33 +109,12 @@ router.patch('/products/:id/availability', [
 ], validate, productController.toggleProductAvailability);
 // ==================== END PRODUCT ROUTES ====================
 
-// Service routes
-router.post('/services',
-  upload.single('image'),
-  [
-    body('Name').notEmpty().withMessage('Service name is required'),
-    body('Price').isDecimal({ min: 0 }).withMessage('Price must be a positive number'),
-    body('Duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 minute')
-  ],
-  validate,
-  adminController.createService
-);
-
-router.put('/services/:id',
-  upload.single('image'),
-  adminController.updateService
-);
-
-router.delete('/services/:id', adminController.deleteService);
-
-// Service availability
-router.patch('/services/:id/availability', [
-  body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
-], validate, adminController.toggleServiceAvailability);
-
+// Quotation routes
 router.get('/quotations', adminController.getAllQuotations);
 router.post('/quotations/:id/respond', adminController.respondToQuotation);
+router.get('/quotations/:id', adminController.getQuotationDetails);
 
+// Order routes
 router.get('/orders', adminController.getAllOrders);
 
 // Reports
@@ -122,9 +132,9 @@ router.put('/profile', adminController.updateAdminProfile);
 router.get('/customers/:id', adminController.getCustomerDetails);
 router.put('/customers/:id', adminController.updateCustomer);
 
-router.get('/services/:id', adminController.getServiceDetails);
+// Remove duplicate service routes - use the ones above
+// router.get('/services/:id', adminController.getServiceDetails); // Remove this duplicate
 router.get('/products/:id', adminController.getProductDetails);
-router.get('/quotations/:id', adminController.getQuotationDetails);
 
 // Test route for debugging
 router.get('/test', (req, res) => {
