@@ -1,4 +1,4 @@
-// profile.js - Fixed version with working edit functionality
+// profile.js - Complete updated version with modern notifications throughout
 class ProfileManager {
     constructor() {
         // Check authentication first
@@ -41,36 +41,35 @@ class ProfileManager {
     }
 
     redirectToAdminDashboard() {
-        alert('Admins should use the admin dashboard for profile management.');
-        window.location.href = 'admin-dashboard.html';
+        this.showError('Admins should use the admin dashboard for profile management.');
+        setTimeout(() => {
+            window.location.href = 'admin-dashboard.html';
+        }, 2000);
         return;
     }
 
     async init() {
         await this.loadUserData();
+        await this.loadBookingHistory();
         this.setupEventListeners();
         this.setupEditHandlers();
+        this.setupBookingHistoryListeners();
     }
 
     async loadUserData() {
         try {
-            // Show loading state
-            document.getElementById('profile-fullname').textContent = 'Loading...';
-            document.getElementById('profile-email').textContent = 'Loading...';
+            this.showLoading('Loading profile...');
 
-            // Fetch fresh user data from API
             const response = await axios.get('http://localhost:5000/api/customer/profile', {
                 headers: authManager.getAuthHeaders()
             });
 
             if (response.data) {
                 this.user = response.data;
-
-                // Update authManager with fresh data
                 authManager.user = this.user;
                 localStorage.setItem('user', JSON.stringify(this.user));
-
                 this.updateProfileDisplay();
+                this.showSuccess('Profile loaded successfully!');
             } else {
                 throw new Error('No user data received');
             }
@@ -78,13 +77,15 @@ class ProfileManager {
         } catch (error) {
             console.error('Error loading user data:', error);
 
-            // Fallback to localStorage data if API fails
             if (this.user && Object.keys(this.user).length > 0) {
                 this.updateProfileDisplay();
+                this.showInfo('Using cached profile data');
             } else {
                 this.showError('Failed to load profile data');
-                this.redirectToLogin();
+                setTimeout(() => this.redirectToLogin(), 2000);
             }
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -94,38 +95,25 @@ class ProfileManager {
             return;
         }
 
-        console.log('Updating profile with user data:', this.user);
-
         // Update profile header
-        document.getElementById('profile-fullname').textContent =
-            this.user.Full_Name || 'User';
-        document.getElementById('profile-email').textContent =
-            this.user.Email || 'No email';
-        document.getElementById('profile-role').textContent =
-            authManager.role === 'admin' ? 'Administrator' : 'Customer';
+        document.getElementById('profile-fullname').textContent = this.user.Full_Name || 'User';
+        document.getElementById('profile-email').textContent = this.user.Email || 'No email';
+        document.getElementById('profile-role').textContent = authManager.role === 'admin' ? 'Administrator' : 'Customer';
 
         // Update personal information
-        document.getElementById('info-fullname').textContent =
-            this.user.Full_Name || 'Not set';
-        document.getElementById('info-email').textContent =
-            this.user.Email || 'Not set';
-        document.getElementById('info-phone').textContent =
-            this.user.Phone || 'Not set';
+        document.getElementById('info-fullname').textContent = this.user.Full_Name || 'Not set';
+        document.getElementById('info-email').textContent = this.user.Email || 'Not set';
+        document.getElementById('info-phone').textContent = this.user.Phone || 'Not set';
 
         // Format join date
         const joinDate = this.user.Created_At || this.user.createdAt || this.user.created_at;
-        document.getElementById('info-join-date').textContent =
-            joinDate ? new Date(joinDate).toLocaleDateString() : 'Unknown';
+        document.getElementById('info-join-date').textContent = joinDate ? new Date(joinDate).toLocaleDateString() : 'Unknown';
 
         // Update address information
-        document.getElementById('info-address').textContent =
-            this.user.Address || 'Not set';
-        document.getElementById('info-city').textContent =
-            this.user.City || 'Not set';
-        document.getElementById('info-state').textContent =
-            this.user.State || 'Not set';
-        document.getElementById('info-zip').textContent =
-            this.user.ZipCode || this.user.ZIP_Code || this.user.ZIP || 'Not set';
+        document.getElementById('info-address').textContent = this.user.Address || 'Not set';
+        document.getElementById('info-city').textContent = this.user.City || 'Not set';
+        document.getElementById('info-state').textContent = this.user.State || 'Not set';
+        document.getElementById('info-zip').textContent = this.user.ZipCode || this.user.ZIP_Code || this.user.ZIP || 'Not set';
     }
 
     setupEventListeners() {
@@ -224,23 +212,20 @@ class ProfileManager {
         const editBtn = sectionElement.querySelector('.edit-section-btn');
         const actions = sectionElement.querySelector('.section-actions');
 
-        // Hide edit button and show action buttons
         if (editBtn) editBtn.style.display = 'none';
         if (actions) actions.style.display = 'flex';
 
-        // Show inputs and hide display texts
         const inputs = sectionElement.querySelectorAll('.edit-input');
         const displays = sectionElement.querySelectorAll('.info-item p');
 
         displays.forEach(display => {
-            if (!display.id.includes('join-date')) { // Don't hide join date
+            if (!display.id.includes('join-date')) {
                 display.style.display = 'none';
             }
         });
 
         inputs.forEach(input => {
             input.style.display = 'block';
-            // Set input value from corresponding display text
             const displayId = input.id.replace('edit-', 'info-');
             const displayElement = document.getElementById(displayId);
             if (displayElement) {
@@ -256,11 +241,9 @@ class ProfileManager {
         const inputs = sectionElement.querySelectorAll('.edit-input');
         const displays = sectionElement.querySelectorAll('.info-item p');
 
-        // Show edit button and hide action buttons
         if (editBtn) editBtn.style.display = 'flex';
         if (actions) actions.style.display = 'none';
 
-        // Hide inputs and show display texts
         displays.forEach(display => {
             display.style.display = 'block';
         });
@@ -271,16 +254,13 @@ class ProfileManager {
 
         this.isEditing = false;
         this.currentEditingSection = null;
+        this.showInfo('Editing cancelled');
     }
 
     async saveChanges(section) {
         try {
             this.showLoading('Saving changes...');
 
-            const sectionElement = document.getElementById(section);
-            const inputs = sectionElement.querySelectorAll('.edit-input');
-
-            // Collect updated data based on section
             const updatedData = {};
 
             if (section === 'personal-info') {
@@ -288,7 +268,6 @@ class ProfileManager {
                 updatedData.Email = document.getElementById('edit-email').value.trim();
                 updatedData.Phone = document.getElementById('edit-phone').value.trim();
 
-                // Validation
                 if (!updatedData.Full_Name) {
                     throw new Error('Full name is required');
                 }
@@ -306,12 +285,8 @@ class ProfileManager {
                 updatedData.ZIP_Code = document.getElementById('edit-zip').value.trim();
             }
 
-            // Update via API
             await this.updateUserProfile(updatedData);
-
-            // Update local display
             this.updateLocalDisplay(section, updatedData);
-
             this.cancelEditing(section);
             this.showSuccess('Profile updated successfully!');
 
@@ -325,8 +300,6 @@ class ProfileManager {
 
     async updateUserProfile(updatedData) {
         try {
-            console.log('Updating profile with data:', updatedData);
-
             const response = await axios.put(
                 'http://localhost:5000/api/customer/profile',
                 updatedData,
@@ -336,28 +309,20 @@ class ProfileManager {
             );
 
             if (response.data) {
-                // Update local user data
                 Object.assign(this.user, updatedData);
                 authManager.user = this.user;
                 localStorage.setItem('user', JSON.stringify(this.user));
-
-                console.log('Profile updated successfully:', response.data);
                 return response.data;
             }
         } catch (error) {
-            console.error('API Error updating profile:', error);
-
-            // More detailed error message
             const errorMessage = error.response?.data?.message ||
                 error.response?.data?.error ||
                 'Failed to update profile. Please try again.';
-
             throw new Error(errorMessage);
         }
     }
 
     updateLocalDisplay(section, updatedData) {
-        // Update the display texts with new values
         Object.keys(updatedData).forEach(key => {
             const displayId = `info-${this.mapDbToDisplay(key)}`;
             const displayElement = document.getElementById(displayId);
@@ -366,7 +331,6 @@ class ProfileManager {
             }
         });
 
-        // Also update the profile header
         if (updatedData.Full_Name) {
             document.getElementById('profile-fullname').textContent = updatedData.Full_Name;
         }
@@ -375,25 +339,304 @@ class ProfileManager {
         }
     }
 
-    // Map database field names to display field names
-    mapDbToDisplay(dbField) {
-        const fieldMap = {
-            'Full_Name': 'fullname',
-            'Email': 'email',
-            'Phone': 'phone',
-            'Address': 'address',
-            'City': 'city',
-            'State': 'state',
-            'ZIP_Code': 'zip'
+    // Booking History Methods
+    async loadBookingHistory() {
+        try {
+            this.showLoading('Loading bookings...');
+
+            const response = await axios.get('http://localhost:5000/api/bookings', {
+                headers: authManager.getAuthHeaders()
+            });
+
+            if (response.data && response.data.success) {
+                const bookings = response.data.bookings || [];
+                this.displayBookingHistory(bookings);
+                if (bookings.length > 0) {
+                    this.showSuccess(`Loaded ${bookings.length} booking(s)`);
+                }
+            } else {
+                throw new Error('No booking data received');
+            }
+        } catch (error) {
+            console.error('Error loading booking history:', error);
+            this.displayBookingHistory([]);
+            this.showError('Failed to load booking history');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    displayBookingHistory(bookings) {
+        const bookingHistoryContainer = document.querySelector('.booking-history');
+        if (!bookingHistoryContainer) return;
+
+        if (bookings.length === 0) {
+            bookingHistoryContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-calendar-check empty-icon"></i>
+                    <h3>No Bookings Yet</h3>
+                    <p>You haven't made any bookings yet. Start by booking our cleaning services!</p>
+                    <a href="services.html" class="btn-primary">
+                        <i class="fas fa-calendar-plus"></i>
+                        Book Services
+                    </a>
+                </div>
+            `;
+            return;
+        }
+
+        const sortedBookings = bookings.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+        bookingHistoryContainer.innerHTML = `
+            <div class="bookings-list">
+                ${sortedBookings.map(booking => this.createBookingCard(booking)).join('')}
+            </div>
+        `;
+    }
+
+    createBookingCard(booking) {
+        const serviceName = booking.service_name || 
+                           booking.Service_Name || 
+                           booking.serviceName ||
+                           booking.service?.Name ||
+                           booking.Service?.Name ||
+                           (booking.Service_ID === 12 ? 'Standard & Deep Cleaning' :
+                            booking.Service_ID === 3 ? 'Window Cleaning' :
+                            booking.Service_ID === 4 ? 'Carpet Cleaning' :
+                            booking.Service_ID === 5 ? 'Upholstery Cleaning' :
+                            booking.Service_ID === 6 ? 'Pest Control' :
+                            'Cleaning Service');
+
+        const bookingDate = new Date(booking.Date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        const bookingTime = booking.Time || '09:00';
+        const totalAmount = parseFloat(booking.Total_Amount || 0).toFixed(2);
+        const status = booking.Status || 'pending';
+        const address = booking.Address || 'Address to be confirmed';
+        const specialInstructions = booking.Special_Instructions || 'No special instructions';
+
+        const statusClass = this.getStatusClass(status);
+        const statusIcon = this.getStatusIcon(status);
+
+        return `
+            <div class="booking-card" data-booking-id="${booking.ID}">
+                <div class="booking-header">
+                    <div class="booking-service-info">
+                        <h3 class="booking-service-name">${serviceName}</h3>
+                        <span class="booking-date">
+                            <i class="fas fa-calendar"></i>
+                            ${bookingDate} at ${bookingTime}
+                        </span>
+                    </div>
+                    <div class="booking-status ${statusClass}">
+                        <i class="fas ${statusIcon}"></i>
+                        ${this.formatStatus(status)}
+                    </div>
+                </div>
+                
+                <div class="booking-details">
+                    <div class="booking-detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Address:
+                        </span>
+                        <span class="detail-value">${address}</span>
+                    </div>
+                    
+                    <div class="booking-detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-comment"></i>
+                            Instructions:
+                        </span>
+                        <span class="detail-value">${specialInstructions}</span>
+                    </div>
+                    
+                    <div class="booking-detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-clock"></i>
+                            Duration:
+                        </span>
+                        <span class="detail-value">${booking.Duration || 60} minutes</span>
+                    </div>
+                </div>
+                
+                <div class="booking-footer">
+                    <div class="booking-amount">
+                        <strong>R ${totalAmount}</strong>
+                    </div>
+                    <div class="booking-actions">
+                        ${status === 'pending' ? `
+                            <button class="btn-outline cancel-booking-btn" data-booking-id="${booking.ID}">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </button>
+                        ` : ''}
+                        <button class="btn-outline view-booking-btn" data-booking-id="${booking.ID}">
+                            <i class="fas fa-eye"></i>
+                            View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getStatusClass(status) {
+        const statusClasses = {
+            'pending': 'status-pending',
+            'confirmed': 'status-confirmed',
+            'completed': 'status-completed',
+            'cancelled': 'status-cancelled'
         };
-        return fieldMap[dbField] || dbField.toLowerCase();
+        return statusClasses[status] || 'status-pending';
     }
 
-    isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
+    getStatusIcon(status) {
+        const statusIcons = {
+            'pending': 'fa-clock',
+            'confirmed': 'fa-check-circle',
+            'completed': 'fa-check-double',
+            'cancelled': 'fa-times-circle'
+        };
+        return statusIcons[status] || 'fa-clock';
     }
 
+    formatStatus(status) {
+        const statusMap = {
+            'pending': 'Pending Confirmation',
+            'confirmed': 'Confirmed',
+            'completed': 'Completed',
+            'cancelled': 'Cancelled'
+        };
+        return statusMap[status] || status;
+    }
+
+    setupBookingHistoryListeners() {
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.cancel-booking-btn')) {
+                const bookingId = e.target.closest('.cancel-booking-btn').dataset.bookingId;
+                this.cancelBooking(bookingId);
+            }
+            
+            if (e.target.closest('.view-booking-btn')) {
+                const bookingId = e.target.closest('.view-booking-btn').dataset.bookingId;
+                this.viewBookingDetails(bookingId);
+            }
+        });
+    }
+
+    async cancelBooking(bookingId) {
+        const confirmed = await this.showConfirmationModal(
+            'Cancel Booking',
+            'Are you sure you want to cancel this booking?',
+            'This action cannot be undone.',
+            'Cancel Booking',
+            'Keep Booking'
+        );
+
+        if (!confirmed) {
+            this.showInfo('Booking cancellation cancelled');
+            return;
+        }
+
+        try {
+            this.showLoading('Cancelling booking...');
+            
+            const response = await axios.put(
+                `http://localhost:5000/api/bookings/${bookingId}/cancel`,
+                {},
+                {
+                    headers: authManager.getAuthHeaders()
+                }
+            );
+
+            if (response.data.success) {
+                this.showSuccess('Booking cancelled successfully!');
+                await this.loadBookingHistory();
+            } else {
+                throw new Error(response.data.message || 'Failed to cancel booking');
+            }
+        } catch (error) {
+            console.error('Error cancelling booking:', error);
+            this.showError(error.response?.data?.message || 'Failed to cancel booking. Please try again.');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    viewBookingDetails(bookingId) {
+        this.showInfo('Booking details feature coming soon!');
+    }
+
+    // Modern Confirmation Modal
+    showConfirmationModal(title, message, description, confirmText = 'Confirm', cancelText = 'Cancel') {
+        return new Promise((resolve) => {
+            const existingModal = document.getElementById('confirmation-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'confirmation-modal';
+            modal.className = 'modal-overlay active';
+            modal.innerHTML = `
+                <div class="modal confirmation-modal">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-exclamation-triangle"></i> ${title}</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="confirmation-content">
+                            <p class="confirmation-message">${message}</p>
+                            ${description ? `<p class="confirmation-description">${description}</p>` : ''}
+                        </div>
+                        <div class="confirmation-actions">
+                            <button class="btn-secondary cancel-confirm">
+                                <i class="fas fa-times"></i>
+                                ${cancelText}
+                            </button>
+                            <button class="btn-primary confirm-action">
+                                <i class="fas fa-check"></i>
+                                ${confirmText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('.confirm-action').addEventListener('click', () => {
+                modal.remove();
+                resolve(true);
+            });
+
+            modal.querySelector('.cancel-confirm').addEventListener('click', () => {
+                modal.remove();
+                resolve(false);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    resolve(false);
+                }
+            });
+
+            const handleEscape = (e) => {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                    resolve(false);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+        });
+    }
+
+    // Password Management
     openPasswordModal() {
         const modal = document.getElementById('password-modal');
         if (modal) {
@@ -412,13 +655,11 @@ class ProfileManager {
         }
     }
 
-    // In profile.js - update the changePassword method
     async changePassword() {
         const currentPassword = document.getElementById('current-password')?.value;
         const newPassword = document.getElementById('new-password')?.value;
         const confirmPassword = document.getElementById('confirm-password')?.value;
 
-        // Basic validation
         if (!currentPassword || !newPassword || !confirmPassword) {
             this.showError('Please fill in all fields.');
             return;
@@ -437,9 +678,8 @@ class ProfileManager {
         try {
             this.showLoading('Changing password...');
 
-            // Use the customer route instead of auth route
             const response = await axios.put(
-                'http://localhost:5000/api/customer/change-password', // CHANGED THIS
+                'http://localhost:5000/api/customer/change-password',
                 {
                     currentPassword,
                     newPassword
@@ -458,8 +698,6 @@ class ProfileManager {
 
         } catch (error) {
             console.error('Password change error:', error);
-
-            // More specific error messages
             if (error.response?.status === 400) {
                 this.showError(error.response.data.message || 'Current password is incorrect.');
             } else if (error.response?.status === 404) {
@@ -472,20 +710,47 @@ class ProfileManager {
         }
     }
 
-    showComingSoon(feature) {
-        this.showNotification(`${feature} feature is coming soon!`, 'info');
+    // Utility Methods
+    mapDbToDisplay(dbField) {
+        const fieldMap = {
+            'Full_Name': 'fullname',
+            'Email': 'email',
+            'Phone': 'phone',
+            'Address': 'address',
+            'City': 'city',
+            'State': 'state',
+            'ZIP_Code': 'zip'
+        };
+        return fieldMap[dbField] || dbField.toLowerCase();
     }
 
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    showComingSoon(feature) {
+        this.showInfo(`${feature} feature is coming soon!`);
+    }
+
+    // Modern Notification System
     showSuccess(message) {
-        this.showNotification(message, 'success');
+        this.showNotification(message, 'success', 'check-circle');
     }
 
     showError(message) {
-        this.showNotification(message, 'error');
+        this.showNotification(message, 'error', 'exclamation-circle');
     }
 
-    showNotification(message, type = 'info') {
-        // Remove existing notification
+    showInfo(message) {
+        this.showNotification(message, 'info', 'info-circle');
+    }
+
+    showWarning(message) {
+        this.showNotification(message, 'warning', 'exclamation-triangle');
+    }
+
+    showNotification(message, type = 'info', icon = 'info-circle') {
         const existingNotification = document.querySelector('.profile-notification');
         if (existingNotification) {
             existingNotification.remove();
@@ -494,11 +759,13 @@ class ProfileManager {
         const notification = document.createElement('div');
         notification.className = `profile-notification profile-notification-${type}`;
         notification.innerHTML = `
-            <span>${message}</span>
+            <div class="notification-content">
+                <i class="fas fa-${icon}"></i>
+                <span>${message}</span>
+            </div>
             <button class="notification-close">&times;</button>
         `;
 
-        // Add styles if not already added
         if (!document.querySelector('#profile-notification-styles')) {
             const styles = document.createElement('style');
             styles.id = 'profile-notification-styles';
@@ -507,52 +774,88 @@ class ProfileManager {
                     position: fixed;
                     top: 20px;
                     right: 20px;
-                    padding: 12px 20px;
+                    padding: 16px 20px;
                     border-radius: 8px;
                     color: white;
                     z-index: 10000;
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    gap: 12px;
                     max-width: 400px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                     animation: slideInRight 0.3s ease;
                 }
-                .profile-notification-success { background: #27ae60; }
-                .profile-notification-error { background: #e74c3c; }
-                .profile-notification-info { background: #3498db; }
+                .profile-notification-success { 
+                    background: #27ae60;
+                    border-left: 4px solid #219653;
+                }
+                .profile-notification-error { 
+                    background: #e74c3c;
+                    border-left: 4px solid #c0392b;
+                }
+                .profile-notification-info { 
+                    background: #3498db;
+                    border-left: 4px solid #2980b9;
+                }
+                .profile-notification-warning { 
+                    background: #f39c12;
+                    border-left: 4px solid #e67e22;
+                }
+                .notification-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex: 1;
+                }
                 .notification-close {
                     background: none;
                     border: none;
                     color: white;
                     font-size: 18px;
                     cursor: pointer;
-                    padding: 0;
+                    padding: 4px;
+                    border-radius: 4px;
+                    transition: background-color 0.2s ease;
+                }
+                .notification-close:hover {
+                    background: rgba(255,255,255,0.2);
                 }
                 @keyframes slideInRight {
                     from { transform: translateX(100%); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
                 }
             `;
             document.head.appendChild(styles);
         }
 
         notification.querySelector('.notification-close').addEventListener('click', () => {
-            notification.remove();
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
         });
 
         document.body.appendChild(notification);
 
-        // Auto remove after 5 seconds
         setTimeout(() => {
             if (notification.parentNode) {
-                notification.remove();
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
             }
         }, 5000);
     }
 
     showLoading(message = 'Loading...') {
-        // Remove existing loading
         this.hideLoading();
 
         const loading = document.createElement('div');
@@ -563,7 +866,6 @@ class ProfileManager {
             <span>${message}</span>
         `;
 
-        // Add styles if not already added
         if (!document.querySelector('#profile-loading-styles')) {
             const styles = document.createElement('style');
             styles.id = 'profile-loading-styles';
@@ -574,13 +876,14 @@ class ProfileManager {
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(255,255,255,0.8);
+                    background: rgba(255,255,255,0.9);
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     z-index: 9999;
                     gap: 15px;
+                    backdrop-filter: blur(2px);
                 }
                 .loading-spinner {
                     width: 40px;
@@ -589,6 +892,11 @@ class ProfileManager {
                     border-top: 4px solid #3498db;
                     border-radius: 50%;
                     animation: spin 1s linear infinite;
+                }
+                .profile-loading span {
+                    color: #2c3e50;
+                    font-weight: 600;
+                    font-size: 1.1rem;
                 }
                 @keyframes spin {
                     0% { transform: rotate(0deg); }
@@ -607,15 +915,10 @@ class ProfileManager {
             loading.remove();
         }
     }
-
-    redirectToLogin() {
-        window.location.href = 'login.html';
-    }
 }
 
 // Initialize profile manager when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Wait a bit for authManager to initialize
     setTimeout(() => {
         if (typeof authManager === 'undefined') {
             console.error('AuthManager not available');
@@ -629,10 +932,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Check if admin trying to access customer profile
         if (authManager.userType === 'admin') {
-            alert('Admins should use the admin dashboard for profile management.');
-            window.location.href = 'admin-dashboard.html';
+            const profileManager = new ProfileManager();
+            profileManager.showError('Admins should use the admin dashboard for profile management.');
+            setTimeout(() => {
+                window.location.href = 'admin-dashboard.html';
+            }, 2000);
             return;
         }
 

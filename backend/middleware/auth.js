@@ -1,6 +1,7 @@
+// middleware/auth.js - Fixed version
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
-const { Admin } = require('../models');
+const { Admin, Customer } = require('../models'); // Import both models
 const JWT_SECRET = process.env.JWT_SECRET;
 
 module.exports = async (req, res, next) => {
@@ -16,10 +17,21 @@ module.exports = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Additional security: Verify admin still exists and is active
-    const admin = await Admin.findByPk(decoded.id);
-    if (!admin) {
-      return res.status(401).json({ message: 'Admin account no longer exists' });
+    // Check if user is admin or customer based on the role in the token
+    if (decoded.role === 'admin') {
+      // Verify admin still exists and is active
+      const admin = await Admin.findByPk(decoded.id);
+      if (!admin) {
+        return res.status(401).json({ message: 'Admin account no longer exists' });
+      }
+    } else if (decoded.role === 'customer') {
+      // Verify customer still exists
+      const customer = await Customer.findByPk(decoded.id);
+      if (!customer) {
+        return res.status(401).json({ message: 'Customer account no longer exists' });
+      }
+    } else {
+      return res.status(401).json({ message: 'Invalid user role' });
     }
 
     req.user = {

@@ -68,7 +68,7 @@ exports.register = async (req, res) => {
     const token = jwt.sign(
       { 
         id: customer.ID, 
-        Email: customer.Email, 
+        email: customer.Email, 
         role: 'customer' 
       },
       JWT_SECRET,
@@ -181,7 +181,7 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       { 
         id: user.ID, 
-        Email: user.Email, 
+        email: user.Email, 
         role: role 
       },
       JWT_SECRET,

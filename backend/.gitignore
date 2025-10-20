@@ -12,6 +12,10 @@ yarn-error.log
 # hash-passwords
 hash-passwords.js
 
+# uploaded-pictures through database
+products
+services
+
 # Logs
 logs/
 *.log

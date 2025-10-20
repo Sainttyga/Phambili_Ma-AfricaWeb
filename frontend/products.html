@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phambili Ma-Africa | Professional Cleaning Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+    <!-- Updated Header Section -->
+    <header class="header">
+        <!-- Hamburger Menu Button -->
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
+            <img src="/frontend/images/menu.png" alt="Close">
+        </button>
+
+        <!-- Logo -->
+        <div class="logo">
+            <a href="index.html">
+                <img src="./images/PM-LogoB.png" alt="Phambili Ma-Africa Logo">
+            </a>
+        </div>
+
+        <!-- Icons (Right) -->
+        <div class="header-icons">
+            <a href="login.html" class="icon-link" aria-label="User Profile" id="user-profile-link">
+                <img src="/frontend/images/user.png" alt="Login" class="icon" id="user-icon">
+            </a>
+            <button class="cart-btn" id="cart-btn" aria-label="Shopping Cart">
+                <img src="/frontend/images/shopping-bag.png" alt="" class="icon">
+                <span class="cart-badge">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Overlay (must be outside header but before sidebars) -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+
+    <!-- Navigation Sidebar (Left) -->
+    <nav class="main-nav" id="main-nav">
+        <div class="nav-header">
+            <div class="nav-logo">
+                <img src="./images/PM-LogoB.png" alt="Phambili Ma-Africa Logo">
+            </div>
+            <button class="close-nav-btn" id="close-nav-btn" aria-label="Close menu">
+                <svg viewBox="0 0 24 24" width="30" height="30">
+                    <path fill="currentColor"
+                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+            </button>
+        </div>
+        <ul class="nav-list">
+            <li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
+            <li class="nav-item"><a href="about.html" class="nav-link">About</a></li>
+            <li class="nav-item"><a href="contact.html" class="nav-link">Contact</a></li>
+            <li class="nav-item"><a href="services.html" class="nav-link">Services</a></li>
+            <li class="nav-item"><a href="products.html" class="nav-link">Products</a></li>
+            <li class="nav-item"><a href="gallery.html" class="nav-link">Gallery</a></li>
+            <li class="nav-item">
+                <a href="booking.html" class="nav-link book-now-btn">
+                    Book Now
+                    <svg viewBox="0 0 24 24" width="20" height="20" style="margin-left: 8px;">
+                        <path fill="currentColor" d="M4 12v1h13v-1H4zm13 5v-1H4v1h13zm0-9V7H4v1h13z" />
+                    </svg>
+                </a>
+            </li>
+        </ul>
+        <div class="nav-footer">
+            <div class="social-links">
+                <a href="#" aria-label="Facebook">
+                    <svg viewBox="0 0 24 24">
+                        <path fill="currentColor"
+                            d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
+                    </svg>
+                </a>
+                <a href="#" aria-label="Instagram">
+                    <svg viewBox="0 0 24 24">
+                        <path fill="currentColor"
+                            d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02z" />
+                    </svg>
+                </a>
+                <a href="#" aria-label="Twitter">
+                    <svg viewBox="0 0 24 24">
+                        <path fill="currentColor"
+                            d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z" />
+                    </svg>
+                </a>
+            </div>
+            <p class="copyright">© <span id="current-year"></span> Phambili Ma-Africa. All rights reserved.</p>
+        </div>
+    </nav>
+
+    <!-- Cart Sidebar (Right) -->
+    <aside class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-header">
+            <h3 class="cart-title">Your Shopping Cart</h3>
+            <button class="close-cart-btn" id="close-cart-btn" aria-label="Close cart">
+                <svg viewBox="0 0 24 24" width="30" height="30">
+                    <path fill="currentColor"
+                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+            </button>
+        </div>
+        <div class="cart-items">
+            <div class="empty-cart">
+                <svg viewBox="0 0 24 24" width="48" height="48">
+                    <path fill="currentColor"
+                        d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
+                </svg>
+                <p>Your cart is empty</p>
+            </div>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-summary">
+                <div class="cart-subtotal">
+                    <span>Subtotal</span>
+                    <span class="cart-total">R0.00</span>
+                </div>
+                <p class="cart-shipping">Shipping & taxes calculated at checkout</p>
+            </div>
+            <a href="/checkout.html" class="checkout-btn">Proceed to Checkout</a>
+            <div class="cart-payment-methods">
+                <svg viewBox="0 0 38 24" width="38" height="24">
+                    <path fill="#5A6988"
+                        d="M35 0H3C1.3 0 0 1.3 0 3v18c0 1.7 1.4 3 3 3h32c1.7 0 3-1.3 3-3V3c0-1.7-1.4-3-3-3z" />
+                    <path fill="#fff" d="M35 1c1.1 0 2 .9 2 2v18c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V3c0-1.1.9-2 2-2h32" />
+                    <path fill="#172B85"
+                        d="M8.6 12c0-1.7 1.3-3 3-3h5.3c1.7 0 3 1.3 3 3s-1.3 3-3 3h-5.3c-1.7 0-3-1.3-3-3z" />
+                    <path fill="#FF5F00" d="M30.9 16h-6.3v-8h6.3v8z" />
+                    <path fill="#EB001B"
+                        d="M25.1 12c0-2.2 1.1-4.1 2.8-5.2-1.2-1.1-2.8-1.8-4.5-1.8-3.1 0-5.7 2.5-5.7 5.7s2.5 5.7 5.7 5.7c1.7 0 3.3-.7 4.5-1.8-1.7-1.1-2.8-3-2.8-5.2z" />
+                    <path fill="#F79E1B"
+                        d="M37 12c0 2.2-1.1 4.1-2.8 5.2 1.2 1.1 2.8 1.8 4.5 1.8 3.1 0 5.7-2.5 5.7-5.7s-2.5-5.7-5.7-5.7c-1.7 0-3.3.7-4.5 1.8 1.7 1.1 2.8 3 2.8 5.2z" />
+                </svg>
+                <span>Secure Payment</span>
+            </div>
+        </div>
+    </aside>
+    <section>
+        <div class="section">
+            <div class="services-container">
+                <div class="services-header">
+                    <h1 id="services-title">Cleaning Products</h1>
+                    <p>Discover the range of professional cleaning solutions we offer to make your space spotless.</p>
+                </div>
+            </div>
+            <div class="coming-soon-container">
+                <div class="coming-soon-content">
+                    <div class="product-coming-soon-container">
+                        <div class="product-coming-soon-content">
+                            <div class="product-coming-soon-icon">
+                                <i class="fas fa-broom"></i>
+                            </div>
+                            <h2>Coming Soon!</h2>
+                            <p>We're currently curating our selection of premium cleaning products for you to purchase.
+                                Sign up below to be notified when our product line launches.</p>
+
+                            <form class="product-notify-form">
+                                <input type="email" placeholder="Enter your email address" required>
+                                <button type="submit">Notify Me</button>
+                            </form>
+
+                            <div class="product-categories">
+                                <div class="product-category-card">
+                                    <div class="product-category-icon">
+                                        <i class="fas fa-spray-can"></i>
+                                    </div>
+                                    <h3>Surface Cleaners</h3>
+                                    <p>Specialized formulas for all surfaces in your home or office</p>
+                                </div>
+
+                                <div class="product-category-card">
+                                    <div class="product-category-icon">
+                                        <i class="fas fa-pump-soap"></i>
+                                    </div>
+                                    <h3>Disinfectants</h3>
+                                    <p>Hospital-grade disinfectants to keep your space germ-free</p>
+                                </div>
+
+                                <div class="product-category-card">
+                                    <div class="product-category-icon">
+                                        <i class="fas fa-wind"></i>
+                                    </div>
+                                    <h3>Air Fresheners</h3>
+                                    <p>Natural and long-lasting scents for every space</p>
+                                </div>
+
+                                <div class="product-category-card">
+                                    <div class="product-category-icon">
+                                        <i class="fas fa-broom"></i>
+                                    </div>
+                                    <h3>Cleaning Tools</h3>
+                                    <p>Professional-grade tools used by our cleaning experts</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <!-- Company Info -->
+            <div class="footer-section company-info">
+                <div class="footer-logo">
+                    <img src="./images/PM-LogoB.png" alt="Phambili Ma-Africa Logo" width="180" loading="lazy">
+                </div>
+                <p class="footer-motto">Making spaces shine since 2019</p>
+
+                <div class="social-links">
+                    <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="footer-section quick-links">
+                <h3 class="footer-heading">Quick Links</h3>
+                <ul class="quick-links-list">
+                    <li><a href="index.html"><i class="fas fa-chevron-right"></i> Home</a></li>
+                    <li><a href="services.html"><i class="fas fa-chevron-right"></i> Services</a></li>
+                    <li><a href="about.html"><i class="fas fa-chevron-right"></i> About Us</a></li>
+                    <li><a href="projects.html"><i class="fas fa-chevron-right"></i> Our Projects</a></li>
+                    <li><a href="gallery.html"><i class="fas fa-chevron-right"></i> Gallery</a></li>
+                    <li><a href="contact.html"><i class="fas fa-chevron-right"></i> Contact</a></li>
+                </ul>
+            </div>
+
+            <!-- Services -->
+            <div class="footer-section services">
+                <h3 class="footer-heading">Our Services</h3>
+                <div class="footer-services-grid">
+                    <ul>
+                        <li><a href="services.html#deep-cleaning" tabindex="0"><i class="fas fa-broom"></i> Standard &
+                                Deep
+                                Cleaning</a></li>
+                        <li><a href="services.html#office-cleaning" tabindex="0"><i class="fas fa-building"></i> Office
+                                Cleaning</a>
+                        </li>
+                        <li><a href="services.html#window-cleaning" tabindex="0"><i class="fas fa-window-maximize"></i>
+                                Window
+                                Cleaning</a></li>
+                        <li><a href="services.html#carpet-cleaning" tabindex="0"><i class="fas fa-rug"></i> Carpet
+                                Cleaning</a></li>
+                        <li><a href="services.html#upholstery-cleaning"><i class="fas fa-couch"></i> Upholstery
+                                Cleaning</a></li>
+                    </ul>
+                    <ul>
+                        <li><a href="products.html"><i class="fas fa-spray-can"></i> Cleaning Products</a></li>
+                        <li><a href="services.html#pest-control" tabindex="0"><i class="fas fa-bug"></i> Pest
+                                Control</a></li>
+                        <li><a href="services.html#Fumigation" tabindex="0"><i class="fas fa-smog"></i>
+                                Fumigation</a></li>
+                        <li><a href="services.html#Disinfecting" tabindex="0"><i class="fas fa-virus-slash"></i>
+                                Disinfecting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="footer-section contact-info">
+                <h3 class="footer-heading">Contact Us</h3>
+                <ul class="contact-details">
+                    <li><i class="fas fa-map-marker-alt"></i> 2676 Isikhwama Street, Phiri Extension, Phiri, Soweto,
+                        1818</li>
+                    <li><i class="fas fa-phone"></i> <a href="tel:+27726625951">+27 72 662 5951</a></li>
+                    <li><i class="fas fa-phone"></i> <a href="tel:+27609707444">+27 60 970 7444</a></li>
+                    <li><i class="fas fa-envelope"></i> <a
+                            href="mailto:info@phambilimaafrica.co.za">info@phambilimaafrica.co.za</a></li>
+                    <li><i class="fas fa-clock"></i> Open 24 hours</li>
+
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer Bottom -->
+        <div class="footer-bottom">
+            <div class="footer-bottom-container">
+                <p>&copy; 2023 Phambili Ma-Africa Cleaning Services. All rights reserved. Reg. No: 2023/123456/07</p>
+                <div class="legal-links">
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back to Top Button -->
+        <button class="back-to-top" aria-label="Back to top">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+    </footer>
+
+    <script type="module" src="./js/auth-manager.js"></script>
+    <script type="module" src="./js/script.js"></script>
+</body>
+
+</html>

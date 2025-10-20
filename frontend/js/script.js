@@ -987,42 +987,42 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
   // First Login Modal Functions
-function closeFirstLoginModal() {
+  function closeFirstLoginModal() {
     const modal = document.getElementById('firstLoginModal');
     if (modal) {
-        modal.style.display = 'none';
-        modal.classList.remove('active');
+      modal.style.display = 'none';
+      modal.classList.remove('active');
     }
-}
+  }
 
-function showFirstLoginModal(email) {
+  function showFirstLoginModal(email) {
     const modal = document.getElementById('firstLoginModal');
     const emailInput = document.getElementById('first-login-email');
 
     if (modal && emailInput) {
-        emailInput.value = email;
-        modal.style.display = 'flex';
-        modal.classList.add('active');
+      emailInput.value = email;
+      modal.style.display = 'flex';
+      modal.classList.add('active');
 
-        // Clear any previous errors
-        const errorDiv = document.getElementById('first-login-error');
-        if (errorDiv) {
-            errorDiv.style.display = 'none';
-        }
+      // Clear any previous errors
+      const errorDiv = document.getElementById('first-login-error');
+      if (errorDiv) {
+        errorDiv.style.display = 'none';
+      }
 
-        // Reset form
-        const form = document.getElementById('first-login-form');
-        if (form) {
-            form.reset();
-            emailInput.value = email; // Keep the email set
-        }
+      // Reset form
+      const form = document.getElementById('first-login-form');
+      if (form) {
+        form.reset();
+        emailInput.value = email; // Keep the email set
+      }
 
-        // Setup form submission
-        setupFirstLoginForm();
+      // Setup form submission
+      setupFirstLoginForm();
     }
-}
+  }
 
-function setupFirstLoginForm() {
+  function setupFirstLoginForm() {
     const form = document.getElementById('first-login-form');
     const errorDiv = document.getElementById('first-login-error');
     const errorText = document.getElementById('first-login-error-text');
@@ -1034,85 +1034,85 @@ function setupFirstLoginForm() {
     form.parentNode.replaceChild(newForm, form);
 
     newForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+      e.preventDefault();
 
-        // Hide previous errors
-        if (errorDiv) errorDiv.style.display = 'none';
+      // Hide previous errors
+      if (errorDiv) errorDiv.style.display = 'none';
 
-        const formData = {
-            Email: document.getElementById('first-login-email').value,
-            TemporaryPassword: document.getElementById('temporary-password').value,
-            NewPassword: document.getElementById('new-admin-password').value
-        };
+      const formData = {
+        Email: document.getElementById('first-login-email').value,
+        TemporaryPassword: document.getElementById('temporary-password').value,
+        NewPassword: document.getElementById('new-admin-password').value
+      };
 
-        const confirmPassword = document.getElementById('confirm-admin-password').value;
+      const confirmPassword = document.getElementById('confirm-admin-password').value;
 
-        // Validation
-        if (formData.NewPassword !== confirmPassword) {
-            showFirstLoginError('Passwords do not match');
-            return;
+      // Validation
+      if (formData.NewPassword !== confirmPassword) {
+        showFirstLoginError('Passwords do not match');
+        return;
+      }
+
+      if (formData.NewPassword.length < 8) {
+        showFirstLoginError('Password must be at least 8 characters long');
+        return;
+      }
+
+      try {
+        const response = await axios.post('http://localhost:5000/api/admin/first-login', formData);
+
+        if (response.data.success && response.data.token) {
+          // Login with new token using authManager
+          if (typeof authManager !== 'undefined') {
+            authManager.login(
+              response.data.token,
+              response.data.role,
+              response.data.user,
+              'admin'
+            );
+
+            // Hide modal and redirect to admin dashboard
+            closeFirstLoginModal();
+            window.location.href = 'admin-dashboard.html';
+          }
         }
-
-        if (formData.NewPassword.length < 8) {
-            showFirstLoginError('Password must be at least 8 characters long');
-            return;
-        }
-
-        try {
-            const response = await axios.post('http://localhost:5000/api/admin/first-login', formData);
-
-            if (response.data.success && response.data.token) {
-                // Login with new token using authManager
-                if (typeof authManager !== 'undefined') {
-                    authManager.login(
-                        response.data.token,
-                        response.data.role,
-                        response.data.user,
-                        'admin'
-                    );
-
-                    // Hide modal and redirect to admin dashboard
-                    closeFirstLoginModal();
-                    window.location.href = 'admin-dashboard.html';
-                }
-            }
-        } catch (error) {
-            const errorMessage = error.response?.data?.message || 'Error setting up account';
-            showFirstLoginError(errorMessage);
-        }
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || 'Error setting up account';
+        showFirstLoginError(errorMessage);
+      }
     });
-}
+  }
 
-function showFirstLoginError(message) {
+  function showFirstLoginError(message) {
     const errorDiv = document.getElementById('first-login-error');
     const errorText = document.getElementById('first-login-error-text');
 
     if (errorDiv && errorText) {
-        errorText.textContent = message;
-        errorDiv.style.display = 'block';
-        
-        // Scroll to error
-        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
+      errorText.textContent = message;
+      errorDiv.style.display = 'block';
 
-// Close modal when clicking outside
-document.addEventListener('click', function (e) {
+      // Scroll to error
+      errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  // Close modal when clicking outside
+  document.addEventListener('click', function (e) {
     const modal = document.getElementById('firstLoginModal');
     if (modal && e.target === modal) {
-        closeFirstLoginModal();
+      closeFirstLoginModal();
     }
-});
+  });
 
-// Close modal with Escape key
-document.addEventListener('keydown', function (e) {
+  // Close modal with Escape key
+  document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-        const modal = document.getElementById('firstLoginModal');
-        if (modal && modal.style.display === 'flex') {
-            closeFirstLoginModal();
-        }
+      const modal = document.getElementById('firstLoginModal');
+      if (modal && modal.style.display === 'flex') {
+        closeFirstLoginModal();
+      }
     }
-});
+  });
 
   // Add this helper function to wait for authManager
   async function waitForAuthManager(maxWait = 5000) {
@@ -1259,101 +1259,6 @@ document.addEventListener('keydown', function (e) {
     });
   }
 
-  const serviceButtons = document.querySelectorAll('.service-cta-btn');
-  const servicePopup = document.getElementById('service-popup');
-  const popupClose = document.querySelector('.popup-close');
-  const popupOverlay = document.querySelector('.popup-overlay');
-
-  const services = {
-    'deep-cleaning': {
-      title: 'Standard & Deep Cleaning',
-      price: 'From R350',
-      description: 'Refresh your space from top to bottom with our thorough deep cleaning — perfect for hard-to-reach areas and detailed care.',
-      image: '/images/deepcleaning.jpg',
-      options: [
-        'Standard Cleaning',
-        'Deep Cleaning',
-        'Move-in/Move-out Cleaning',
-        'Post-Construction Cleaning'
-      ]
-    },
-    'office-cleaning': {
-      title: 'Office Cleaning',
-      price: 'From R500',
-      description: 'Boost your workplace productivity and professionalism with our expert office cleaning services tailored to your needs.',
-      image: '/images/office.jpg',
-      options: [
-        'Daily Office Cleaning',
-        'Weekly Office Cleaning',
-        'Deep Office Cleaning',
-        'Carpet Cleaning for Offices'
-      ]
-    }
-  };
-
-  serviceButtons.forEach(button => {
-    button.addEventListener('click', function () {
-      const serviceId = this.getAttribute('data-service');
-      const service = services[serviceId];
-
-      if (!service) return;
-
-      const popupTitle = document.getElementById('popup-service-title');
-      const popupPrice = document.getElementById('popup-service-price');
-      const popupDescription = document.getElementById('popup-service-description');
-      const popupImage = document.getElementById('popup-service-image');
-      const serviceTypeSelect = document.getElementById('service-type');
-
-      if (popupTitle) popupTitle.textContent = service.title;
-      if (popupPrice) popupPrice.textContent = service.price;
-      if (popupDescription) popupDescription.textContent = service.description;
-      if (popupImage) {
-        popupImage.src = service.image;
-        popupImage.alt = service.title;
-      }
-
-      if (serviceTypeSelect) {
-        serviceTypeSelect.innerHTML = '<option value="" disabled selected>Select service type</option>';
-        service.options.forEach(option => {
-          const opt = document.createElement('option');
-          opt.value = option.toLowerCase().replace(/ /g, '-');
-          opt.textContent = option;
-          serviceTypeSelect.appendChild(opt);
-        });
-      }
-
-      if (servicePopup) {
-        servicePopup.classList.add('active');
-        document.body.style.overflow = 'hidden';
-      }
-    });
-  });
-
-  function closePopup() {
-    if (servicePopup) {
-      servicePopup.classList.remove('active');
-      document.body.style.overflow = '';
-    }
-  }
-
-  if (popupClose) popupClose.addEventListener('click', closePopup);
-  if (popupOverlay) popupOverlay.addEventListener('click', closePopup);
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && servicePopup && servicePopup.classList.contains('active')) {
-      closePopup();
-    }
-  });
-
-  const bookingForm = document.getElementById('service-booking-form');
-  if (bookingForm) {
-    bookingForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      alert('Booking request submitted! We will contact you shortly to confirm.');
-      closePopup();
-      this.reset();
-    });
-  }
 
   // ========== GALLERY FUNCTIONALITY ==========
   const filterButtons = document.querySelectorAll('.filter-btn');

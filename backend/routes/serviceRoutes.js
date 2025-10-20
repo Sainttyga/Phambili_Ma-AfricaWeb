@@ -5,8 +5,35 @@ const serviceController = require('../controllers/serviceController');
 const validate = require('../middleware/validate');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { Service } = require('../models'); // Add this import
 
-// Protect all routes with auth middleware
+// ==================== PUBLIC ROUTES ====================
+
+// Public route to get all available services (NO AUTH REQUIRED)
+router.get('/public/services', async (req, res) => {
+  try {
+    const services = await Service.findAll({
+      where: { Is_Available: true },
+      order: [['created_at', 'DESC']],
+      attributes: ['ID', 'Name', 'Description', 'Price', 'Duration', 'Category', 'Is_Available', 'Image_URL']
+    });
+    
+    res.json({ 
+      success: true,
+      services 
+    });
+  } catch (err) {
+    console.error('Public services error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching services' 
+    });
+  }
+});
+
+// ==================== PROTECTED ROUTES (REQUIRE AUTH) ====================
+
+// Protect all routes below this line with auth middleware
 router.use(auth);
 
 // Create a service with image upload
@@ -22,13 +49,13 @@ router.post(
   serviceController.createService
 );
 
-// Get all services
+// Get all services (PROTECTED - requires auth)
 router.get('/', serviceController.getServices);
 
-// Get service by ID
+// Get service by ID (PROTECTED - requires auth)
 router.get('/:id', serviceController.getServiceById);
 
-// Update service with image upload
+// Update service with image upload (PROTECTED - requires auth)
 router.put(
   '/:id',
   upload.single('image'),
@@ -40,10 +67,10 @@ router.put(
   serviceController.updateService
 );
 
-// Delete service
+// Delete service (PROTECTED - requires auth)
 router.delete('/:id', serviceController.deleteService);
 
-// Toggle service availability
+// Toggle service availability (PROTECTED - requires auth)
 router.patch('/:id/availability', [
   body('isAvailable').isBoolean()
 ], validate, serviceController.toggleServiceAvailability);
