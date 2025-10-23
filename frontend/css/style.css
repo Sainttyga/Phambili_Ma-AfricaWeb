@@ -1,26 +1,21 @@
 /* Phambili Ma-Africa - Main Stylesheet */
 @import url(https://fonts.googleapis.com/css?family=Poppins);
-/* Make sure Font Awesome is loaded for icons */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
 
-* {
-    box-sizing: border-box;
-    font-family: "Poppins", sans-serif;
-
-}
-
-/* Reset styles */
+/* ========================================== CSS RESET & VARIABLES START ========================================== */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-
+    font-family: "Poppins", sans-serif;
 }
 
 :root {
     --primary-color: #0066cc;
+    --primary-dark: #0055aa;
     --secondary-color: #f8f8f8;
     --accent-color: #ffcc00;
+    --accent-color-dark: #e6b800;
     --text-color: #333;
     --text-light: #777;
     --white: #fff;
@@ -31,7 +26,6 @@
     --z-index-header: 990;
     --z-index-overlay: 999;
     --z-index-sidebars: 1000;
-
 }
 
 body {
@@ -42,16 +36,15 @@ body {
     padding-top: var(--header-height);
 }
 
-/* Container */
 .container {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 15px;
 }
+/* ========================================== CSS RESET & VARIABLES END ========================================== */
 
-/* --- Header with Smooth Fade Effect on Scroll --- */
-/* ====== Header Styles ====== */
+/* ========================================== HEADER START ========================================== */
 .header {
     position: fixed;
     top: 0;
@@ -64,15 +57,12 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 0 400px;
-    z-index: 1000;
-    /* Regular z-index */
+    z-index: var(--z-index-header);
     transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* When overlay is active */
-.menu-overlay.active~.header {
+.menu-overlay.active ~ .header {
     z-index: 999;
-    /* Goes below overlay */
 }
 
 .header.header-scrolled {
@@ -81,7 +71,6 @@ body {
     -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
     height: 100px;
-    /* Slightly smaller when scrolled */
 }
 
 .logo {
@@ -101,233 +90,83 @@ body {
     height: 120px;
 }
 
-/* Login required badge for cart */
-.login-required-badge {
+.header-icons {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-left: auto;
+}
+
+.icon-link,
+.cart-btn {
+    color: var(--text-color);
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.icon-link:hover,
+.cart-btn:hover {
+    color: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+.icon-link img,
+.cart-btn img {
+    width: 28px;
+    height: 28px;
+}
+
+.cart-badge {
     position: absolute;
     top: -5px;
     right: -5px;
-    background-color: #ff4444;
-    color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-/* Login required message modal */
-.login-required-message {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.login-required-message .message-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    max-width: 400px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.login-required-message h3 {
-    margin-top: 0;
-    color: #333;
-}
-
-.login-required-message p {
-    margin-bottom: 1.5rem;
-    color: #666;
-}
-
-.message-buttons {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-}
-
-/* User Dropdown Styles - Fixed Version */
-/* User Dropdown Styles - Ensure these are loaded */
-.user-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-    min-width: 280px;
-    z-index: 1000;
-    display: none;
-    margin-top: 8px;
-    border: 1px solid #e1e8ed;
-    overflow: hidden;
-    font-family: inherit;
-}
-
-.user-dropdown.show {
-    display: block;
-    animation: dropdownFadeIn 0.2s ease;
-}
-
-@keyframes dropdownFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.dropdown-user-info {
-    padding: 20px;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.dropdown-user-avatar {
-    width: 40px;
-    height: 40px;
+    background-color: var(--accent-color);
+    color: var(--white);
     border-radius: 50%;
-    background: var(--primary-color);
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 20px;
-}
-
-.dropdown-user-details {
-    flex: 1;
-}
-
-.dropdown-user-details strong {
-    display: block;
-    color: #333;
-    font-size: 16px;
-    margin-bottom: 4px;
     font-weight: 600;
 }
 
-.dropdown-user-details span {
-    display: block;
-    font-size: 14px;
-    color: #666;
-    margin-bottom: 2px;
-}
-
-.dropdown-user-details small {
-    font-size: 12px;
-    color: var(--primary-color);
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.dropdown-divider {
-    height: 1px;
-    background: #e1e8ed;
-    margin: 8px 0;
-}
-
-.dropdown-links {
-    padding: 8px 0;
-}
-
-.dropdown-link {
-    display: flex;
-    align-items: center;
-    padding: 12px 20px;
-    color: #333;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
+.hamburger-btn {
     background: none;
-    width: 100%;
-    text-align: left;
-    font-size: 14px;
+    border: none;
+    padding: 15px;
     cursor: pointer;
-    gap: 12px;
-    font-family: inherit;
-}
-
-.dropdown-link:hover {
-    background: #f8f9fa;
-    color: var(--primary-color);
-}
-
-.dropdown-link i {
-    width: 16px;
-    text-align: center;
-}
-
-.logout-btn {
-    color: #e74c3c !important;
-}
-
-.logout-btn:hover {
-    background: #fee !important;
-    color: #c0392b !important;
-}
-
-/* Make sure the user icon container is positioned relatively */
-#user-profile-link {
-    position: relative;
-    display: inline-block;
-}
-
-/* Ensure the user icon is clickable */
-#user-icon {
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-#user-profile-link:hover #user-icon {
-    transform: scale(1.1);
-}
-
-
-.profile-required {
+    color: var(--text-color);
     transition: all 0.3s ease;
-    position: relative;
+    z-index: 10;
+    margin-right: auto;
 }
 
-/* Role-based visibility */
-.admin-only {
-    display: none;
+.hamburger-btn img {
+    width: 28px;
+    height: 28px;
 }
 
-.role-admin .admin-only {
-    display: block;
+.hamburger-btn:hover {
+    color: var(--accent-color);
 }
+/* ========================================== HEADER END ========================================== */
 
-/* Cart visibility */
-.cart-btn {
-    transition: all 0.3s ease;
-}
-
-/* ====== Navigation Sidebar ====== */
+/* ========================================== NAVIGATION SIDEBAR START ========================================== */
 .main-nav {
     position: fixed;
     top: 0;
     left: 0;
     width: 375px;
     height: 100vh;
-    background-color: #fff;
+    background-color: var(--white);
     box-shadow: 4px 0 30px rgba(0, 0, 0, 0.1);
-    z-index: 1002;
+    z-index: var(--z-index-sidebars);
     transform: translateX(-100%);
     transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
@@ -351,38 +190,12 @@ body {
     height: 80px;
 }
 
-.book-now-btn {
-    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
-    color: white !important;
-    border-radius: 30px;
-    margin: 10px 25px;
-    padding: 20px 50px !important;
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 15px rgba(0, 86, 179, 0.3);
-    transition: all 0.3s ease !important;
-    left: 50px;
-    top: 150px;
-
-}
-
-.book-now-btn:hover {
-    transform: translateY(-3px) !important;
-    box-shadow: 0 6px 20px rgba(0, 86, 179, 0.4);
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color)) !important;
-}
-
-.book-now-btn::before {
-    display: none !important;
-}
-
 .close-nav-btn {
     background: none;
     border: none;
     padding: 8px;
     cursor: pointer;
-    color: #333;
+    color: var(--text-color);
     transition: all 0.2s ease;
 }
 
@@ -406,7 +219,7 @@ body {
 .nav-link {
     display: block;
     padding: 15px 50px;
-    color: #333;
+    color: var(--text-color);
     text-decoration: none;
     font-size: 20px;
     font-weight: 500;
@@ -435,6 +248,31 @@ body {
     transform: scaleY(1);
 }
 
+.book-now-btn {
+    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+    color: var(--white) !important;
+    border-radius: 30px;
+    margin: 10px 25px;
+    padding: 20px 50px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 86, 179, 0.3);
+    transition: all 0.3s ease !important;
+    left: 50px;
+    top: 150px;
+}
+
+.book-now-btn:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 20px rgba(0, 86, 179, 0.4);
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color)) !important;
+}
+
+.book-now-btn::before {
+    display: none !important;
+}
+
 .nav-footer {
     background-color: var(--primary-color);
     padding: 25px;
@@ -448,7 +286,7 @@ body {
 }
 
 .social-links a {
-    color: #666;
+    color: var(--text-light);
     transition: color 0.3s ease;
 }
 
@@ -458,21 +296,21 @@ body {
 
 .copyright {
     font-size: 12px;
-    color: #999;
+    color: var(--text-light);
     margin: 0;
 }
+/* ========================================== NAVIGATION SIDEBAR END ========================================== */
 
-/* ========================================== Cart Sidebar Start ========================================== */
-
+/* ========================================== CART SIDEBAR START ========================================== */
 .cart-sidebar {
     position: fixed;
     top: 0;
     right: -480px;
     width: 480px;
     height: 100vh;
-    background-color: #fff;
+    background-color: var(--white);
     box-shadow: -4px 0 30px rgba(0, 0, 0, 0.1);
-    z-index: 1002;
+    z-index: var(--z-index-sidebars);
     display: flex;
     flex-direction: column;
     transition: right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -483,17 +321,6 @@ body {
     right: 0;
 }
 
-/* Ensure sidebars appear above overlay */
-.main-nav,
-.cart-sidebar {
-    z-index: var(--z-index-sidebars);
-}
-
-.header {
-    z-index: var(--z-index-header);
-}
-
-/* When overlay is active, prevent scrolling */
 body.overlay-active {
     overflow: hidden;
     position: fixed;
@@ -513,7 +340,7 @@ body.overlay-active {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-color);
 }
 
 .close-cart-btn {
@@ -521,7 +348,7 @@ body.overlay-active {
     border: none;
     padding: 8px;
     cursor: pointer;
-    color: #333;
+    color: var(--text-color);
     transition: all 0.2s ease;
 }
 
@@ -530,7 +357,6 @@ body.overlay-active {
     transform: rotate(90deg);
 }
 
-/* Cart Items Container */
 .cart-items-container {
     flex: 1;
     padding: 0 25px;
@@ -542,7 +368,7 @@ body.overlay-active {
     flex-direction: column;
     padding: 15px 0;
     margin: 10px 0;
-    background-color: #fff;
+    background-color: var(--white);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
@@ -562,7 +388,7 @@ body.overlay-active {
 
 .cart-item-name {
     font-weight: 500;
-    color: #333;
+    color: var(--text-color);
     flex: 1;
     margin-right: 15px;
 }
@@ -601,8 +427,8 @@ body.overlay-active {
 
 .cart-item-increase,
 .cart-item-decrease {
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
     font-weight: bold;
     width: 30px;
     height: 30px;
@@ -624,18 +450,17 @@ body.overlay-active {
 
 .cart-item-unit-price {
     font-size: 12px;
-    color: #999;
+    color: var(--text-light);
     margin-top: 5px;
 }
 
-/* Empty Cart Styles */
 .empty-cart {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #333;
+    color: var(--text-color);
     padding: 40px 30px;
     text-align: center;
     min-height: 400px;
@@ -643,7 +468,7 @@ body.overlay-active {
 
 .empty-cart-icon {
     margin-bottom: 2rem;
-    color: #666;
+    color: var(--text-light);
     opacity: 0.7;
 }
 
@@ -660,7 +485,7 @@ body.overlay-active {
     font-size: 1.5rem;
     font-weight: 400;
     margin: 0;
-    color: #333;
+    color: var(--text-color);
     line-height: 1.2;
 }
 
@@ -671,7 +496,7 @@ body.overlay-active {
 }
 
 .empty-cart-message {
-    color: #666;
+    color: var(--text-light);
     font-size: 0.95rem;
     margin-bottom: 2rem;
     line-height: 1.4;
@@ -680,7 +505,7 @@ body.overlay-active {
 .start-shopping-btn,
 .login-cart-btn {
     background-color: #000;
-    color: white;
+    color: var(--white);
     border: none;
     padding: 1rem 2rem;
     border-radius: 4px;
@@ -700,11 +525,10 @@ body.overlay-active {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Cart Footer */
 .cart-footer {
     padding: 25px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
-    background: #fff;
+    background: var(--white);
     margin-top: auto;
 }
 
@@ -722,7 +546,7 @@ body.overlay-active {
 
 .cart-shipping {
     font-size: 12px;
-    color: #999;
+    color: var(--text-light);
     margin: 0;
 }
 
@@ -731,7 +555,7 @@ body.overlay-active {
     width: 100%;
     padding: 15px;
     background-color: var(--accent-color);
-    color: white;
+    color: var(--white);
     text-align: center;
     text-decoration: none;
     border-radius: 6px;
@@ -760,17 +584,13 @@ body.overlay-active {
     justify-content: center;
     gap: 10px;
     font-size: 12px;
-    color: #999;
+    color: var(--text-light);
 }
 
-/* Animation styles */
 @keyframes bounce {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: translateY(0);
     }
-
     50% {
         transform: translateY(-5px);
     }
@@ -781,7 +601,6 @@ body.overlay-active {
         opacity: 1;
         transform: scale(1);
     }
-
     to {
         opacity: 0;
         transform: scale(0.9);
@@ -796,138 +615,51 @@ body.overlay-active {
     animation: fadeOut 0.3s ease-out;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
     .cart-sidebar {
         width: 100%;
         right: -100%;
     }
-
+    
     .cart-header {
         padding: 20px;
     }
-
+    
     .cart-items-container {
         padding: 0 20px;
     }
-
+    
     .cart-footer {
         padding: 20px;
     }
-
+    
     .empty-cart {
         padding: 30px 20px;
     }
-
+    
     .empty-cart-icon svg {
         width: 60px;
         height: 60px;
     }
-
+    
     .empty-cart-title {
         font-size: 1.3rem;
     }
 }
+/* ========================================== CART SIDEBAR END ========================================== */
 
-.social-links {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
-    justify-content: center;
-}
-
-.social-links a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.05);
-    background-color: var(--primary-color);
-
-    transition: all 0.3s ease;
-}
-
-.social-links a:hover {
-    background-color: var(--accent-color);
-    color: white;
-    transform: translateY(-3px);
-}
-
-.social-links svg {
-    width: 20px;
-    height: 20px;
-}
-
-/* ====== Header Icons ====== */
-.header-icons {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    /* Reduced gap */
-    margin-left: auto;
-    /* Push towards center */
-}
-
-
-.icon-link,
-.cart-btn {
-    color: #333;
-    background: none;
-    border: none;
-    padding: 5px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-.icon-link:hover,
-.cart-btn:hover {
-    color: var(--accent-color);
-    transform: translateY(-2px);
-}
-
-.icon-link img,
-.cart-btn img {
-    width: 28px;
-    /* Larger icons */
-    height: 28px;
-}
-
-.cart-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background-color: var(--accent-color);
-    color: white;
-    border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-}
-
-
-/* ========================================== Cart Sidebar End ========================================== */
-
-
-/* ====== Overlay ====== */
+/* ========================================== OVERLAY START ========================================== */
 .menu-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, var(--overlay-opacity));
     z-index: var(--z-index-overlay);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    /* Allows clicks through when hidden */
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
@@ -935,42 +667,15 @@ body.overlay-active {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    /* Blocks clicks when active */
-
 }
+/* ========================================== OVERLAY END ========================================== */
 
-/* ====== Hamburger Button ====== */
-.hamburger-btn {
-    background: none;
-    border: none;
-    padding: 15px;
-    /* Larger click area */
-    cursor: pointer;
-    color: #333;
-    transition: all 0.3s ease;
-    z-index: 10;
-    margin-right: auto;
-    /* Push towards center */
-}
-
-.hamburger-btn img {
-    width: 28px;
-    /* Larger icon */
-    height: 28px;
-}
-
-.hamburger-btn:hover {
-    color: var(--accent-color);
-}
-
-/* Hero Section */
+/* ========================================== HERO SECTION START ========================================== */
 .hero {
-    /* Radial gradient: Darker in the center, fading outwards */
     background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/frontend/images/PM-Logo.jpg');
     background-size: cover;
     background-position: center;
     height: calc(113vh - var(--header-height));
-    /* Or calc(100vh - var(--header-height)) */
     min-height: 500px;
     display: flex;
     align-items: center;
@@ -980,16 +685,12 @@ body.overlay-active {
     box-sizing: border-box;
     margin-top: calc(-1 * var(--header-height));
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    /* Keep or adjust text shadow */
 }
-
 
 .hero-content {
     width: 100%;
     max-width: 1200px;
-    /* Ensure content doesn't stretch too wide */
     padding: 0 15px;
-    /* Add some padding for smaller screens */
 }
 
 .hero h1 {
@@ -997,9 +698,7 @@ body.overlay-active {
     margin-bottom: 1.5rem;
     line-height: 1.2;
     font-weight: 700;
-    text-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.6),
-        0 4px 16px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.3);
     letter-spacing: -0.5px;
 }
 
@@ -1009,15 +708,12 @@ body.overlay-active {
     max-width: 800px;
     margin-left: auto;
     margin-right: auto;
-    text-shadow:
-        0 1px 4px rgba(0, 0, 0, 0.6),
-        0 2px 8px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
     line-height: 1.6;
     font-weight: 400;
     word-spacing: 0.05em;
 }
 
-/* For multi-line centering perfection */
 .hero p::before {
     content: '';
     display: inline-block;
@@ -1026,7 +722,6 @@ body.overlay-active {
     margin-right: -0.25em;
 }
 
-/* Sparkling clean buttons */
 .hero-buttons {
     display: flex;
     gap: 1.5rem;
@@ -1034,7 +729,6 @@ body.overlay-active {
     flex-wrap: wrap;
 }
 
-/* Enhanced Buttons */
 .btn {
     display: inline-block;
     padding: 15px 35px;
@@ -1046,16 +740,14 @@ body.overlay-active {
     text-decoration: none;
     font-weight: 600;
     transition: all 0.3s ease;
-    box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.3),
-        inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
     position: relative;
     overflow: hidden;
     font-size: 1.1rem;
 }
 
 .btn:hover {
-    background-color: #0055aa;
+    background-color: var(--primary-dark);
     transform: translateY(-3px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
@@ -1073,12 +765,10 @@ body.overlay-active {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Pulse animation for primary button */
 .pulse {
     animation: pulse 2s infinite;
 }
 
-/* Scroll indicator */
 .hero-scroll-indicator {
     position: absolute;
     bottom: 30px;
@@ -1105,13 +795,11 @@ body.overlay-active {
     font-size: 0.9rem;
 }
 
-/* Animations */
 @keyframes fadeInUp {
     from {
         transform: translateY(30px);
         opacity: 0;
     }
-
     to {
         transform: translateY(0);
         opacity: 1;
@@ -1122,30 +810,21 @@ body.overlay-active {
     0% {
         box-shadow: 0 0 0 0 rgba(0, 102, 204, 0.7);
     }
-
     70% {
         box-shadow: 0 0 0 15px rgba(0, 102, 204, 0);
     }
-
     100% {
         box-shadow: 0 0 0 0 rgba(0, 102, 204, 0);
     }
 }
 
 @keyframes bounce {
-
-    0%,
-    20%,
-    50%,
-    80%,
-    100% {
+    0%, 20%, 50%, 80%, 100% {
         transform: translateY(0) translateX(-50%);
     }
-
     40% {
         transform: translateY(-20px) translateX(-50%);
     }
-
     60% {
         transform: translateY(-10px) translateX(-50%);
     }
@@ -1153,29 +832,19 @@ body.overlay-active {
 
 @keyframes textGlow {
     0% {
-        text-shadow:
-            0 2px 4px rgba(0, 0, 0, 0.3),
-            0 4px 12px rgba(0, 0, 0, 0.15);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
     }
-
     100% {
-        text-shadow:
-            0 2px 6px rgba(0, 0, 0, 0.4),
-            0 6px 18px rgba(0, 102, 204, 0.2),
-            0 0 12px rgba(255, 255, 255, 0.1);
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 102, 204, 0.2), 0 0 12px rgba(255, 255, 255, 0.1);
     }
 }
 
-/* Add sparkling particle effect (optional) */
 .hero-particles {
     position: absolute;
     width: 100%;
     height: 100%;
     z-index: 1;
-    background-image:
-        radial-gradient(1px 1px at 20px 30px, white, rgba(0, 0, 0, 0)),
-        radial-gradient(1px 1px at 40px 70px, white, rgba(0, 0, 0, 0)),
-        radial-gradient(1px 1px at 80px 40px, white, rgba(0, 0, 0, 0));
+    background-image: radial-gradient(1px 1px at 20px 30px, white, rgba(0, 0, 0, 0)), radial-gradient(1px 1px at 40px 70px, white, rgba(0, 0, 0, 0)), radial-gradient(1px 1px at 80px 40px, white, rgba(0, 0, 0, 0));
     background-size: 100px 100px;
     animation: sparkle 4s linear infinite;
 }
@@ -1184,13 +853,13 @@ body.overlay-active {
     from {
         background-position: 0 0;
     }
-
     to {
         background-position: 100px 100px;
     }
 }
+/* ========================================== HERO SECTION END ========================================== */
 
-/* Enhanced Home Services Carousel Styles */
+/* ========================================== SERVICES CAROUSEL START ========================================== */
 .home-services-summary {
     margin: 4rem auto;
     max-width: 100vw;
@@ -1235,7 +904,7 @@ body.overlay-active {
 .home-service-card {
     flex: 0 0 calc(25% - 1.125rem);
     min-width: 280px;
-    background: white;
+    background: var(--white);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
@@ -1254,7 +923,7 @@ body.overlay-active {
     height: 200px;
     position: relative;
     overflow: hidden;
-    background: #f8f9fa;
+    background: var(--secondary-color);
 }
 
 .home-card-image img {
@@ -1271,7 +940,7 @@ body.overlay-active {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--white);
     font-size: 3rem;
 }
 
@@ -1302,7 +971,7 @@ body.overlay-active {
 
 .home-service-price {
     background: var(--primary-color);
-    color: white;
+    color: var(--white);
     padding: 0.4rem 1rem;
     border-radius: 50px;
     font-weight: 600;
@@ -1312,7 +981,7 @@ body.overlay-active {
 
 .home-carousel-prev,
 .home-carousel-next {
-    background: white;
+    background: var(--white);
     border: none;
     border-radius: 50%;
     width: 50px;
@@ -1329,7 +998,7 @@ body.overlay-active {
 .home-carousel-prev:hover,
 .home-carousel-next:hover {
     background: var(--primary-color);
-    color: white;
+    color: var(--white);
     transform: scale(1.1);
 }
 
@@ -1350,7 +1019,6 @@ body.overlay-active {
     transition: width 0.4s ease;
 }
 
-/* Loading and Error States */
 .carousel-loading,
 .carousel-empty {
     display: flex;
@@ -1359,7 +1027,7 @@ body.overlay-active {
     justify-content: center;
     padding: 3rem;
     text-align: center;
-    color: #666;
+    color: var(--text-light);
     width: 100%;
 }
 
@@ -1379,7 +1047,15 @@ body.overlay-active {
     color: #ddd;
 }
 
-/* Responsive Design */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 @media (max-width: 1200px) {
     .home-service-card {
         flex: 0 0 calc(33.333% - 1rem);
@@ -1430,16 +1106,14 @@ body.overlay-active {
         font-size: 1.1rem;
     }
 }
+/* ========================================== SERVICES CAROUSEL END ========================================== */
 
-
-
-
-/* ===== INDEX QUOTE STYLES ===== */
+/* ========================================== QUOTE SECTION START ========================================== */
 .index-quote-section {
     background: linear-gradient(135deg, #f8fafc 0%, #e6f7ff 100%);
     padding: 4rem 0;
-    border-top: 3px solid var(--accent-color, #ffcc00);
-    border-bottom: 3px solid var(--accent-color, #ffcc00);
+    border-top: 3px solid var(--accent-color);
+    border-bottom: 3px solid var(--accent-color);
 }
 
 .index-quote-header {
@@ -1450,7 +1124,7 @@ body.overlay-active {
 
 .index-quote-title {
     font-size: 2.5rem;
-    color: var(--primary-color, #0056b3);
+    color: var(--primary-color);
     margin-bottom: 1rem;
     position: relative;
     display: inline-block;
@@ -1464,7 +1138,7 @@ body.overlay-active {
     transform: translateX(-50%);
     width: 80px;
     height: 4px;
-    background: var(--accent-color, #ffcc00);
+    background: var(--accent-color);
 }
 
 .index-quote-subtitle {
@@ -1480,7 +1154,7 @@ body.overlay-active {
 }
 
 .index-quote-form-wrapper {
-    background: white;
+    background: var(--white);
     border-radius: 12px;
     padding: 3rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
@@ -1508,10 +1182,10 @@ body.overlay-active {
 }
 
 .index-form-control:focus {
-    border-color: var(--primary-color, #0056b3);
+    border-color: var(--primary-color);
     outline: none;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    background: white;
+    background: var(--white);
 }
 
 .index-textarea {
@@ -1544,7 +1218,7 @@ body.overlay-active {
     margin-right: 0.75rem;
     width: 18px;
     height: 18px;
-    accent-color: var(--primary-color, #0056b3);
+    accent-color: var(--primary-color);
 }
 
 .index-checkbox-label {
@@ -1553,8 +1227,8 @@ body.overlay-active {
     transition: color 0.3s ease;
 }
 
-.index-checkbox-input:checked+.index-checkbox-label {
-    color: var(--primary-color, #0056b3);
+.index-checkbox-input:checked + .index-checkbox-label {
+    color: var(--primary-color);
     font-weight: 500;
 }
 
@@ -1564,8 +1238,8 @@ body.overlay-active {
 }
 
 .index-quote-btn {
-    background: var(--primary-color, #0056b3);
-    color: white;
+    background: var(--primary-color);
+    color: var(--white);
     border: none;
     padding: 1rem 2.5rem;
     border-radius: 8px;
@@ -1579,7 +1253,7 @@ body.overlay-active {
 }
 
 .index-quote-btn:hover {
-    background: var(--primary-dark, #003d82);
+    background: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
 }
@@ -1591,9 +1265,9 @@ body.overlay-active {
 .index-quote-btn:hover svg {
     transform: translateX(3px);
 }
+/* ========================================== QUOTE SECTION END ========================================== */
 
-
-/* --- ABOUT STARTS--- */
+/* ========================================== ABOUT SECTION START ========================================== */
 .about-section {
     display: flex;
     align-items: center;
@@ -1664,11 +1338,11 @@ body.overlay-active {
 }
 
 .highlight {
-    background: #fff;
+    background: var(--white);
     border-radius: 20px;
     padding: 8px 18px;
     font-weight: 600;
-    color: #007bff;
+    color: var(--primary-color);
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.07);
     display: flex;
     align-items: center;
@@ -1677,7 +1351,7 @@ body.overlay-active {
 }
 
 .highlight i {
-    color: #28a745;
+    color: var(--success);
     font-size: 1.1em;
 }
 
@@ -1685,7 +1359,7 @@ body.overlay-active {
     font-style: italic;
     color: #555;
     margin: 18px 0;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--primary-color);
     padding-left: 16px;
     background: #f6faff;
     border-radius: 6px;
@@ -1695,8 +1369,8 @@ body.overlay-active {
     display: inline-block;
     margin-top: 18px;
     padding: 12px 32px;
-    background: linear-gradient(90deg, #007bff 60%, #0056b3 100%);
-    color: #fff;
+    background: linear-gradient(90deg, var(--primary-color) 60%, var(--primary-dark) 100%);
+    color: var(--white);
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
@@ -1709,18 +1383,17 @@ body.overlay-active {
 
 .about-cta-btn:hover,
 .about-cta-btn:focus {
-    background: linear-gradient(90deg, #0056b3 60%, #007bff 100%);
+    background: linear-gradient(90deg, var(--primary-dark) 60%, var(--primary-color) 100%);
     box-shadow: 0 4px 16px rgba(0, 123, 255, 0.18);
     outline: 2px solid var(--primary-color);
 }
 
-/* ======================== SERVICE ==================== */
 .service-cta-btn {
     display: inline-block;
     margin-top: 18px;
     padding: 12px 32px;
-    background: linear-gradient(90deg, #007bff 60%, #0056b3 100%);
-    color: #fff;
+    background: linear-gradient(90deg, var(--primary-color) 60%, var(--primary-dark) 100%);
+    color: var(--white);
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
@@ -1733,18 +1406,16 @@ body.overlay-active {
 
 .service-cta-btn:hover,
 .service-cta-btn:focus {
-    background: linear-gradient(90deg, #0056b3 60%, #007bff 100%);
+    background: linear-gradient(90deg, var(--primary-dark) 60%, var(--primary-color) 100%);
     box-shadow: 0 4px 16px rgba(0, 123, 255, 0.18);
     outline: 2px solid var(--primary-color);
 }
 
-/* Subtle fade-in animations */
 @keyframes fadeInLeft {
     from {
         opacity: 0;
         transform: translateX(-40px);
     }
-
     to {
         opacity: 1;
         transform: translateX(0);
@@ -1756,16 +1427,14 @@ body.overlay-active {
         opacity: 0;
         transform: translateX(40px);
     }
-
     to {
         opacity: 1;
         transform: translateX(0);
     }
 }
+/* ========================================== ABOUT SECTION END ========================================== */
 
-/* ABOUT ENDS */
-
-/* ===== ENHANCED PROFESSIONAL CLEANING SERVICES ===== */
+/* ========================================== SERVICES SECTION START ========================================== */
 .section {
     background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
     padding: 4rem 0;
@@ -1815,7 +1484,6 @@ body.overlay-active {
     font-weight: 400;
 }
 
-/* Professional Services Grid - 4 per row */
 .services-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1823,27 +1491,6 @@ body.overlay-active {
     justify-items: stretch;
 }
 
-/* Responsive grid adjustments */
-@media (max-width: 1400px) {
-    .services-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 1024px) {
-    .services-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .services-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-}
-
-/* Single service layout - Keep original size */
 .services-grid:has(.service-card:only-child) {
     grid-template-columns: minmax(350px, 400px);
     justify-content: center;
@@ -1854,14 +1501,11 @@ body.overlay-active {
     justify-content: center;
 }
 
-/* Professional Service Card */
 .service-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: linear-gradient(135deg, var(--white) 0%, var(--secondary-color) 100%);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.08),
-        0 2px 8px rgba(59, 130, 246, 0.04);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(59, 130, 246, 0.04);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 420px;
     display: flex;
@@ -1889,18 +1533,15 @@ body.overlay-active {
 
 .service-card:hover {
     transform: translateY(-6px);
-    box-shadow:
-        0 16px 32px rgba(0, 0, 0, 0.12),
-        0 6px 20px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12), 0 6px 20px rgba(59, 130, 246, 0.15);
     border-color: rgba(59, 130, 246, 0.2);
 }
 
-/* Service Status Badges */
 .service-badge {
     position: absolute;
     top: 16px;
     right: 16px;
-    color: white;
+    color: var(--white);
     padding: 0.4rem 1rem;
     border-radius: 20px;
     font-size: 0.7rem;
@@ -1917,7 +1558,7 @@ body.overlay-active {
 }
 
 .service-badge.new {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: linear-gradient(135deg, var(--success), #059669);
 }
 
 .service-badge.trending {
@@ -1932,7 +1573,6 @@ body.overlay-active {
     background: linear-gradient(135deg, #6b7280, #4b5563);
 }
 
-/* Professional Image Container */
 .service-image-container {
     height: 220px;
     overflow: hidden;
@@ -1957,7 +1597,6 @@ body.overlay-active {
     z-index: 3;
 }
 
-/* Default placeholder - always shown initially */
 .service-image-placeholder {
     display: flex;
     align-items: center;
@@ -1981,19 +1620,16 @@ body.overlay-active {
     transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 10px;
     display: none;
-    /* Hide by default */
     position: relative;
     z-index: 2;
 }
 
-/* Show image only when it has a valid src */
 .service-image-container img[src]:not([src=""]) {
     display: block;
 }
 
-/* Hide placeholder when image is shown */
-.service-image-container img[src]:not([src=""])~.image-placeholder,
-.service-image-container img[src]:not([src=""])+.image-placeholder {
+.service-image-container img[src]:not([src=""]) ~ .image-placeholder,
+.service-image-container img[src]:not([src=""]) + .image-placeholder {
     display: none;
 }
 
@@ -2001,9 +1637,8 @@ body.overlay-active {
     transform: scale(1.08);
 }
 
-/* Service Content - Reduced spacing */
 .service-content {
-    padding: 1rem 1.25rem 1.25rem; /* Reduced top padding, kept sides and bottom */
+    padding: 1rem 1.25rem 1.25rem;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
@@ -2014,11 +1649,11 @@ body.overlay-active {
 .service-card h3 {
     font-size: 1.15rem;
     color: #1e293b;
-    margin-bottom: 0.5rem; /* Reduced from 0.75rem */
+    margin-bottom: 0.5rem;
     font-weight: 700;
     line-height: 1.3;
     position: relative;
-    padding-bottom: 0.4rem; /* Reduced from 0.5rem */
+    padding-bottom: 0.4rem;
 }
 
 .service-card h3::after {
@@ -2026,7 +1661,7 @@ body.overlay-active {
     position: absolute;
     bottom: 0;
     left: 0;
-    width: 25px; /* Smaller underline */
+    width: 25px;
     height: 2px;
     background: linear-gradient(90deg, #3b82f6, #06b6d4);
     border-radius: 2px;
@@ -2034,85 +1669,76 @@ body.overlay-active {
 
 .service-card p {
     color: #64748b;
-    line-height: 1.4; /* Tighter line height */
-    margin-bottom: 0.75rem; /* Reduced from 1rem */
-    font-size: 0.85rem; /* Smaller font */
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 2.5em; /* Reduced height */
+    min-height: 2.5em;
 }
 
-/* Service Features - More compact */
 .service-features {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem; /* Reduced gap */
-    margin-bottom: 0.75rem; /* Reduced from 1rem */
+    gap: 0.3rem;
+    margin-bottom: 0.75rem;
 }
 
 .feature-tag {
     background: #f1f5f9;
     color: #475569;
-    padding: 0.25rem 0.6rem; /* Smaller padding */
-    border-radius: 14px; /* Slightly smaller */
-    font-size: 0.65rem; /* Smaller font */
+    padding: 0.25rem 0.6rem;
+    border-radius: 14px;
+    font-size: 0.65rem;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 0.25rem; /* Reduced gap */
+    gap: 0.25rem;
 }
 
 .feature-tag i {
     color: #3b82f6;
-    font-size: 0.6rem; /* Smaller icon */
+    font-size: 0.6rem;
 }
 
-/* Service Footer - Much more compact */
 .service-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: auto;
-    padding-top: 0.5rem; /* Significantly reduced from 1rem */
+    padding-top: 0.5rem;
     border-top: 1px solid #f1f5f9;
 }
 
 .price-container {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem; /* Reduced gap between price and note */
-}
-
-.service-price {
-    font-weight: 800;
-    color: #1e40af;
-    font-size: 1.1rem; /* Smaller price */
-    line-height: 1;
+    gap: 0.1rem;
 }
 
 .price-note {
-    font-size: 0.7rem; /* Smaller note */
+    font-size: 0.7rem;
     color: #94a3b8;
-    margin-top: 0; /* Remove margin, use gap instead */
+    margin-top: 0;
     font-weight: 500;
 }
 
 .service-cta-btn {
     background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    color: white;
+    color: var(--white);
     border: none;
-    padding: 0.6rem 1.2rem; /* Smaller padding */
-    border-radius: 8px; /* Smaller radius */
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 0.8rem; /* Smaller font */
-    min-width: 100px; /* Smaller min-width */
+    font-size: 0.8rem;
+    min-width: 100px;
     position: relative;
     overflow: hidden;
-    height: fit-content; /* Ensure button doesn't stretch */
+    height: fit-content;
 }
 
 .service-cta-btn::before {
@@ -2133,7 +1759,7 @@ body.overlay-active {
 .service-cta-btn:hover {
     background: linear-gradient(135deg, #1d4ed8, #1e40af);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); /* Smaller shadow */
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .service-cta-btn.disabled {
@@ -2148,7 +1774,6 @@ body.overlay-active {
     box-shadow: none;
 }
 
-/* Enhanced Services Controls */
 .services-controls {
     display: flex;
     flex-wrap: wrap;
@@ -2156,7 +1781,7 @@ body.overlay-active {
     margin: 2rem 0 3rem;
     align-items: end;
     justify-content: space-between;
-    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    background: linear-gradient(135deg, var(--white), var(--secondary-color));
     padding: 2rem;
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
@@ -2186,14 +1811,14 @@ body.overlay-active {
     border: 2px solid #e2e8f0;
     border-radius: 12px;
     font-size: 1rem;
-    background: #ffffff;
+    background: var(--white);
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .search-box input:focus {
     border-color: #3b82f6;
-    background: white;
+    background: var(--white);
     outline: none;
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15);
 }
@@ -2223,7 +1848,7 @@ body.overlay-active {
     padding: 1rem 1.2rem;
     border: 2px solid #e2e8f0;
     border-radius: 12px;
-    background: #ffffff;
+    background: var(--white);
     font-size: 0.95rem;
     min-width: 160px;
     cursor: pointer;
@@ -2247,7 +1872,6 @@ body.overlay-active {
     font-weight: 500;
 }
 
-/* ===== SERVICE POPUP - HIDDEN BY DEFAULT ===== */
 .service-popup {
     position: fixed;
     top: 0;
@@ -2256,7 +1880,6 @@ body.overlay-active {
     height: 100%;
     z-index: 1000;
     display: none;
-    /* Hidden by default */
     justify-content: center;
     align-items: center;
     opacity: 0;
@@ -2281,7 +1904,7 @@ body.overlay-active {
 }
 
 .popup-container {
-    background: white;
+    background: var(--white);
     border-radius: 16px;
     width: 90%;
     max-width: 1200px;
@@ -2317,7 +1940,7 @@ body.overlay-active {
 }
 
 .popup-close:hover {
-    background: white;
+    background: var(--white);
     transform: rotate(90deg);
 }
 
@@ -2336,7 +1959,7 @@ body.overlay-active {
     overflow: hidden;
     flex-shrink: 0;
     position: relative;
-    background: #f8f9fa;
+    background: var(--secondary-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2352,8 +1975,7 @@ body.overlay-active {
     height: 100%;
 }
 
-/* Hide placeholder when popup image is loaded */
-.popup-image img:not([src=""])~.image-placeholder {
+.popup-image img:not([src=""]) ~ .image-placeholder {
     display: none;
 }
 
@@ -2362,10 +1984,8 @@ body.overlay-active {
     height: 100%;
     object-fit: cover;
     display: none;
-    /* Hide by default */
 }
 
-/* Show popup image only when it has a valid src */
 .popup-image img[src]:not([src=""]) {
     display: block;
 }
@@ -2374,7 +1994,7 @@ body.overlay-active {
     position: absolute;
     top: 20px;
     right: 20px;
-    color: white;
+    color: var(--white);
     padding: 0.5rem 1.2rem;
     border-radius: 20px;
     font-size: 0.8rem;
@@ -2391,23 +2011,6 @@ body.overlay-active {
 
 .popup-badge.new {
     background: linear-gradient(135deg, #51cf66, #40c057);
-}
-
-.popup-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.image-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8f9fa;
-    color: #6c757d;
-    font-size: 3rem;
-    width: 100%;
-    height: 100%;
 }
 
 .popup-details {
@@ -2507,7 +2110,7 @@ body.overlay-active {
 
 .submit-btn {
     background: var(--primary-color);
-    color: white;
+    color: var(--white);
     border: none;
     padding: 0.9rem 2rem;
     border-radius: 8px;
@@ -2527,7 +2130,6 @@ body.overlay-active {
     margin-top: 0.5rem;
 }
 
-/* Professional Empty States */
 .no-results {
     grid-column: 1 / -1;
     text-align: center;
@@ -2557,7 +2159,6 @@ body.overlay-active {
     line-height: 1.6;
 }
 
-/* Loading Animation */
 .loading-spinner {
     border: 3px solid #f3f3f3;
     border-top: 3px solid #3b82f6;
@@ -2568,17 +2169,6 @@ body.overlay-active {
     margin: 0 auto 1.5rem;
 }
 
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-/* Professional Cleaning Icons and Accents */
 .cleaning-icon {
     width: 24px;
     height: 24px;
@@ -2587,11 +2177,10 @@ body.overlay-active {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--white);
     font-size: 0.8rem;
 }
 
-/* Trust Badges */
 .trust-badges {
     display: flex;
     justify-content: center;
@@ -2610,11 +2199,29 @@ body.overlay-active {
 }
 
 .trust-badge i {
-    color: #10b981;
+    color: var(--success);
     font-size: 1.2rem;
 }
 
-/* Mobile Responsive */
+@media (max-width: 1400px) {
+    .services-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1024px) {
+    .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .services-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
 @media (max-width: 480px) {
     .services-header {
         margin-bottom: 2rem;
@@ -2661,8 +2268,9 @@ body.overlay-active {
         gap: 0.75rem;
     }
 }
+/* ========================================== SERVICES SECTION END ========================================== */
 
-/* CONTACT US SECTION */
+/* ========================================== CONTACT SECTION START ========================================== */
 .contact-section {
     padding: 80px 0;
     background-color: #f9f9f9;
@@ -2671,7 +2279,6 @@ body.overlay-active {
     box-sizing: border-box;
 }
 
-/* MAIN CONTAINER */
 .contact-us {
     width: 100%;
     max-width: 3000px;
@@ -2680,7 +2287,6 @@ body.overlay-active {
     box-sizing: border-box;
 }
 
-/* GRID LAYOUT */
 .contact-row {
     display: flex;
     width: 100%;
@@ -2688,7 +2294,6 @@ body.overlay-active {
     box-sizing: border-box;
 }
 
-/* COLUMNS */
 .contact-info-col {
     flex: 1;
     min-width: 0;
@@ -2699,9 +2304,8 @@ body.overlay-active {
     min-width: 0;
 }
 
-/* INFORMATION BOX */
 .contact-info-box {
-    background: #fff;
+    background: var(--white);
     padding: 60px;
     border-radius: 10px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
@@ -2733,7 +2337,6 @@ body.overlay-active {
     line-height: 1.6;
 }
 
-/* CONTACT DETAILS */
 .contact-details {
     margin-bottom: 30px;
 }
@@ -2752,7 +2355,6 @@ body.overlay-active {
     min-width: 25px;
 }
 
-/* MAP */
 .contact-map {
     margin-top: 30px;
     height: 350px;
@@ -2761,16 +2363,14 @@ body.overlay-active {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* FORM CONTAINER */
 .contact-form-container {
-    background: #fff;
+    background: var(--white);
     padding: 50px;
     border-radius: 10px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
     height: auto;
 }
 
-/* FORM HEADING */
 .contact-form-heading h2 {
     font-size: 2rem;
     color: var(--primary-color);
@@ -2797,7 +2397,6 @@ body.overlay-active {
     line-height: 1.6;
 }
 
-/* FORM ELEMENTS */
 .contact-form-row {
     display: flex;
     gap: 30px;
@@ -2834,7 +2433,6 @@ body.overlay-active {
     box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
 
-/* SUBMIT BUTTON */
 .contact-submit-btn {
     width: 60px;
     height: 60px;
@@ -2843,20 +2441,20 @@ body.overlay-active {
     justify-content: center;
     background-color: #2a2a2a;
     border: 1px solid transparent;
-    color: #fff;
+    color: var(--white);
     transition: all 0.3s ease;
     cursor: pointer;
     font-size: 1.2rem;
 }
 
 .contact-submit-btn:hover {
-    background-color: #fff;
+    background-color: var(--white);
     border-color: #2a2a2a;
     color: #2a2a2a;
 }
+/* ========================================== CONTACT SECTION END ========================================== */
 
-
-/* ===== PRODUCT PAGE STYLES ===== */
+/* ========================================== PRODUCTS SECTION START ========================================== */
 .product-header {
     text-align: center;
     padding: 4rem 0;
@@ -2887,7 +2485,7 @@ body.overlay-active {
 }
 
 .product-coming-soon-content {
-    background: white;
+    background: var(--white);
     border-radius: 16px;
     padding: 4rem 2rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
@@ -2933,7 +2531,7 @@ body.overlay-active {
 
 .product-notify-form button {
     background: var(--primary-color);
-    color: white;
+    color: var(--white);
     border: none;
     padding: 0 2rem;
     border-radius: 8px;
@@ -2983,7 +2581,20 @@ body.overlay-active {
     font-size: 0.95rem;
 }
 
+@keyframes product-pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+/* ========================================== PRODUCTS SECTION END ========================================== */
 
+/* ========================================== BOOKING SECTION START ========================================== */
 .book-page {
     max-width: 1200px;
     margin: 0 auto;
@@ -3027,7 +2638,7 @@ body.overlay-active {
     width: 40px;
     height: 40px;
     background: var(--accent-color);
-    color: white;
+    color: var(--white);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -3042,7 +2653,7 @@ body.overlay-active {
 }
 
 .booking-form-container {
-    background: white;
+    background: var(--white);
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
@@ -3082,7 +2693,7 @@ body.overlay-active {
 
 .submit-btn {
     background: var(--primary-color);
-    color: white;
+    color: var(--white);
     border: none;
     padding: 1rem 2rem;
     border-radius: 6px;
@@ -3101,11 +2712,12 @@ body.overlay-active {
     margin-top: 4rem;
     text-align: center;
 }
+/* ========================================== BOOKING SECTION END ========================================== */
 
-/* ===== ENHANCED FOOTER STYLES ===== */
+/* ========================================== FOOTER START ========================================== */
 .site-footer {
     background: linear-gradient(135deg, #2c3e50 0%, #1a2530 100%);
-    color: #fff;
+    color: var(--white);
     padding: 5rem 0 0;
     font-family: 'Open Sans', sans-serif;
     position: relative;
@@ -3173,7 +2785,7 @@ body.overlay-active {
 }
 
 .footer-heading {
-    color: #fff;
+    color: var(--white);
     font-size: 1.3rem;
     margin-bottom: 1.5rem;
     position: relative;
@@ -3216,7 +2828,7 @@ body.overlay-active {
 }
 
 .footer-section a:hover {
-    color: #fff;
+    color: var(--white);
     transform: translateX(5px);
 }
 
@@ -3241,7 +2853,7 @@ body.overlay-active {
     height: 40px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
-    color: #fff;
+    color: var(--white);
     transition: all 0.3s ease;
     font-size: 1.1rem;
 }
@@ -3295,7 +2907,7 @@ body.overlay-active {
 }
 
 .legal-links a:hover {
-    color: #fff;
+    color: var(--white);
     text-decoration: underline;
 }
 
@@ -3306,7 +2918,7 @@ body.overlay-active {
     width: 50px;
     height: 50px;
     background: var(--accent-color);
-    color: #fff;
+    color: var(--white);
     border: none;
     border-radius: 50%;
     display: flex;
@@ -3329,9 +2941,9 @@ body.overlay-active {
     background: var(--primary-color);
     transform: translateY(-3px);
 }
+/* ========================================== FOOTER END ========================================== */
 
-/* ===== Authentication STYLES ===== */
-
+/* ========================================== AUTHENTICATION START ========================================== */
 .auth-container {
     top: -140px;
     display: flex;
@@ -3350,8 +2962,6 @@ body.overlay-active {
     padding: 20px;
 }
 
-
-
 .auth-container::before {
     content: '';
     position: absolute;
@@ -3363,11 +2973,10 @@ body.overlay-active {
     z-index: 1;
 }
 
-/* Auth Card */
 .auth-card {
     width: 100%;
     max-width: 800px;
-    background: white;
+    background: var(--white);
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
@@ -3382,14 +2991,12 @@ body.overlay-active {
         opacity: 0;
         transform: translateY(20px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
-/* Tabs */
 .auth-tabs {
     display: flex;
     border-bottom: 1px solid #e0e6ed;
@@ -3403,17 +3010,16 @@ body.overlay-active {
     font-weight: 600;
     color: #7f8c8d;
     transition: all 0.3s ease;
-    background: #f8fafc;
+    background: var(--secondary-color);
     position: relative;
 }
 
 .auth-tab.active {
-    color: #0056b3;
-    background: white;
-    border-bottom: 3px solid #0056b3;
+    color: var(--primary-dark);
+    background: var(--white);
+    border-bottom: 3px solid var(--primary-dark);
 }
 
-/* Tab Content */
 .auth-tab-content {
     display: none;
     padding: 2rem;
@@ -3425,7 +3031,6 @@ body.overlay-active {
     display: block;
 }
 
-/* Common Form Styles */
 .auth-form-group {
     margin-bottom: 1.5rem;
     position: relative;
@@ -3446,14 +3051,14 @@ body.overlay-active {
     border-radius: 8px;
     font-size: 1rem;
     transition: all 0.3s ease;
-    background: #f8fafc;
+    background: var(--secondary-color);
 }
 
 .auth-input:focus {
-    border-color: #0056b3;
+    border-color: var(--primary-dark);
     outline: none;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    background: white;
+    background: var(--white);
 }
 
 .input-with-icon {
@@ -3475,8 +3080,8 @@ body.overlay-active {
 .auth-btn {
     width: 100%;
     padding: 1rem;
-    background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+    color: var(--white);
     border: none;
     border-radius: 8px;
     font-size: 1.1rem;
@@ -3489,7 +3094,7 @@ body.overlay-active {
 }
 
 .auth-btn:hover {
-    background: linear-gradient(135deg, #003d82 0%, #0056b3 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
 }
@@ -3511,7 +3116,7 @@ body.overlay-active {
     height: 20px;
     border: 3px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    border-top-color: white;
+    border-top-color: var(--white);
     animation: spin 1s ease-in-out infinite;
 }
 
@@ -3523,13 +3128,6 @@ body.overlay-active {
     visibility: hidden;
 }
 
-@keyframes spin {
-    to {
-        transform: translate(-50%, -50%) rotate(360deg);
-    }
-}
-
-/* Login Specific */
 .auth-remember {
     display: flex;
     align-items: center;
@@ -3538,11 +3136,11 @@ body.overlay-active {
 
 .auth-remember input {
     margin-right: 0.5rem;
-    accent-color: #0056b3;
+    accent-color: var(--primary-dark);
 }
 
 .auth-forgot {
-    color: #0056b3;
+    color: var(--primary-dark);
     text-decoration: none;
     font-size: 0.9rem;
     transition: all 0.3s ease;
@@ -3554,7 +3152,6 @@ body.overlay-active {
     text-decoration: underline;
 }
 
-/* Register Specific */
 .auth-name-fields {
     display: flex;
     gap: 1rem;
@@ -3572,7 +3169,7 @@ body.overlay-active {
 }
 
 .auth-terms a {
-    color: #0056b3;
+    color: var(--primary-dark);
     text-decoration: none;
 }
 
@@ -3580,7 +3177,6 @@ body.overlay-active {
     text-decoration: underline;
 }
 
-/* Social Login */
 .auth-social-divider {
     display: flex;
     align-items: center;
@@ -3609,7 +3205,7 @@ body.overlay-active {
     padding: 0.8rem;
     border: 1px solid #e0e6ed;
     border-radius: 8px;
-    background: white;
+    background: var(--white);
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
@@ -3619,8 +3215,8 @@ body.overlay-active {
 }
 
 .auth-social-btn:hover {
-    border-color: #0056b3;
-    color: #0056b3;
+    border-color: var(--primary-dark);
+    color: var(--primary-dark);
 }
 
 .auth-social-btn i {
@@ -3628,7 +3224,6 @@ body.overlay-active {
     font-size: 1.2rem;
 }
 
-/* Error Messages */
 .auth-error {
     color: #e74c3c;
     font-size: 0.85rem;
@@ -3644,11 +3239,10 @@ body.overlay-active {
     box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
 }
 
-/* Success Message */
 .auth-success {
     display: none;
-    background: #2ecc71;
-    color: white;
+    background: var(--success);
+    color: var(--white);
     padding: 1rem;
     border-radius: 8px;
     margin-bottom: 1.5rem;
@@ -3656,11 +3250,10 @@ body.overlay-active {
     animation: fadeIn 0.5s ease-out;
 }
 
-/* Error Message */
 .auth-error-message {
     display: none;
     background: #e74c3c;
-    color: white;
+    color: var(--white);
     padding: 1rem;
     border-radius: 8px;
     margin-bottom: 1.5rem;
@@ -3668,7 +3261,6 @@ body.overlay-active {
     animation: fadeIn 0.5s ease-out;
 }
 
-/* Footer */
 .auth-footer {
     text-align: center;
     padding: 1.5rem;
@@ -3683,8 +3275,9 @@ body.overlay-active {
     max-width: 800px;
     margin: 0 auto;
 }
+/* ========================================== AUTHENTICATION END ========================================== */
 
-/* ===== GALLERY SECTION ===== */
+/* ========================================== GALLERY SECTION START ========================================== */
 .gallery-section {
     padding: 4rem 0;
 }
@@ -3696,7 +3289,7 @@ body.overlay-active {
 
 .gallery-header h2 {
     font-size: 2rem;
-    color: var(--dark-color);
+    color: var(--text-color);
     margin-bottom: 1rem;
     position: relative;
     display: inline-block;
@@ -3714,12 +3307,11 @@ body.overlay-active {
 }
 
 .gallery-header p {
-    color: #666;
+    color: var(--text-light);
     max-width: 700px;
     margin: 0 auto;
 }
 
-/* Filter Controls */
 .gallery-filter {
     display: flex;
     justify-content: center;
@@ -3730,7 +3322,7 @@ body.overlay-active {
 
 .filter-btn {
     padding: 0.7rem 1.5rem;
-    background: white;
+    background: var(--white);
     border: 2px solid var(--primary-color);
     color: var(--primary-color);
     border-radius: 30px;
@@ -3742,10 +3334,9 @@ body.overlay-active {
 .filter-btn:hover,
 .filter-btn.active {
     background: var(--primary-color);
-    color: white;
+    color: var(--white);
 }
 
-/* Gallery Grid */
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -3781,7 +3372,7 @@ body.overlay-active {
     left: 0;
     right: 0;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-    color: white;
+    color: var(--white);
     padding: 1.5rem 1rem 1rem;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -3806,7 +3397,7 @@ body.overlay-active {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
+    color: var(--white);
     font-size: 3rem;
     opacity: 0.8;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
@@ -3818,9 +3409,8 @@ body.overlay-active {
     transform: translate(-50%, -50%) scale(1.1);
 }
 
-/* Before/After Section */
 .before-after {
-    background: var(--light-color);
+    background: var(--secondary-color);
     padding: 4rem 0;
     text-align: center;
 }
@@ -3836,7 +3426,7 @@ body.overlay-active {
 
 .ba-header h2 {
     font-size: 2rem;
-    color: var(--dark-color);
+    color: var(--text-color);
     margin-bottom: 1rem;
 }
 
@@ -3869,7 +3459,7 @@ body.overlay-active {
     top: 0;
     bottom: 0;
     width: 4px;
-    background: white;
+    background: var(--white);
     cursor: ew-resize;
     transform: translateX(-50%);
     z-index: 10;
@@ -3881,23 +3471,22 @@ body.overlay-active {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: white;
+    background: var(--white);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-/* Testimonials */
 .testimonials {
     padding: 4rem 0;
-    background: white;
+    background: var(--white);
     text-align: center;
 }
 
 .testimonials h2 {
     font-size: 2rem;
-    color: var(--dark-color);
+    color: var(--text-color);
     margin-bottom: 3rem;
 }
 
@@ -3910,7 +3499,7 @@ body.overlay-active {
 }
 
 .testimonial-card {
-    background: var(--light-color);
+    background: var(--secondary-color);
     padding: 2rem;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
@@ -3950,19 +3539,18 @@ body.overlay-active {
 }
 
 .author-info h4 {
-    color: var(--dark-color);
+    color: var(--text-color);
     margin-bottom: 0.2rem;
 }
 
 .author-info p {
-    color: #666;
+    color: var(--text-light);
     font-size: 0.9rem;
 }
 
-/* CTA Section */
 .cta-section {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1a2530 100%);
+    color: var(--white);
     padding: 4rem 0;
     text-align: center;
 }
@@ -3985,7 +3573,7 @@ body.overlay-active {
 .cta-btn {
     display: inline-block;
     padding: 1rem 2rem;
-    background: white;
+    background: var(--white);
     color: var(--primary-color);
     border-radius: 30px;
     font-weight: 600;
@@ -3998,8 +3586,220 @@ body.overlay-active {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
+/* ========================================== GALLERY SECTION END ========================================== */
 
-/* Logout Notification Styles */
+/* ========================================== USER DROPDOWN START ========================================== */
+.user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    min-width: 280px;
+    z-index: 1000;
+    display: none;
+    margin-top: 8px;
+    border: 1px solid #e1e8ed;
+    overflow: hidden;
+    font-family: inherit;
+}
+
+.user-dropdown.show {
+    display: block;
+    animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-user-info {
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dropdown-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 20px;
+}
+
+.dropdown-user-details {
+    flex: 1;
+}
+
+.dropdown-user-details strong {
+    display: block;
+    color: var(--text-color);
+    font-size: 16px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.dropdown-user-details span {
+    display: block;
+    font-size: 14px;
+    color: var(--text-light);
+    margin-bottom: 2px;
+}
+
+.dropdown-user-details small {
+    font-size: 12px;
+    color: var(--primary-color);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: #e1e8ed;
+    margin: 8px 0;
+}
+
+.dropdown-links {
+    padding: 8px 0;
+}
+
+.dropdown-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+    gap: 12px;
+    font-family: inherit;
+}
+
+.dropdown-link:hover {
+    background: #f8f9fa;
+    color: var(--primary-color);
+}
+
+.dropdown-link i {
+    width: 16px;
+    text-align: center;
+}
+
+.logout-btn {
+    color: #e74c3c !important;
+}
+
+.logout-btn:hover {
+    background: #fee !important;
+    color: #c0392b !important;
+}
+
+#user-profile-link {
+    position: relative;
+    display: inline-block;
+}
+
+#user-icon {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+#user-profile-link:hover #user-icon {
+    transform: scale(1.1);
+}
+
+.profile-required {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.admin-only {
+    display: none;
+}
+
+.role-admin .admin-only {
+    display: block;
+}
+
+.cart-btn {
+    transition: all 0.3s ease;
+}
+/* ========================================== USER DROPDOWN END ========================================== */
+
+/* ========================================== LOGIN REQUIRED START ========================================== */
+.login-required-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #ff4444;
+    color: var(--white);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.login-required-message {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.login-required-message .message-content {
+    background: var(--white);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.login-required-message h3 {
+    margin-top: 0;
+    color: var(--text-color);
+}
+
+.login-required-message p {
+    margin-bottom: 1.5rem;
+    color: var(--text-light);
+}
+
+.message-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+/* ========================================== LOGIN REQUIRED END ========================================== */
+
+/* ========================================== LOGOUT NOTIFICATION START ========================================== */
 .logout-notification-overlay {
     position: fixed;
     top: 0;
@@ -4015,7 +3815,7 @@ body.overlay-active {
 }
 
 .logout-notification {
-    background: white;
+    background: var(--white);
     padding: 2.5rem;
     border-radius: 12px;
     text-align: center;
@@ -4028,13 +3828,13 @@ body.overlay-active {
 .notification-icon {
     width: 80px;
     height: 80px;
-    background: #10B981;
+    background: var(--success);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 1.5rem;
-    color: white;
+    color: var(--white);
 }
 
 .notification-icon svg {
@@ -4057,8 +3857,8 @@ body.overlay-active {
 }
 
 .notification-confirm-btn {
-    background: #007bff;
-    color: white;
+    background: var(--primary-color);
+    color: var(--white);
     border: none;
     padding: 0.875rem 2rem;
     border-radius: 8px;
@@ -4070,11 +3870,44 @@ body.overlay-active {
 }
 
 .notification-confirm-btn:hover {
-    background: #0056b3;
+    background: var(--primary-dark);
     transform: translateY(-1px);
 }
 
-/* First Login Modal Styles - Using Website Colors */
+.logout-notification::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--primary-color);
+    border-radius: 0 0 12px 12px;
+    animation: progressBar 3s linear;
+}
+
+@keyframes progressBar {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+/* ========================================== LOGOUT NOTIFICATION END ========================================== */
+
+/* ========================================== FIRST LOGIN MODAL START ========================================== */
 #firstLoginModal.modal-overlay {
     position: fixed;
     top: 0;
@@ -4094,11 +3927,10 @@ body.overlay-active {
 }
 
 #firstLoginModal .modal {
-    background: white;
+    background: var(--white);
     border-radius: 16px;
     width: 90%;
     max-width: 600px;
-    /* Increased from 450px to 600px */
     max-height: 85vh;
     overflow-y: auto;
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
@@ -4111,7 +3943,6 @@ body.overlay-active {
         opacity: 0;
         transform: translateY(-30px) scale(0.95);
     }
-
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -4119,10 +3950,9 @@ body.overlay-active {
 }
 
 #firstLoginModal .modal-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #0055aa 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: var(--white);
     padding: 30px 40px;
-    /* Increased padding for larger modal */
     border-radius: 16px 16px 0 0;
     text-align: center;
     position: relative;
@@ -4131,7 +3961,6 @@ body.overlay-active {
 #firstLoginModal .modal-header h2 {
     margin: 0 0 15px 0;
     font-size: 1.8rem;
-    /* Slightly larger font */
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -4143,7 +3972,6 @@ body.overlay-active {
     margin: 0;
     opacity: 0.9;
     font-size: 1.1rem;
-    /* Slightly larger font */
     line-height: 1.5;
     max-width: 500px;
     margin-left: auto;
@@ -4152,12 +3980,10 @@ body.overlay-active {
 
 #firstLoginModal .modal-body {
     padding: 35px 40px;
-    /* Increased padding */
 }
 
 #firstLoginModal .form-group {
     margin-bottom: 25px;
-    /* More spacing between form groups */
 }
 
 #firstLoginModal .form-group label {
@@ -4166,17 +3992,14 @@ body.overlay-active {
     font-weight: 600;
     color: var(--text-color);
     font-size: 1rem;
-    /* Slightly larger labels */
 }
 
 #firstLoginModal .form-input {
     width: 100%;
     padding: 14px 18px;
-    /* Larger input padding */
     border: 2px solid #e2e8f0;
     border-radius: 8px;
     font-size: 1.05rem;
-    /* Slightly larger font */
     transition: all 0.3s ease;
     box-sizing: border-box;
     font-family: inherit;
@@ -4217,19 +4040,16 @@ body.overlay-active {
 
 #firstLoginModal .form-actions {
     margin-top: 30px;
-    /* More spacing above button */
     text-align: center;
 }
 
 #firstLoginModal .btn {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #0055aa 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: var(--white);
     border: none;
     padding: 16px 40px;
-    /* Larger button padding */
     border-radius: 8px;
     font-size: 1.1rem;
-    /* Larger button text */
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -4237,14 +4057,13 @@ body.overlay-active {
     align-items: center;
     gap: 10px;
     min-width: 250px;
-    /* Wider button */
     justify-content: center;
     font-family: inherit;
     box-shadow: var(--shadow);
 }
 
 #firstLoginModal .btn:hover {
-    background: linear-gradient(135deg, #0055aa 0%, var(--primary-color) 100%);
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
     transform: translateY(-2px);
     box-shadow: 0 12px 25px rgba(0, 102, 204, 0.3);
 }
@@ -4257,7 +4076,6 @@ body.overlay-active {
     background: #fed7d7;
     color: #c53030;
     padding: 15px 20px;
-    /* Larger error padding */
     border-radius: 8px;
     margin-bottom: 25px;
     border-left: 4px solid #f56565;
@@ -4269,16 +4087,12 @@ body.overlay-active {
 }
 
 @keyframes shake {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: translateX(0);
     }
-
     25% {
         transform: translateX(-5px);
     }
-
     75% {
         transform: translateX(5px);
     }
@@ -4288,18 +4102,14 @@ body.overlay-active {
     font-size: 1.2rem;
 }
 
-/* Close button for modal */
 #firstLoginModal .modal-close {
     position: absolute;
     top: 20px;
-    /* Adjusted for larger header */
     right: 20px;
-    /* Adjusted for larger header */
     background: rgba(255, 255, 255, 0.2);
     border: none;
     color: var(--white);
     width: 36px;
-    /* Slightly larger close button */
     height: 36px;
     border-radius: 50%;
     display: flex;
@@ -4316,12 +4126,53 @@ body.overlay-active {
     transform: scale(1.1);
 }
 
-/* Responsive Design */
+#firstLoginModal .form-input:valid:not(:read-only) {
+    border-color: var(--success);
+}
+
+#firstLoginModal .btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+#firstLoginModal .btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--white);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+#firstLoginModal .form-row {
+    display: flex;
+    gap: 20px;
+}
+
+#firstLoginModal .form-row .form-group {
+    flex: 1;
+}
+
+#firstLoginModal .password-strength {
+    margin-top: 8px;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#firstLoginModal .password-strength-fill {
+    height: 100%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
 @media (max-width: 768px) {
     #firstLoginModal .modal {
         width: 95%;
         max-width: 500px;
-        /* Slightly smaller max-width on tablets */
         margin: 20px;
     }
 
@@ -4347,7 +4198,6 @@ body.overlay-active {
     #firstLoginModal .modal {
         width: 95%;
         max-width: 400px;
-        /* Smaller max-width on mobile */
         margin: 15px;
     }
 
@@ -4374,110 +4224,7 @@ body.overlay-active {
     }
 }
 
-/* Ensure the modal appears above everything */
 #firstLoginModal {
     z-index: 10000;
 }
-
-/* Success state for valid inputs */
-#firstLoginModal .form-input:valid:not(:read-only) {
-    border-color: var(--success);
-}
-
-/* Loading state for button */
-#firstLoginModal .btn.loading {
-    position: relative;
-    color: transparent;
-}
-
-#firstLoginModal .btn.loading::after {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border: 2px solid transparent;
-    border-top: 2px solid var(--white);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-/* Form layout improvements for wider modal */
-#firstLoginModal .form-row {
-    display: flex;
-    gap: 20px;
-}
-
-#firstLoginModal .form-row .form-group {
-    flex: 1;
-}
-
-/* Enhanced password requirements styling */
-#firstLoginModal .password-strength {
-    margin-top: 8px;
-    height: 4px;
-    background: #e2e8f0;
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-#firstLoginModal .password-strength-fill {
-    height: 100%;
-    transition: all 0.3s ease;
-    border-radius: 2px;
-}
-
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* Optional: Add a progress bar for auto-redirect */
-.logout-notification::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: #007bff;
-    border-radius: 0 0 12px 12px;
-    animation: progressBar 3s linear;
-}
-
-@keyframes progressBar {
-    from {
-        width: 100%;
-    }
-
-    to {
-        width: 0%;
-    }
-}
+/* ========================================== FIRST LOGIN MODAL END ========================================== */

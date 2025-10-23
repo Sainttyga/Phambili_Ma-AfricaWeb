@@ -1,55 +1,63 @@
+// productRoutes.js - FIXED VERSION
 const express = require('express');
 const { body } = require('express-validator');
 const router = express.Router();
 const productController = require('../controllers/productController');
 const validate = require('../middleware/validate');
 const auth = require('../middleware/auth');
-const upload = require('../middleware/upload'); 
+const upload = require('../middleware/upload');
 
-// Protect all routes with auth middleware
+// ==================== PUBLIC ROUTES ====================
+router.get('/public/products', async (req, res) => {
+  try {
+    const products = await Product.findAll({
+      where: { Is_Available: true },
+      order: [['created_at', 'DESC']]
+    });
+    
+    // Convert image URLs to full URLs
+    const productsWithFullUrls = products.map(product => {
+      const productData = product.toJSON();
+      if (productData.Image_URL) {
+        productData.Image_URL = `http://localhost:5000${productData.Image_URL}`;
+      }
+      return productData;
+    });
+    
+    res.json({ 
+      success: true,
+      products: productsWithFullUrls
+    });
+  } catch (err) {
+    console.error('Public products error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching products' 
+    });
+  }
+});
+
+// ==================== PROTECTED ROUTES ====================
 router.use(auth);
 
-// Create a product with image upload
 router.post(
   '/',
   upload.single('image'),
   [
     body('Name').notEmpty().withMessage('Product name is required'),
     body('Price').isDecimal({ min: 0 }).withMessage('Price must be a positive number'),
-    body('Stock_Quantity').isInt({ min: 0 }).withMessage('Stock quantity must be a positive number'),
-    body('Category').optional().isLength({ max: 100 }),
-    body('Description').optional().isLength({ max: 500 })
+    body('Stock_Quantity').isInt({ min: 0 }).withMessage('Stock quantity must be a positive number')
   ],
   validate,
   productController.createProduct
 );
 
-// Get all products (admin view)
 router.get('/', productController.getProducts);
-
-// Get product by ID
 router.get('/:id', productController.getProductById);
-
-// Update product with image upload
-router.put(
-  '/:id',
-  upload.single('image'),
-  [
-    body('Price').optional().isDecimal({ min: 0 }),
-    body('Stock_Quantity').optional().isInt({ min: 0 }),
-    body('Category').optional().isLength({ max: 100 }),
-    body('Description').optional().isLength({ max: 500 })
-  ],
-  validate,
-  productController.updateProduct
-);
-
-// Delete product
+router.put('/:id', upload.single('image'), productController.updateProduct);
 router.delete('/:id', productController.deleteProduct);
-
-// Toggle product availability
 router.patch('/:id/availability', [
-  body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
+  body('isAvailable').isBoolean()
 ], validate, productController.toggleProductAvailability);
 
 module.exports = router;

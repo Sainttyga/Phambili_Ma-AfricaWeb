@@ -7,7 +7,7 @@ class CustomerServices {
         this.currentCategory = 'all';
         this.serviceCategories = [];
         this.serviceTypes = [];
-        
+
         // Bind methods
         this.init = this.init.bind(this);
         this.loadServices = this.loadServices.bind(this);
@@ -38,7 +38,7 @@ class CustomerServices {
     async loadServiceMetadata() {
         try {
             console.log('Loading service metadata...');
-            
+
             // Since /service-categories and /service-types endpoints don't exist,
             // we'll use default values and focus on the main services endpoint
             this.serviceCategories = [
@@ -46,13 +46,13 @@ class CustomerServices {
                 { ID: 2, Name: 'Commercial', Slug: 'commercial' },
                 { ID: 3, Name: 'Both', Slug: 'both' }
             ];
-            
+
             this.serviceTypes = [
                 { ID: 1, Name: 'Standard', Description: 'Basic cleaning package', Price_Multiplier: 1.0 },
                 { ID: 2, Name: 'Premium', Description: 'Enhanced cleaning package', Price_Multiplier: 1.5 },
                 { ID: 3, Name: 'Deep Clean', Description: 'Comprehensive deep cleaning', Price_Multiplier: 2.0 }
             ];
-            
+
             console.log('Using default service metadata');
 
         } catch (error) {
@@ -100,9 +100,9 @@ class CustomerServices {
 
             console.log('Loading services from database...');
             const data = await this.fetchRequest('GET', '/services');
-            
+
             let servicesArray = [];
-            
+
             // Handle different API response structures
             if (data && Array.isArray(data)) {
                 servicesArray = data;
@@ -115,7 +115,7 @@ class CustomerServices {
             } else {
                 throw new Error('Invalid response format from services API');
             }
-            
+
             if (servicesArray.length > 0) {
                 this.services = this.processServiceData(servicesArray);
                 console.log(`✅ Successfully loaded ${this.services.length} services from database`);
@@ -144,8 +144,8 @@ class CustomerServices {
             Price: parseFloat(service.Price || service.price || 0),
             Duration: service.Duration || service.duration || 60,
             Category: service.Category || service.category,
-            Is_Available: service.Is_Available !== undefined ? service.Is_Available : 
-                         (service.is_available !== undefined ? service.is_available : true),
+            Is_Available: service.Is_Available !== undefined ? service.Is_Available :
+                (service.is_available !== undefined ? service.is_available : true),
             Image_URL: service.Image_URL || service.image_url,
             Service_Type_ID: service.Service_Type_ID || service.service_type_id,
             Service_Category_ID: service.Service_Category_ID || service.service_category_id,
@@ -245,57 +245,57 @@ class CustomerServices {
         const badgeType = this.getServiceBadgeType(service);
 
         return `
-            <div class="service-card" data-service-id="${service.ID}" data-category="${service.Category}">
-                ${badgeType ? `<div class="service-badge ${badgeType}">${this.getBadgeText(badgeType)}</div>` : ''}
+        <div class="service-card" data-service-id="${service.ID}" data-category="${service.Category}">
+            ${badgeType ? `<div class="service-badge ${badgeType}">${this.getBadgeText(badgeType)}</div>` : ''}
+            
+            <div class="service-image-container">
+                <div class="service-image-placeholder">
+                    <i class="fas ${this.getServiceIcon(service.Name)}"></i>
+                </div>
+                ${service.Image_URL ? `
+                    <img src="${this.getImageUrl(service.Image_URL)}" alt="${service.Name}" 
+                         onerror="this.style.display='none'">
+                ` : ''}
+            </div>
+            
+            <div class="service-content">
+                <h3>${this.escapeHtml(service.Name)}</h3>
+                <p>${this.escapeHtml(service.Description)}</p>
                 
-                <div class="service-image-container">
-                    <div class="service-image-placeholder">
-                        <i class="fas ${this.getServiceIcon(service.Name)}"></i>
+                ${features.length > 0 ? `
+                    <div class="service-features">
+                        ${features.slice(0, 3).map(feature => `
+                            <span class="feature-tag">
+                                <i class="fas fa-check"></i>${this.escapeHtml(feature)}
+                            </span>
+                        `).join('')}
+                        ${features.length > 3 ? `<span class="feature-tag">+${features.length - 3} more</span>` : ''}
                     </div>
-                    ${service.Image_URL ? `
-                        <img src="${this.getImageUrl(service.Image_URL)}" alt="${service.Name}" 
-                             onerror="this.style.display='none'">
-                    ` : ''}
+                ` : ''}
+                
+                <div class="service-meta">
+                    <span class="service-category">${this.escapeHtml(category)}</span>
+                    <span class="service-status ${isAvailable ? 'available' : 'unavailable'}">
+                        <i class="fas ${isAvailable ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                        ${isAvailable ? 'Available' : 'Unavailable'}
+                    </span>
                 </div>
                 
-                <div class="service-content">
-                    <h3>${this.escapeHtml(service.Name)}</h3>
-                    <p>${this.escapeHtml(service.Description)}</p>
-                    
-                    ${features.length > 0 ? `
-                        <div class="service-features">
-                            ${features.slice(0, 3).map(feature => `
-                                <span class="feature-tag">
-                                    <i class="fas fa-check"></i>${this.escapeHtml(feature)}
-                                </span>
-                            `).join('')}
-                            ${features.length > 3 ? `<span class="feature-tag">+${features.length - 3} more</span>` : ''}
-                        </div>
-                    ` : ''}
-                    
-                    <div class="service-meta">
-                        <span class="service-category">${this.escapeHtml(category)}</span>
-                        <span class="service-status ${isAvailable ? 'available' : 'unavailable'}">
-                            <i class="fas ${isAvailable ? 'fa-check-circle' : 'fa-times-circle'}"></i>
-                            ${isAvailable ? 'Available' : 'Unavailable'}
-                        </span>
+                <div class="service-footer">
+                    <div class="duration-container">
+                        <span class="service-duration">${service.Duration || 60} min service</span>
                     </div>
-                    
-                    <div class="service-footer">
-                        <div class="price-container">
-                            <span class="service-price">R ${service.Price.toFixed(2)}</span>
-                            <span class="price-note">${service.Duration || 60} min service</span>
-                        </div>
-                        <button class="service-cta-btn ${!isAvailable ? 'disabled' : ''}" 
-                                data-service-id="${service.ID}"
-                                ${!isAvailable ? 'disabled' : ''}>
-                            ${isAvailable ? 'Book Now' : 'Unavailable'}
-                        </button>
-                    </div>
+                    <button class="service-cta-btn ${!isAvailable ? 'disabled' : ''}" 
+                            data-service-id="${service.ID}"
+                            ${!isAvailable ? 'disabled' : ''}>
+                        ${isAvailable ? 'Request Quote' : 'Unavailable'}
+                    </button>
                 </div>
             </div>
-        `;
+        </div>
+    `;
     }
+
 
     getImageUrl(imageUrl) {
         if (!imageUrl) return '';
@@ -417,7 +417,6 @@ class CustomerServices {
 
         // Populate service details from database
         document.getElementById('popup-service-title').textContent = service.Name;
-        document.getElementById('popup-service-price').textContent = `R ${service.Price.toFixed(2)}`;
         document.getElementById('popup-service-description').textContent = service.Description;
         document.getElementById('popup-service-duration').textContent = `${service.Duration} minutes`;
 
@@ -472,14 +471,6 @@ class CustomerServices {
             serviceTypeSelect.appendChild(option);
         });
 
-        // Update price when service type changes
-        serviceTypeSelect.addEventListener('change', (e) => {
-            const selectedOption = e.target.options[e.target.selectedIndex];
-            const price = selectedOption.getAttribute('data-price');
-            if (price) {
-                document.getElementById('popup-service-price').textContent = `R ${parseFloat(price).toFixed(2)}`;
-            }
-        });
     }
 
     calculateServicePrice(basePrice, serviceTypeId) {
@@ -499,7 +490,7 @@ class CustomerServices {
         if (dateInput) {
             const today = new Date().toISOString().split('T')[0];
             dateInput.min = today;
-            
+
             // Set default date to tomorrow
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -516,12 +507,13 @@ class CustomerServices {
         };
     }
 
+    // In the submitBooking method, replace with:
     async submitBooking(service, formData) {
         try {
-            this.showLoading('Processing your booking...');
+            this.showLoading('Processing your quotation request...');
 
             if (!window.authManager || !window.authManager.isAuthenticated()) {
-                throw new Error('Please log in to book a service.');
+                throw new Error('Please log in to request a quotation.');
             }
 
             const user = window.authManager.getUser();
@@ -529,51 +521,42 @@ class CustomerServices {
                 throw new Error('User information not found. Please log in again.');
             }
 
-            const serviceTypeId = formData.get('service-type');
-            if (!serviceTypeId) {
-                throw new Error('Please select a service type.');
-            }
-
-            const selectedServiceType = this.serviceTypes.find(type => type.ID == serviceTypeId);
-            const finalPrice = this.calculateServicePrice(service.Price, parseInt(serviceTypeId));
-
-            // Prepare booking data for database
+            // Prepare quotation request data (no prices)
             const bookingData = {
                 Service_ID: service.ID,
                 Customer_ID: user.ID,
-                Service_Type_ID: serviceTypeId,
                 Date: formData.get('booking-date'),
                 Time: formData.get('booking-time') || '09:00',
-                Address: formData.get('customer-address') || user.Address || '',
+                Address_Street: formData.get('address-street') || '',
+                Address_City: formData.get('address-city') || '',
+                Address_State: formData.get('address-state') || '',
+                Address_Postal_Code: formData.get('address-postal-code') || '',
                 Special_Instructions: formData.get('special-requests') || '',
-                Total_Amount: finalPrice,
                 Duration: service.Duration,
-                Status: 'pending',
+                Status: 'requested',
                 Property_Type: formData.get('property-type'),
-                Property_Size: formData.get('property-size'),
                 Cleaning_Frequency: formData.get('cleaning-frequency')
             };
 
-            console.log('Submitting booking to database:', bookingData);
+            console.log('Submitting quotation request:', bookingData);
 
             // Submit to database
             const response = await this.fetchRequest('POST', '/bookings', bookingData);
 
-            if (response && (response.success || response.id || response.booking_id)) {
-                this.showSuccess('Booking submitted successfully! We will contact you to confirm your appointment.');
+            if (response && (response.success || response.booking)) {
+                this.showSuccess('Quotation request submitted successfully! We will contact you within 24 hours.');
                 this.closeBookingModal();
             } else {
-                throw new Error('Failed to submit booking to database');
+                throw new Error('Failed to submit quotation request');
             }
 
         } catch (error) {
-            console.error('Booking submission error:', error);
-            this.showError(error.message || 'Failed to submit booking. Please try again.');
+            console.error('Quotation request submission error:', error);
+            this.showError(error.message || 'Failed to submit quotation request. Please try again.');
         } finally {
             this.hideLoading();
         }
     }
-
     prefillUserData() {
         if (!window.authManager || !window.authManager.isAuthenticated()) return;
 
@@ -694,7 +677,7 @@ class CustomerServices {
 
         const categories = [...new Set(this.services.map(service => service.Category).filter(Boolean))];
         const currentValue = categoryFilter.value;
-        
+
         categoryFilter.innerHTML = `
             <option value="all">All Categories</option>
             ${categories.map(category => `
@@ -722,7 +705,7 @@ class CustomerServices {
         if (resultsCount) {
             const totalCount = this.services.length;
             const filteredCount = this.filteredServices.length;
-            
+
             if (totalCount === 0) {
                 resultsCount.textContent = 'No services available';
             } else if (filteredCount === totalCount) {

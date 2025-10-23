@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/style.css">
-    
+
 </head>
 
 <body>
@@ -171,9 +171,10 @@
                 <div class="services-controls">
                     <div class="search-box">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="serviceSearch" placeholder="Search services by name or description..." aria-label="Search services">
+                        <input type="text" id="serviceSearch" placeholder="Search services by name or description..."
+                            aria-label="Search services">
                     </div>
-                    
+
                     <div class="filters-container">
                         <div class="filter-group">
                             <label for="categoryFilter" class="filter-label">Category</label>
@@ -184,7 +185,7 @@
                                 <option value="both">Both</option>
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="availabilityFilter" class="filter-label">Status</label>
                             <select id="availabilityFilter" aria-label="Filter by availability">
@@ -193,7 +194,7 @@
                                 <option value="unavailable">Unavailable</option>
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="sortSelect" class="filter-label">Sort By</label>
                             <select id="sortSelect" aria-label="Sort services">
@@ -231,7 +232,8 @@
                     <div class="no-results-content">
                         <i class="fas fa-search"></i>
                         <h3>No Services Found</h3>
-                        <p>We couldn't find any services matching your criteria. Try adjusting your search or filters.</p>
+                        <p>We couldn't find any services matching your criteria. Try adjusting your search or filters.
+                        </p>
                         <button class="btn btn-primary" onclick="window.customerServices.clearFilters()">
                             <i class="fas fa-refresh"></i>
                             Reset Filters
@@ -264,18 +266,15 @@
                                     <span class="popup-duration" id="popup-service-duration">0 min</span>
                                 </div>
                             </div>
-                            
-                            <p class="popup-description" id="popup-service-description">Service description will appear here.</p>
 
+                            <p class="popup-description" id="popup-service-description">Service description will appear
+                                here.</p>
+
+                            <!-- Update the booking form section -->
                             <form id="service-booking-form" class="booking-form">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="service-type">Service Type</label>
-                                        <select id="service-type" name="service-type" required>
-                                            <option value="" disabled selected>Select service type</option>
-                                        </select>
-                                    </div>
+                                <!-- Remove service type selection since no prices -->
 
+                                <div class="form-row">
                                     <div class="form-group">
                                         <label for="property-type">Property Type</label>
                                         <select id="property-type" name="property-type" required>
@@ -286,17 +285,12 @@
                                             <option value="commercial">Commercial Space</option>
                                         </select>
                                     </div>
+
                                 </div>
 
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="property-size">Property Size (m²)</label>
-                                        <input type="number" id="property-size" name="property-size" min="1"
-                                            placeholder="Approximate size" required>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="cleaning-frequency">Frequency</label>
+                                        <label for="cleaning-frequency">Service Frequency</label>
                                         <select id="cleaning-frequency" name="cleaning-frequency" required>
                                             <option value="" disabled selected>Select frequency</option>
                                             <option value="once">One-time</option>
@@ -305,19 +299,43 @@
                                             <option value="monthly">Monthly</option>
                                         </select>
                                     </div>
+
+                                    <div class="form-group">
+                                        <label for="booking-date">Preferred Date</label>
+                                        <input type="date" id="booking-date" name="booking-date" min="" required>
+                                    </div>
+                                </div>
+
+                                <!-- Address Fields -->
+                                <div class="form-group">
+                                    <label for="address-street">Street Address</label>
+                                    <input type="text" id="address-street" name="address-street" required>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="address-city">City</label>
+                                        <input type="text" id="address-city" name="address-city" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="address-state">State/Province</label>
+                                        <input type="text" id="address-state" name="address-state" required>
+                                    </div>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="booking-date">Preferred Date</label>
-                                    <input type="date" id="booking-date" name="booking-date" min="" required>
+                                    <label for="address-postal-code">Postal Code</label>
+                                    <input type="text" id="address-postal-code" name="address-postal-code" required>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="special-requests">Special Requests</label>
+                                    <label for="special-requests">Special Requirements</label>
                                     <textarea id="special-requests" name="special-requests" rows="3"
                                         placeholder="Any specific requirements or additional information..."></textarea>
                                 </div>
 
+                                <!-- Contact Information -->
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="customer-name">Full Name</label>
@@ -337,12 +355,12 @@
 
                                 <div class="form-actions">
                                     <button type="submit" class="submit-btn">
-                                        <i class="fas fa-calendar-check"></i>
-                                        Request Booking
+                                        <i class="fas fa-paper-plane"></i>
+                                        Request Quotation
                                     </button>
                                     <p class="form-note">
                                         <i class="fas fa-info-circle"></i>
-                                        You'll receive a confirmation email within 24 hours
+                                        You'll receive a quotation within 24 hours. No payment required at this stage.
                                     </p>
                                 </div>
                             </form>

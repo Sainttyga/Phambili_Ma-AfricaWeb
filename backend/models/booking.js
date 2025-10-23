@@ -1,7 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config');
-const Customer = require('./customer');
-const Service = require('./service');
 
 const Booking = sequelize.define('Booking', {
   ID: { 
@@ -30,8 +28,8 @@ const Booking = sequelize.define('Booking', {
     field: 'Time'
   },
   Status: { 
-    type: DataTypes.STRING(50), 
-    allowNull: false,
+    type: DataTypes.ENUM('requested', 'quoted', 'confirmed', 'completed', 'cancelled'),
+    defaultValue: 'requested',
     field: 'Status'
   },
   Address: { 
@@ -42,13 +40,26 @@ const Booking = sequelize.define('Booking', {
     type: DataTypes.TEXT,
     field: 'Special_Instructions'
   },
-  Total_Amount: { 
+  Quoted_Amount: { 
     type: DataTypes.DECIMAL(10, 2),
-    field: 'Total_Amount'
+    allowNull: true,
+    field: 'Quoted_Amount'
   },
   Duration: {
     type: DataTypes.STRING(50),
     field: 'Duration'
+  },
+  Property_Type: {
+    type: DataTypes.STRING(100),
+    field: 'Property_Type'
+  },
+  Property_Size: {
+    type: DataTypes.STRING(100),
+    field: 'Property_Size'
+  },
+  Cleaning_Frequency: {
+    type: DataTypes.STRING(50),
+    field: 'Cleaning_Frequency'
   }
 }, {
   tableName: 'Bookings',
@@ -56,12 +67,5 @@ const Booking = sequelize.define('Booking', {
   createdAt: 'created_at',
   updatedAt: 'updated_at'
 });
-
-// Define associations
-Customer.hasMany(Booking, { foreignKey: 'Customer_ID' });
-Booking.belongsTo(Customer, { foreignKey: 'Customer_ID' });
-
-Service.hasMany(Booking, { foreignKey: 'Service_ID' });
-Booking.belongsTo(Service, { foreignKey: 'Service_ID' });
 
 module.exports = Booking;

@@ -1,9 +1,11 @@
 // adminController.js - Complete version with first login
 const { Booking, Customer, Service, Quotation, Feedback, Admin, Product, Order, Payment, sequelize } = require('../models');
+const crypto = require('crypto');
 const { Op } = require('sequelize');
-const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
 
 // ==================== FIRST LOGIN & PASSWORD MANAGEMENT ====================
 
@@ -113,15 +115,34 @@ exports.checkPasswordStatus = async (req, res) => {
   }
 };
 
+
+// RSA key validator — ensures provided key is a valid RSA public/private key
+function validateRsaKey(key) {
+  try {
+    const keyObject = crypto.createPublicKey(key);
+    return keyObject.asymmetricKeyType === 'rsa';
+  } catch {
+    return false;
+  }
+}
+
 exports.resetPassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, rsaKey } = req.body;
     const admin = await Admin.scope('withPassword').findByPk(req.user.id);
 
     if (!admin) {
       return res.status(404).json({
         success: false,
         message: 'Admin not found'
+      });
+    }
+
+    // Optional: If you require RSA validation, check it here
+    if (rsaKey && !validateRsaKey(rsaKey)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid RSA key provided'
       });
     }
 
@@ -134,13 +155,19 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    // Example optional: encrypt the new password using the RSA public key
+    // (Only if your system uses RSA encryption for password transmission)
+    let passwordToStore = newPassword;
+    if (rsaKey) {
+      const buffer = Buffer.from(newPassword, 'utf8');
+      passwordToStore = crypto.publicEncrypt(rsaKey, buffer).toString('base64');
+    }
 
-    // Update admin
-    await admin.update({
-      Password: hashedPassword
-    });
+    // Hash the (possibly RSA-encrypted) password before storing
+    const hashedPassword = await bcrypt.hash(passwordToStore, 12);
+
+    // Update admin password
+    await admin.update({ Password: hashedPassword });
 
     res.json({
       success: true,
@@ -155,10 +182,14 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
+
 // ==================== ADMIN MANAGEMENT (MAIN_ADMIN ONLY) ====================
 
+// In adminController.js - Fix createAdmin method
 exports.createAdmin = async (req, res) => {
   try {
+    console.log('🔄 Creating admin...', req.body);
+
     // Check if current user is main_admin
     const currentAdmin = await Admin.findByPk(req.user.id);
     if (currentAdmin.Role !== 'main_admin') {
@@ -170,11 +201,11 @@ exports.createAdmin = async (req, res) => {
 
     const { Name, Email, Phone, Role = 'sub_admin' } = req.body;
 
-    // Validate role
-    if (!['main_admin', 'sub_admin'].includes(Role)) {
+    // Validate required fields
+    if (!Name || !Email) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role. Must be main_admin or sub_admin'
+        message: 'Name and Email are required'
       });
     }
 
@@ -188,22 +219,40 @@ exports.createAdmin = async (req, res) => {
     }
 
     // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8) + 'A1!';
+    const temporaryPassword = this.generateTemporaryPassword();
     const hashedTempPassword = await bcrypt.hash(temporaryPassword, 12);
 
-    // Create admin
-    const newAdmin = await Admin.create({
-      Name,
-      Email,
-      Phone,
-      Password: hashedTempPassword,
-      First_Login: true,
-      Role: Role,
-      Created_By: req.user.id
+    console.log('📝 Creating admin with data:', {
+      Name, Email, Phone, Role, hasTempPassword: true
     });
 
-    console.log(`Temporary password for ${Email}: ${temporaryPassword}`);
+    let newAdmin;
+    try {
+      newAdmin = await Admin.create({
+        Name: Name.trim(),
+        Email: Email.toLowerCase().trim(),
+        Phone: Phone ? Phone.toString().replace(/[^\d+]/g, '') : null,
+        Password: hashedTempPassword,
+        First_Login: true,
+        Role: Role,
+        Created_By: req.user.id
+      });
+    } catch (createError) {
+      console.error('❌ Admin creation validation error:', createError);
 
+      if (createError.name === 'SequelizeValidationError') {
+        const messages = createError.errors.map(err => `${err.path}: ${err.message}`).join(', ');
+        return res.status(400).json({
+          success: false,
+          message: `Validation error: ${messages}`
+        });
+      }
+      throw createError;
+    }
+
+    console.log(`✅ Admin created successfully. Temporary password for ${Email}: ${temporaryPassword}`);
+
+    // Return the temporary password in the response
     res.status(201).json({
       success: true,
       message: `${Role === 'main_admin' ? 'Main admin' : 'Sub-admin'} created successfully`,
@@ -212,29 +261,59 @@ exports.createAdmin = async (req, res) => {
         Name: newAdmin.Name,
         Email: newAdmin.Email,
         Role: newAdmin.Role,
-        TemporaryPassword: temporaryPassword // Remove in production
+        First_Login: newAdmin.First_Login
       },
-      instructions: 'Send the temporary password to the admin securely'
+      temporaryPassword: temporaryPassword, // Send this to the frontend
+      instructions: 'Send the temporary password to the admin securely. They will need to set a new password on first login.'
     });
 
   } catch (error) {
-    console.error('Create admin error:', error);
+    console.error('❌ Create admin error:', error);
+
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(err => `${err.path}: ${err.message}`).join(', ');
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${messages}`
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Error creating admin'
+      message: 'Error creating admin: ' + error.message
     });
   }
 };
 
+// Add this helper method to generate secure temporary passwords
+exports.generateTemporaryPassword = () => {
+  const length = 10;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+
+  // Ensure at least one of each required character type
+  password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]; // uppercase
+  password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)]; // lowercase
+  password += "0123456789"[Math.floor(Math.random() * 10)]; // number
+  password += "!@#$%^&*"[Math.floor(Math.random() * 8)]; // special character
+
+  // Fill the rest randomly
+  for (let i = 4; i < length; i++) {
+    password += charset[Math.floor(Math.random() * charset.length)];
+  }
+
+  // Shuffle the password
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
+};
 // In adminController.js - Fix the getAllAdmins method
 exports.getAllAdmins = async (req, res) => {
   try {
     console.log('Getting all admins for user:', req.user.id);
-    
+
     // Check if current user is main_admin
     const currentAdmin = await Admin.findByPk(req.user.id);
     console.log('Current admin role:', currentAdmin?.Role);
-    
+
     if (currentAdmin.Role !== 'main_admin') {
       return res.status(403).json({
         success: false,
@@ -243,24 +322,24 @@ exports.getAllAdmins = async (req, res) => {
     }
 
     const admins = await Admin.findAll({
-      attributes: { 
-        exclude: ['Password', 'login_attempts', 'locked_until'] 
+      attributes: {
+        exclude: ['Password', 'login_attempts', 'locked_until']
       },
       // FIX: Use the correct database column names
       order: [['Role', 'DESC'], ['created_at', 'DESC']] // main_admins first
     });
 
     console.log(`Found ${admins.length} admins`);
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      admins 
+      admins
     });
   } catch (error) {
     console.error('Get admins error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching admins: ' + error.message 
+      message: 'Error fetching admins: ' + error.message
     });
   }
 };
@@ -410,23 +489,22 @@ exports.getAdminDetails = async (req, res) => {
 
 // ==================== DASHBOARD & ANALYTICS ====================
 
-// In adminController.js - Fix the getDashboardStats method
+// FIXED: Keep only ONE getDashboardStats function
+// In adminController.js - Update getDashboardStats for sub-admins
 exports.getDashboardStats = async (req, res) => {
   try {
+    console.log('📊 Fetching dashboard stats for user:', req.user.id);
+    
+    // Get current admin to check role
+    const currentAdmin = await Admin.findByPk(req.user.id);
+    const isMainAdmin = currentAdmin.Role === 'main_admin';
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [
-      todayBookings,
-      weeklyRevenue,
-      pendingBookings,
-      newCustomers,
-      totalRevenue,
-      pendingQuotations,
-      totalProducts,
-      totalOrders
-    ] = await Promise.all([
+    // Base queries that all admins can see
+    const baseQueries = [
       // Today's bookings
       Booking.count({
         where: {
@@ -434,17 +512,20 @@ exports.getDashboardStats = async (req, res) => {
         }
       }),
 
+      // Pending bookings
+      Booking.count({
+        where: { Status: 'requested' }
+      })
+    ];
+
+    // Main admin only queries
+    const mainAdminQueries = isMainAdmin ? [
       // Weekly revenue
-      Booking.sum('Total_Amount', {
+      Booking.sum('Quoted_Amount', {
         where: {
           Date: { [Op.gte]: oneWeekAgo },
           Status: { [Op.notIn]: ['cancelled', 'rejected'] }
         }
-      }),
-
-      // Pending bookings
-      Booking.count({
-        where: { Status: 'pending' }
       }),
 
       // New customers this week
@@ -455,13 +536,13 @@ exports.getDashboardStats = async (req, res) => {
       }),
 
       // Total revenue
-      Booking.sum('Total_Amount', {
+      Booking.sum('Quoted_Amount', {
         where: {
           Status: { [Op.notIn]: ['cancelled', 'rejected'] }
         }
       }),
 
-      // Pending quotations - FIXED: Use the new Status field
+      // Pending quotations
       Quotation.count({
         where: { Status: 'pending' }
       }),
@@ -471,27 +552,39 @@ exports.getDashboardStats = async (req, res) => {
 
       // Total orders
       Order.count()
-    ]);
+    ] : [0, 0, 0, 0, 0, 0];
 
-    res.json({
+    const results = await Promise.all([...baseQueries, ...mainAdminQueries]);
+
+    // Base response for all admins
+    const response = {
       success: true,
-      todayBookings: todayBookings || 0,
-      weeklyRevenue: weeklyRevenue || 0,
-      pendingBookings: pendingBookings || 0,
-      newCustomers: newCustomers || 0,
-      totalRevenue: totalRevenue || 0,
-      pendingQuotations: pendingQuotations || 0,
-      totalProducts: totalProducts || 0,
-      totalOrders: totalOrders || 0
-    });
+      todayBookings: results[0] || 0,
+      pendingBookings: results[1] || 0
+    };
+
+    // Add main admin only stats
+    if (isMainAdmin) {
+      response.weeklyRevenue = results[2] || 0;
+      response.newCustomers = results[3] || 0;
+      response.totalRevenue = results[4] || 0;
+      response.pendingQuotations = results[5] || 0;
+      response.totalProducts = results[6] || 0;
+      response.totalOrders = results[7] || 0;
+    }
+
+    console.log(`📊 Dashboard stats for ${isMainAdmin ? 'Main Admin' : 'Sub Admin'}:`, response);
+    
+    res.json(response);
   } catch (error) {
-    console.error('Dashboard stats error:', error);
+    console.error('❌ Dashboard stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching dashboard statistics'
+      message: 'Error fetching dashboard statistics: ' + error.message
     });
   }
 };
+
 // Also update the getBookingAnalytics function:
 exports.getBookingAnalytics = async (req, res) => {
   try {
@@ -510,8 +603,8 @@ exports.getBookingAnalytics = async (req, res) => {
       attributes: [
         [groupBy, 'period'],
         [sequelize.fn('COUNT', sequelize.col('ID')), 'bookings'],
-        // FIXED: Use Total_Amount instead of Amount
-        [sequelize.fn('SUM', sequelize.col('Total_Amount')), 'revenue']
+        // FIXED: Use Quoted_Amount instead of Total_Amount
+        [sequelize.fn('SUM', sequelize.col('Quoted_Amount')), 'revenue']
       ],
       where: {
         Status: { [Op.ne]: 'cancelled' }
@@ -520,20 +613,19 @@ exports.getBookingAnalytics = async (req, res) => {
       order: [[groupBy, 'ASC']]
     });
 
-    res.json({ 
+    res.json({
       success: true,
-      analytics, 
-      period 
+      analytics,
+      period
     });
   } catch (error) {
     console.error('Booking analytics error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching booking analytics' 
+      message: 'Error fetching booking analytics'
     });
   }
 };
-
 // ==================== BOOKING MANAGEMENT ====================
 
 exports.getAllBookings = async (req, res) => {
@@ -562,7 +654,7 @@ exports.getAllBookings = async (req, res) => {
         },
         {
           model: Service,
-          attributes: ['ID', 'Name', 'Price']
+          attributes: ['ID', 'Name']
         }
       ],
       order: [['Date', 'DESC']],
@@ -593,7 +685,7 @@ exports.createBooking = async (req, res) => {
       duration,
       address,
       specialInstructions,
-      amount, // This should be totalAmount
+      amount, // This should be Quoted_Amount
       status = 'pending'
     } = req.body;
 
@@ -617,7 +709,7 @@ exports.createBooking = async (req, res) => {
       Duration: duration,
       Address: address,
       Special_Instructions: specialInstructions,
-      Total_Amount: amount, // FIXED: Use Total_Amount
+      Quoted_Amount: amount, // FIXED: Use Quoted_Amount instead of Total_Amount
       Status: status
     });
 
@@ -695,17 +787,19 @@ exports.deleteBooking = async (req, res) => {
   }
 };
 
+
 // ==================== SERVICE MANAGEMENT ====================
 
 // Add these methods to adminController.js
+// Update createService method
 exports.createService = async (req, res) => {
   try {
-    const { Name, Description, Price, Duration, Category, Is_Available } = req.body;
+    const { Name, Description, Duration, Category, Is_Available } = req.body;
 
-    if (!Name || !Price || !Duration) {
-      return res.status(400).json({ 
+    if (!Name || !Duration) {
+      return res.status(400).json({
         success: false,
-        message: 'Name, Price, and Duration are required.' 
+        message: 'Name and Duration are required.'
       });
     }
 
@@ -715,40 +809,40 @@ exports.createService = async (req, res) => {
       imageUrl = `/upload/services/${req.file.filename}`;
     }
 
-    const service = await Service.create({ 
-      Name, 
-      Description, 
-      Price, 
+    const service = await Service.create({
+      Name,
+      Description,
       Duration,
       Category,
       Is_Available: Is_Available !== undefined ? Is_Available : true,
       Image_URL: imageUrl
     });
 
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
-      message: 'Service created successfully', 
-      service 
+      message: 'Service created successfully',
+      service
     });
   } catch (err) {
     console.error('Create service error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error creating service: ' + err.message 
+      message: 'Error creating service: ' + err.message
     });
   }
 };
 
+// Update updateService method
 exports.updateService = async (req, res) => {
   const { id } = req.params;
-  const { Name, Description, Price, Duration, Category, Is_Available } = req.body;
+  const { Name, Description, Duration, Category, Is_Available } = req.body;
 
   try {
     const service = await Service.findByPk(id);
     if (!service) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Service not found.' 
+        message: 'Service not found.'
       });
     }
 
@@ -768,7 +862,6 @@ exports.updateService = async (req, res) => {
     await service.update({
       Name: Name || service.Name,
       Description: Description !== undefined ? Description : service.Description,
-      Price: Price != null ? Price : service.Price,
       Duration: Duration != null ? Duration : service.Duration,
       Category: Category !== undefined ? Category : service.Category,
       Is_Available: Is_Available !== undefined ? Is_Available : service.Is_Available,
@@ -776,17 +869,17 @@ exports.updateService = async (req, res) => {
     });
 
     const updatedService = await Service.findByPk(id);
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      message: 'Service updated successfully', 
-      service: updatedService 
+      message: 'Service updated successfully',
+      service: updatedService
     });
   } catch (err) {
     console.error('Update service error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error updating service: ' + err.message 
+      message: 'Error updating service: ' + err.message
     });
   }
 };
@@ -796,9 +889,9 @@ exports.deleteService = async (req, res) => {
   try {
     const service = await Service.findByPk(id);
     if (!service) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Service not found.' 
+        message: 'Service not found.'
       });
     }
 
@@ -811,16 +904,16 @@ exports.deleteService = async (req, res) => {
     }
 
     await service.destroy();
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      message: 'Service deleted successfully' 
+      message: 'Service deleted successfully'
     });
   } catch (err) {
     console.error('Delete service error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error deleting service: ' + err.message 
+      message: 'Error deleting service: ' + err.message
     });
   }
 };
@@ -832,24 +925,24 @@ exports.toggleServiceAvailability = async (req, res) => {
   try {
     const service = await Service.findByPk(id);
     if (!service) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Service not found.' 
+        message: 'Service not found.'
       });
     }
 
     await service.update({ Is_Available: isAvailable });
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: `Service ${isAvailable ? 'activated' : 'deactivated'} successfully`,
-      service 
+      service
     });
   } catch (err) {
     console.error('Toggle service availability error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error updating service availability: ' + err.message 
+      message: 'Error updating service availability: ' + err.message
     });
   }
 };
@@ -859,21 +952,21 @@ exports.getServiceDetails = async (req, res) => {
   try {
     const service = await Service.findByPk(id);
     if (!service) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Service not found.' 
+        message: 'Service not found.'
       });
     }
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      service 
+      service
     });
   } catch (err) {
     console.error('Get service error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching service: ' + err.message 
+      message: 'Error fetching service: ' + err.message
     });
   }
 };
@@ -883,16 +976,16 @@ exports.getAllServices = async (req, res) => {
     const services = await Service.findAll({
       order: [['created_at', 'DESC']]
     });
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      services 
+      services
     });
   } catch (err) {
     console.error('Get services error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching services: ' + err.message 
+      message: 'Error fetching services: ' + err.message
     });
   }
 };
@@ -990,16 +1083,16 @@ exports.getAllProducts = async (req, res) => {
     const products = await Product.findAll({
       order: [['Name', 'ASC']]
     });
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      products 
+      products
     });
   } catch (error) {
     console.error('Get products error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching products' 
+      message: 'Error fetching products'
     });
   }
 };
@@ -1040,25 +1133,26 @@ exports.getBookingSummary = async (req, res) => {
       attributes: [
         'Status',
         [sequelize.fn('COUNT', sequelize.col('ID')), 'count'],
-        // FIXED: Use Total_Amount instead of Amount
-        [sequelize.fn('SUM', sequelize.col('Total_Amount')), 'total_amount']
+        // FIXED: Use Quoted_Amount instead of Total_Amount
+        [sequelize.fn('SUM', sequelize.col('Quoted_Amount')), 'total_amount']
       ],
       group: ['Status']
     });
 
-    res.json({ 
+    res.json({
       success: true,
-      summary 
+      summary
     });
   } catch (error) {
     console.error('Booking summary error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error generating booking summary' 
+      message: 'Error generating booking summary'
     });
   }
 };
 
+// FIXED: Updated Total_Amount to Quoted_Amount
 exports.getRevenueReport = async (req, res) => {
   try {
     const { period = 'monthly' } = req.query;
@@ -1078,23 +1172,23 @@ exports.getRevenueReport = async (req, res) => {
       },
       attributes: [
         [groupBy, 'period'],
-        // FIXED: Use Total_Amount instead of Amount
-        [sequelize.fn('SUM', sequelize.col('Total_Amount')), 'revenue'],
+        // FIXED: Use Quoted_Amount instead of Total_Amount
+        [sequelize.fn('SUM', sequelize.col('Quoted_Amount')), 'revenue'],
         [sequelize.fn('COUNT', sequelize.col('ID')), 'bookings']
       ],
       group: ['period'],
       order: [[groupBy, 'DESC']]
     });
 
-    res.json({ 
+    res.json({
       success: true,
-      revenue 
+      revenue
     });
   } catch (error) {
     console.error('Revenue report error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error generating revenue report' 
+      message: 'Error generating revenue report'
     });
   }
 };
@@ -1134,26 +1228,31 @@ exports.sendBulkReminders = async (req, res) => {
 // ==================== SERVICE AVAILABILITY ====================
 
 exports.toggleServiceAvailability = async (req, res) => {
-  try {
-    const { serviceId } = req.params;
-    const { isAvailable } = req.body;
+  const { id } = req.params;  // ✅ CORRECT: uses 'id'
+  const { isAvailable } = req.body;
 
-    const service = await Service.findByPk(serviceId);
+  try {
+    const service = await Service.findByPk(id);
     if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found.'
+      });
     }
 
-    await service.update({
-      Is_Available: isAvailable
-    });
+    await service.update({ Is_Available: isAvailable });
 
     res.json({
+      success: true,
       message: `Service ${isAvailable ? 'activated' : 'deactivated'} successfully`,
       service
     });
-  } catch (error) {
-    console.error('Toggle service availability error:', error);
-    res.status(500).json({ message: 'Error updating service availability' });
+  } catch (err) {
+    console.error('Toggle service availability error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating service availability: ' + err.message
+    });
   }
 };
 
@@ -1196,33 +1295,35 @@ exports.getAdminProfile = async (req, res) => {
   }
 };
 
-// In adminController.js - fix the updateAdminProfile method
+// In adminController.js - FIX the updateAdminProfile method
 exports.updateAdminProfile = async (req, res) => {
   try {
     const { Name, Email, Phone } = req.body;
     const adminId = req.user.id;
 
+    console.log('🔄 Updating admin profile:', { Name, Email, Phone, adminId });
+
     const admin = await Admin.findByPk(adminId);
     if (!admin) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Admin not found' 
+        message: 'Admin not found'
       });
     }
 
     // Check if email is already taken by another admin
     if (Email && Email !== admin.Email) {
-      const existingAdmin = await Admin.findOne({ 
-        where: { 
+      const existingAdmin = await Admin.findOne({
+        where: {
           Email,
           ID: { [Op.ne]: adminId }
-        } 
+        }
       });
-      
+
       if (existingAdmin) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: 'Email is already taken by another admin' 
+          message: 'Email is already taken by another admin'
         });
       }
     }
@@ -1231,18 +1332,42 @@ exports.updateAdminProfile = async (req, res) => {
     const updateData = {};
     if (Name) updateData.Name = Name;
     if (Email) updateData.Email = Email;
-    
+
     // FIXED: Handle phone properly - set to null if empty string
     if (Phone !== undefined) {
-      updateData.Phone = Phone === '' ? null : Phone;
+      // Basic phone cleaning - remove any non-digit characters except +
+      if (Phone === '' || Phone === null) {
+        updateData.Phone = null;
+      } else {
+        const cleanedPhone = Phone.toString().replace(/[^\d+]/g, '');
+        updateData.Phone = cleanedPhone;
+      }
     }
 
-    await admin.update(updateData);
+    console.log('📝 Update data:', updateData);
+
+    // Use try-catch for the update to catch validation errors
+    try {
+      await admin.update(updateData);
+    } catch (updateError) {
+      console.error('❌ Update validation error:', updateError);
+
+      if (updateError.name === 'SequelizeValidationError') {
+        const messages = updateError.errors.map(err => `${err.path}: ${err.message}`).join(', ');
+        return res.status(400).json({
+          success: false,
+          message: `Validation error: ${messages}`
+        });
+      }
+      throw updateError;
+    }
 
     // Get updated admin data
     const updatedAdmin = await Admin.findByPk(adminId, {
       attributes: { exclude: ['Password', 'login_attempts', 'locked_until'] }
     });
+
+    console.log('✅ Profile updated successfully');
 
     res.json({
       success: true,
@@ -1251,20 +1376,20 @@ exports.updateAdminProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update admin profile error:', error);
-    
+    console.error('❌ Update admin profile error:', error);
+
     // Handle validation errors specifically
     if (error.name === 'SequelizeValidationError') {
-      const messages = error.errors.map(err => err.message).join(', ');
-      return res.status(400).json({ 
+      const messages = error.errors.map(err => `${err.path}: ${err.message}`).join(', ');
+      return res.status(400).json({
         success: false,
-        message: `Validation error: ${messages}` 
+        message: `Validation error: ${messages}`
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
-      message: 'Error updating admin profile' 
+      message: 'Error updating admin profile: ' + error.message
     });
   }
 };
@@ -1457,135 +1582,161 @@ exports.getProductDetails = async (req, res) => {
   }
 };
 
-// exports.createProduct = async (req, res) => {
-//   try {
-//     const { Name, Description, Price, Stock_Quantity, Category, Is_Available } = req.body;
-    
-//     // Handle image upload if needed
-//     let imageUrl = null;
-//     if (req.file) {
-//       imageUrl = `/upload/products/${req.file.filename}`;
-//     }
+exports.createProduct = async (req, res) => {
+  try {
+    const { Name, Description, Price, Stock_Quantity, Category, Is_Available } = req.body;
 
-//     const product = await Product.create({
-//       Name,
-//       Description,
-//       Price,
-//       Stock_Quantity: Stock_Quantity || 0,
-//       Category,
-//       Is_Available: Is_Available !== undefined ? Is_Available : true,
-//       Image_URL: imageUrl
-//     });
+    if (!Name || !Price) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and Price are required.'
+      });
+    }
 
-//     res.status(201).json({
-//       success: true,
-//       message: 'Product created successfully',
-//       product
-//     });
-//   } catch (error) {
-//     console.error('Create product error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error creating product: ' + error.message
-//     });
-//   }
-// };
+    // Handle image upload
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = `/upload/products/${req.file.filename}`;
+    }
 
-// // Add missing updateProduct method
-// exports.updateProduct = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const updateData = req.body;
+    const product = await Product.create({
+      Name,
+      Description,
+      Price,
+      Stock_Quantity: Stock_Quantity || 0,
+      Category,
+      Is_Available: Is_Available !== undefined ? Is_Available : true,
+      Image_URL: imageUrl
+    });
 
-//     const product = await Product.findByPk(id);
-//     if (!product) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Product not found'
-//       });
-//     }
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      product
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating product: ' + error.message
+    });
+  }
+};
 
-//     // Handle image update if needed
-//     if (req.file) {
-//       updateData.Image_URL = `/upload/products/${req.file.filename}`;
-//     }
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
 
-//     await product.update(updateData);
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
 
-//     const updatedProduct = await Product.findByPk(id);
+    // Handle image update
+    if (req.file) {
+      updateData.Image_URL = `/upload/products/${req.file.filename}`;
+    }
 
-//     res.json({
-//       success: true,
-//       message: 'Product updated successfully',
-//       product: updatedProduct
-//     });
-//   } catch (error) {
-//     console.error('Update product error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error updating product'
-//     });
-//   }
-// };
+    await product.update(updateData);
 
-// // Add missing deleteProduct method
-// exports.deleteProduct = async (req, res) => {
-//   try {
-//     const { id } = req.params;
+    const updatedProduct = await Product.findByPk(id);
 
-//     const product = await Product.findByPk(id);
-//     if (!product) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Product not found'
-//       });
-//     }
+    res.json({
+      success: true,
+      message: 'Product updated successfully',
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product'
+    });
+  }
+};
 
-//     await product.destroy();
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-//     res.json({
-//       success: true,
-//       message: 'Product deleted successfully'
-//     });
-//   } catch (error) {
-//     console.error('Delete product error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error deleting product'
-//     });
-//   }
-// };
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
 
-// // Add missing toggleProductAvailability method
-// exports.toggleProductAvailability = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { isAvailable } = req.body;
+    await product.destroy();
 
-//     const product = await Product.findByPk(id);
-//     if (!product) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Product not found'
-//       });
-//     }
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting product'
+    });
+  }
+};
+exports.toggleProductAvailability = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAvailable } = req.body;
 
-//     await product.update({ Is_Available: isAvailable });
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
 
-//     res.json({
-//       success: true,
-//       message: `Product ${isAvailable ? 'activated' : 'deactivated'} successfully`,
-//       product
-//     });
-//   } catch (error) {
-//     console.error('Toggle product availability error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error updating product availability'
-//     });
-//   }
-// };
+    await product.update({ Is_Available: isAvailable });
 
+    res.json({
+      success: true,
+      message: `Product ${isAvailable ? 'activated' : 'deactivated'} successfully`,
+      product
+    });
+  } catch (error) {
+    console.error('Toggle product availability error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product availability'
+    });
+  }
+};
+
+exports.getProductById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found.'
+      });
+    }
+
+    res.json({
+      success: true,
+      product
+    });
+  } catch (err) {
+    console.error('Get product error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product: ' + err.message
+    });
+  }
+};
 // ==================== QUOTATION DETAILS ====================
 
 exports.getQuotationDetails = async (req, res) => {
@@ -1620,3 +1771,52 @@ exports.getQuotationDetails = async (req, res) => {
     });
   }
 };
+
+// Add to adminController.js - Role checking middleware
+exports.checkAdminPermissions = async (req, res, next) => {
+  try {
+    console.log('🔐 Checking admin permissions for user:', req.user.id);
+
+    const currentAdmin = await Admin.findByPk(req.user.id);
+
+    if (!currentAdmin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    // Store admin info for use in controllers
+    req.admin = currentAdmin;
+
+    // Check if sub-admin is trying to access main-admin only features
+    const mainAdminOnlyRoutes = [
+      '/api/admin/admins',
+      '/api/admin/reports',
+      '/api/admin/system',
+      '/api/admin/customers', // Add customers to restricted routes
+      '/api/admin/dashboard/stats' // Restrict full dashboard stats
+    ];
+
+    const isMainAdminRoute = mainAdminOnlyRoutes.some(route =>
+      req.path.startsWith(route)
+    );
+
+    if (isMainAdminRoute && currentAdmin.Role !== 'main_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Main admin privileges required.'
+      });
+    }
+
+    console.log(`✅ Admin permissions granted: ${currentAdmin.Name} (${currentAdmin.Role})`);
+    next();
+  } catch (error) {
+    console.error('❌ Admin permission check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking admin permissions'
+    });
+  }
+};
+

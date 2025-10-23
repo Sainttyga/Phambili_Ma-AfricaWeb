@@ -297,6 +297,7 @@ class AuthManager {
         this.setupDropdown(userIcon, dropdown);
     }
 
+    // In auth-manager.js - Fix createAdminDropdown method
     createAdminDropdown(userIcon) {
         // Remove existing dropdown if any
         const existingDropdown = userIcon.querySelector('.user-dropdown');
@@ -310,39 +311,38 @@ class AuthManager {
         const dropdown = document.createElement('div');
         dropdown.className = 'user-dropdown';
         dropdown.innerHTML = `
-        <div class="dropdown-user-info">
-            <div class="dropdown-user-avatar">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="dropdown-user-details">
-                <strong>${userName}</strong>
-                <span>${userEmail || 'No email provided'}</span>
-                <small>Administrator</small>
-            </div>
+    <div class="dropdown-user-info">
+        <div class="dropdown-user-avatar">
+            <i class="fas fa-user-shield"></i>
         </div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-links">
-            <a href="admin-dashboard.html" class="dropdown-link">
-                <i class="fas fa-tachometer-alt"></i>
-                Admin Dashboard
-            </a>
-            <a href="admin-dashboard.html#admin-profile" class="dropdown-link">
-                <i class="fas fa-user-cog"></i>
-                Admin Profile
-            </a>
+        <div class="dropdown-user-details">
+            <strong>${userName}</strong>
+            <span>${userEmail || 'No email provided'}</span>
+            <small>Administrator</small>
         </div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-links">
-            <button class="dropdown-link logout-btn">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </button>
-        </div>
-    `;
+    </div>
+    <div class="dropdown-divider"></div>
+    <div class="dropdown-links">
+        <a href="javascript:void(0)" class="dropdown-link" onclick="showSection('dashboard')">
+            <i class="fas fa-tachometer-alt"></i>
+            Admin Dashboard
+        </a>
+        <a href="javascript:void(0)" class="dropdown-link" onclick="showSection('admin-profile')">
+            <i class="fas fa-user-cog"></i>
+            Admin Profile
+        </a>
+    </div>
+    <div class="dropdown-divider"></div>
+    <div class="dropdown-links">
+        <button class="dropdown-link logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+        </button>
+    </div>
+`;
 
         this.setupDropdown(userIcon, dropdown);
     }
-
     // Setup user icon for authenticated users (with dropdown)
     setupAuthenticatedUserIcon(userIconLink, userIconImg) {
         // Remove href to prevent navigation and setup dropdown

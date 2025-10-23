@@ -33,7 +33,7 @@ const Admin = sequelize.define('Admin', {
     allowNull: true,
     field: 'phone',
     validate: {
-      is: /^[\+]?[1-9][\d]{0,15}$/
+      is:  /^[\+]?[0-9\s\-\(\)]{8,20}$/i || true
     }
   },
   Password: { 
