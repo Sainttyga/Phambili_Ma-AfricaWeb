@@ -245,114 +245,206 @@
             <!-- Enhanced Service Booking Popup -->
             <div id="service-popup" class="service-popup" role="dialog" aria-modal="true" aria-hidden="true">
                 <div class="popup-overlay"></div>
-                <div class="popup-container" role="document">
+                <div class="popup-container">
                     <button class="popup-close" aria-label="Close popup">
                         <i class="fas fa-times"></i>
                     </button>
 
                     <div class="popup-content">
+                        <!-- Left Side - Service Image & Info -->
                         <div class="popup-image">
-                            <img id="popup-service-image" src="" alt="">
-                            <div class="image-placeholder" id="image-placeholder">
-                                <i class="fas fa-concierge-bell"></i>
+                            <div class="popup-image-content">
+                                <img id="popup-service-image" src="" alt="">
+                                <div class="image-placeholder" id="image-placeholder">
+                                    <i class="fas fa-concierge-bell"></i>
+                                </div>
+                                <div class="popup-image-info">
+                                    <h3 id="popup-service-title">Service Title</h3>
+                                    <div class="service-features">
+                                        <span class="feature-tag">
+                                            <i class="fas fa-clock"></i>
+                                            <span id="popup-service-duration">60 min</span>
+                                        </span>
+                                        <span class="feature-tag">
+                                            <i class="fas fa-star"></i>
+                                            Professional Service
+                                        </span>
+                                        <span class="feature-tag">
+                                            <i class="fas fa-shield-alt"></i>
+                                            Insured & Certified
+                                        </span>
+                                    </div>
+                                </div>
+                                <!-- Service Description Below Image -->
+                                <div class="popup-description-container">
+                                    <div class="description-header">
+                                        <i class="fas fa-info-circle"></i>
+                                        <h4>Service Description</h4>
+                                    </div>
+                                    <p class="popup-description" id="popup-service-description">
+                                        Service description will appear here with full details about what this service
+                                        includes,
+                                        the benefits, and what customers can expect.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Right Side - Booking Form -->
                         <div class="popup-details">
                             <div class="popup-header">
-                                <h2 id="popup-service-title">Service Title</h2>
-                                <div class="popup-meta">
-                                    <span class="popup-price" id="popup-service-price">R0.00</span>
-                                    <span class="popup-duration" id="popup-service-duration">0 min</span>
+                                <h2 id="popup-service-title-main">Request Quotation</h2>
+
+                                <!-- Welcome Message at the top of the form -->
+                                <div class="welcome-message">
+                                    <div class="welcome-header">
+                                        <i class="fas fa-comments"></i>
+                                        <h3>Hi there,</h3>
+                                    </div>
+                                    <div class="welcome-content">
+                                        <p>Thank you for connecting through our online booking system!</p>
+                                        <p>After you have submitted this, you will receive confirmation where you will
+                                            select a date & time for a virtual consultation to discuss your needs, view
+                                            your space, provide you a quote, and get you booked in with us!</p>
+                                        <div class="signature">
+                                            <p><strong>Thank you,</strong></p>
+                                            <p class="company-name">Phambili Ma-Africa - Trading Enterprise</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <p class="popup-description" id="popup-service-description">Service description will appear
-                                here.</p>
-
-                            <!-- Update the booking form section -->
                             <form id="service-booking-form" class="booking-form">
-                                <!-- Remove service type selection since no prices -->
-
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="property-type">Property Type</label>
-                                        <select id="property-type" name="property-type" required>
-                                            <option value="" disabled selected>Select property type</option>
-                                            <option value="house">House</option>
-                                            <option value="apartment">Apartment</option>
-                                            <option value="office">Office</option>
-                                            <option value="commercial">Commercial Space</option>
-                                        </select>
-                                    </div>
-
-                                </div>
-
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="cleaning-frequency">Service Frequency</label>
-                                        <select id="cleaning-frequency" name="cleaning-frequency" required>
-                                            <option value="" disabled selected>Select frequency</option>
-                                            <option value="once">One-time</option>
-                                            <option value="weekly">Weekly</option>
-                                            <option value="biweekly">Bi-weekly</option>
-                                            <option value="monthly">Monthly</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="booking-date">Preferred Date</label>
-                                        <input type="date" id="booking-date" name="booking-date" min="" required>
+                                <!-- Service Details Section -->
+                                <div class="form-section">
+                                    <h3 class="form-section-title">
+                                        <i class="fas fa-clipboard-list"></i>
+                                        Service Details
+                                    </h3>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="property-type">Property Type</label>
+                                            <select id="property-type" name="property-type" required>
+                                                <option value="" disabled selected>Select property type</option>
+                                                <option value="house">House</option>
+                                                <option value="apartment">Apartment</option>
+                                                <option value="office">Office</option>
+                                                <option value="commercial">Commercial Space</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="cleaning-frequency">Service Frequency</label>
+                                            <select id="cleaning-frequency" name="cleaning-frequency" required>
+                                                <option value="" disabled selected>Select frequency</option>
+                                                <option value="once">One-time</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="biweekly">Bi-weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Address Fields -->
-                                <div class="form-group">
-                                    <label for="address-street">Street Address</label>
-                                    <input type="text" id="address-street" name="address-street" required>
-                                </div>
-
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="address-city">City</label>
-                                        <input type="text" id="address-city" name="address-city" required>
+                                <!-- Schedule Section -->
+                                <div class="form-section">
+                                    <h3 class="form-section-title">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        Schedule
+                                    </h3>
+                                    <div class="date-time-group">
+                                        <div class="form-group">
+                                            <label for="booking-date">Preferred Date</label>
+                                            <input type="date" id="booking-date" name="booking-date" min="" required>
+                                            <div id="date-hint" class="date-hint" style="display: none;">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span id="date-hint-text"></span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="booking-time">Preferred Time</label>
+                                            <select id="booking-time" name="booking-time" required>
+                                                <option value="" disabled selected>Select time</option>
+                                                <option value="08:00">08:00 AM</option>
+                                                <option value="09:00">09:00 AM</option>
+                                                <option value="10:00">10:00 AM</option>
+                                                <option value="11:00">11:00 AM</option>
+                                                <option value="12:00">12:00 PM</option>
+                                                <option value="13:00">01:00 PM</option>
+                                                <option value="14:00">02:00 PM</option>
+                                                <option value="15:00">03:00 PM</option>
+                                                <option value="16:00">04:00 PM</option>
+                                                <option value="17:00">05:00 PM</option>
+                                            </select>
+                                        </div>
                                     </div>
+                                </div>
 
+                                <!-- Address Section -->
+                                <div class="form-section">
+                                    <h3 class="form-section-title">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        Service Location
+                                    </h3>
                                     <div class="form-group">
-                                        <label for="address-state">State/Province</label>
-                                        <input type="text" id="address-state" name="address-state" required>
+                                        <label for="address-street">Street Address</label>
+                                        <input type="text" id="address-street" name="address-street"
+                                            placeholder="Enter your street address" required>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="address-city">City</label>
+                                            <input type="text" id="address-city" name="address-city" placeholder="City"
+                                                required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="address-state">State</label>
+                                            <input type="text" id="address-state" name="address-state"
+                                                placeholder="State" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address-postal-code">Postal Code</label>
+                                        <input type="text" id="address-postal-code" name="address-postal-code"
+                                            placeholder="Postal Code" required>
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="address-postal-code">Postal Code</label>
-                                    <input type="text" id="address-postal-code" name="address-postal-code" required>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="special-requests">Special Requirements</label>
-                                    <textarea id="special-requests" name="special-requests" rows="3"
-                                        placeholder="Any specific requirements or additional information..."></textarea>
+                                <!-- Additional Information -->
+                                <div class="form-section">
+                                    <h3 class="form-section-title">
+                                        <i class="fas fa-edit"></i>
+                                        Additional Information
+                                    </h3>
+                                    <div class="form-group">
+                                        <label for="special-requests">Special Requirements</label>
+                                        <textarea id="special-requests" name="special-requests"
+                                            placeholder="Any specific requirements, access instructions, or additional information that will help us provide better service..."></textarea>
+                                    </div>
                                 </div>
 
                                 <!-- Contact Information -->
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="customer-name">Full Name</label>
-                                        <input type="text" id="customer-name" name="customer-name" required>
+                                <div class="form-section">
+                                    <h3 class="form-section-title">
+                                        <i class="fas fa-user"></i>
+                                        Your Information
+                                    </h3>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="customer-name">Full Name</label>
+                                            <input type="text" id="customer-name" name="customer-name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="customer-phone">Phone Number</label>
+                                            <input type="tel" id="customer-phone" name="customer-phone" required>
+                                        </div>
                                     </div>
-
                                     <div class="form-group">
-                                        <label for="customer-phone">Phone Number</label>
-                                        <input type="tel" id="customer-phone" name="customer-phone" required>
+                                        <label for="customer-email">Email Address</label>
+                                        <input type="email" id="customer-email" name="customer-email" required>
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="customer-email">Email Address</label>
-                                    <input type="email" id="customer-email" name="customer-email" required>
-                                </div>
-
+                                <!-- Form Actions -->
                                 <div class="form-actions">
                                     <button type="submit" class="submit-btn">
                                         <i class="fas fa-paper-plane"></i>
@@ -360,7 +452,8 @@
                                     </button>
                                     <p class="form-note">
                                         <i class="fas fa-info-circle"></i>
-                                        You'll receive a quotation within 24 hours. No payment required at this stage.
+                                        You'll receive a custom quotation within 24 hours. No payment required at this
+                                        stage.
                                     </p>
                                 </div>
                             </form>

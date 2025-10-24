@@ -1697,31 +1697,6 @@ body.dropdown-open {
     font-weight: 500;
 }
 
-/* ===== REPORTS GRID ===== */
-.reports-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.report-card {
-    background: var(--white);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
-    padding: 1.5rem;
-}
-
-.report-card h3 {
-    margin-bottom: 1rem;
-    color: var(--text-color);
-    font-size: 1.1rem;
-}
-
-.detailed-stats {
-    margin-top: 2rem;
-}
-
 /* ===== CUSTOMER MODAL STYLES ===== */
 .customer-section {
     margin-bottom: 2rem;
@@ -1744,7 +1719,6 @@ body.dropdown-open {
 }
 
 .booking-list,
-.quotation-list,
 .feedback-list {
     display: flex;
     flex-direction: column;
@@ -1752,7 +1726,6 @@ body.dropdown-open {
 }
 
 .booking-item,
-.quotation-item,
 .feedback-item {
     padding: 1rem;
     background: #f8f9fa;
@@ -1761,7 +1734,6 @@ body.dropdown-open {
 }
 
 .booking-header,
-.quotation-header,
 .feedback-header {
     display: flex;
     justify-content: space-between;
@@ -1770,21 +1742,18 @@ body.dropdown-open {
 }
 
 .booking-title,
-.quotation-title,
 .feedback-title {
     font-weight: 600;
     color: var(--text-color);
 }
 
 .booking-date,
-.quotation-date,
 .feedback-date {
     font-size: 0.8rem;
     color: var(--text-light);
 }
 
 .booking-details,
-.quotation-details,
 .feedback-details {
     display: flex;
     gap: 1rem;
@@ -1975,6 +1944,238 @@ body.dropdown-open {
 .nav-link.restricted:hover {
   background-color: transparent;
 }
+/* Compact Booking Card Styles */
+.booking-card-compact {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  height: fit-content;
+}
+
+.booking-card-compact:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Header */
+.card-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.service-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.service-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.service-category {
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.requested { background: #fef3c7; color: #92400e; }
+.status-badge.confirmed { background: #d1fae5; color: #065f46; }
+.status-badge.completed { background: #dbeafe; color: #1e40af; }
+.status-badge.cancelled { background: #fee2e2; color: #991b1b; }
+
+/* Customer Row */
+.customer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.customer-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.customer-details {
+  flex: 1;
+}
+
+.customer-details strong {
+  font-size: 0.9rem;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.customer-contact-small {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Details Grid */
+.details-grid-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #475569;
+  padding: 4px;
+}
+
+.detail-item i {
+  width: 12px;
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+/* Quote Info */
+.quote-info-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.quote-amount-badge {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quote-pending-badge {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notes-indicator {
+  color: #3b82f6;
+  font-size: 0.8rem;
+}
+
+/* Action Buttons */
+.actions-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-view-details {
+  flex: 1;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s ease;
+}
+
+.btn-view-details:hover {
+  background: #2563eb;
+}
+
+.btn-quote-small {
+  background: #10b981;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.btn-quote-small:hover {
+  background: #059669;
+}
+
+/* Grid Layout for Cards */
+#bookingsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #64748b;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  color: #cbd5e1;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1.1rem;
+}
 /* Responsive image sizing */
 @media (max-width: 768px) {
   .product-image {
@@ -1986,20 +2187,6 @@ body.dropdown-open {
   .product-image {
     height: 120px;
   }
-}
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 1024px) {
-    .content-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .reports-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 @media (max-width: 768px) {

@@ -1,5 +1,5 @@
 // adminController.js - Complete version with first login
-const { Booking, Customer, Service, Quotation, Feedback, Admin, Product, Order, Payment, sequelize } = require('../models');
+const { Booking, Customer, Service, Feedback, Admin, Product, Order, Payment, sequelize } = require('../models');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
@@ -489,12 +489,11 @@ exports.getAdminDetails = async (req, res) => {
 
 // ==================== DASHBOARD & ANALYTICS ====================
 
-// FIXED: Keep only ONE getDashboardStats function
-// In adminController.js - Update getDashboardStats for sub-admins
+// FIXED: Dashboard stats without Quotation model
 exports.getDashboardStats = async (req, res) => {
   try {
     console.log('📊 Fetching dashboard stats for user:', req.user.id);
-    
+
     // Get current admin to check role
     const currentAdmin = await Admin.findByPk(req.user.id);
     const isMainAdmin = currentAdmin.Role === 'main_admin';
@@ -502,79 +501,90 @@ exports.getDashboardStats = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Base queries that all admins can see
     const baseQueries = [
-      // Today's bookings
+      // Today's bookings (quotation requests)
       Booking.count({
         where: {
           Date: today.toISOString().split('T')[0]
         }
       }),
 
-      // Pending bookings
+      // Pending bookings (pending quotations)
       Booking.count({
         where: { Status: 'requested' }
+      }),
+
+      // Completed bookings this week
+      Booking.count({
+        where: {
+          Status: 'completed',
+          Date: { [Op.gte]: oneWeekAgo }
+        }
       })
     ];
 
     // Main admin only queries
     const mainAdminQueries = isMainAdmin ? [
-      // Weekly revenue
+      // Weekly revenue from completed bookings
       Booking.sum('Quoted_Amount', {
         where: {
-          Date: { [Op.gte]: oneWeekAgo },
-          Status: { [Op.notIn]: ['cancelled', 'rejected'] }
+          Status: 'completed',
+          Date: { [Op.gte]: oneWeekAgo }
         }
       }),
 
-      // New customers this week
+      // New customers this month
       Customer.count({
         where: {
-          createdAt: { [Op.gte]: oneWeekAgo }
+          createdAt: { [Op.gte]: oneMonthAgo }
         }
       }),
 
-      // Total revenue
+      // Total revenue (all completed bookings)
       Booking.sum('Quoted_Amount', {
         where: {
-          Status: { [Op.notIn]: ['cancelled', 'rejected'] }
+          Status: 'completed'
         }
-      }),
-
-      // Pending quotations
-      Quotation.count({
-        where: { Status: 'pending' }
       }),
 
       // Total products
       Product.count(),
 
-      // Total orders
-      Order.count()
+      // Total services
+      Service.count(),
+
+      // Confirmed bookings (quotations that were accepted)
+      Booking.count({
+        where: {
+          Status: 'confirmed'
+        }
+      })
     ] : [0, 0, 0, 0, 0, 0];
 
     const results = await Promise.all([...baseQueries, ...mainAdminQueries]);
 
-    // Base response for all admins
+    // In getDashboardStats - Update the response to match frontend expectations:
     const response = {
       success: true,
-      todayBookings: results[0] || 0,
-      pendingBookings: results[1] || 0
+      todayBookings: results[0] || 0,           // Today's quotation requests
+      pendingBookings: results[1] || 0,         // Pending quotations
+      completedBookings: results[2] || 0        // Completed services this week
     };
 
-    // Add main admin only stats
+    // Add main admin only stats - USE THE FIELD NAMES THE FRONTEND EXPECTS
     if (isMainAdmin) {
-      response.weeklyRevenue = results[2] || 0;
-      response.newCustomers = results[3] || 0;
-      response.totalRevenue = results[4] || 0;
-      response.pendingQuotations = results[5] || 0;
-      response.totalProducts = results[6] || 0;
-      response.totalOrders = results[7] || 0;
+      response.totalRevenue = parseFloat(results[5] || 0).toFixed(2);  // Changed from weeklyRevenue
+      response.newCustomers = results[4] || 0;
+      // Add other expected fields
+      response.todayBookings = results[0] || 0;
+      response.pendingBookings = results[1] || 0;
     }
 
     console.log(`📊 Dashboard stats for ${isMainAdmin ? 'Main Admin' : 'Sub Admin'}:`, response);
-    
+
     res.json(response);
   } catch (error) {
     console.error('❌ Dashboard stats error:', error);
@@ -1026,56 +1036,6 @@ exports.getAllCustomers = async (req, res) => {
   }
 };
 
-// ==================== QUOTATION MANAGEMENT ====================
-
-exports.getAllQuotations = async (req, res) => {
-  try {
-    const { status } = req.query;
-
-    const whereClause = {};
-    if (status && status !== 'all') {
-      whereClause.Status = status;
-    }
-
-    const quotations = await Quotation.findAll({
-      where: whereClause,
-      include: [{
-        model: Customer,
-        attributes: ['Full_Name', 'Email', 'Phone']
-      }],
-      order: [['createdAt', 'DESC']]
-    });
-
-    res.json({ quotations });
-  } catch (error) {
-    console.error('Get quotations error:', error);
-    res.status(500).json({ message: 'Error fetching quotations' });
-  }
-};
-
-exports.respondToQuotation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { response, quotedPrice } = req.body;
-
-    const quotation = await Quotation.findByPk(id);
-    if (!quotation) {
-      return res.status(404).json({ message: 'Quotation not found' });
-    }
-
-    await quotation.update({
-      Response: response,
-      Quoted_Price: quotedPrice,
-      Status: 'responded'
-    });
-
-    res.json({ message: 'Quotation response sent successfully' });
-  } catch (error) {
-    console.error('Respond to quotation error:', error);
-    res.status(500).json({ message: 'Error responding to quotation' });
-  }
-};
-
 // ==================== PRODUCT MANAGEMENT ====================
 
 exports.getAllProducts = async (req, res) => {
@@ -1115,42 +1075,6 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
-// ==================== REPORTS ====================
-
-exports.getBookingSummary = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-
-    const whereClause = {};
-    if (startDate && endDate) {
-      whereClause.Date = {
-        [Op.between]: [new Date(startDate), new Date(endDate)]
-      };
-    }
-
-    const summary = await Booking.findAll({
-      where: whereClause,
-      attributes: [
-        'Status',
-        [sequelize.fn('COUNT', sequelize.col('ID')), 'count'],
-        // FIXED: Use Quoted_Amount instead of Total_Amount
-        [sequelize.fn('SUM', sequelize.col('Quoted_Amount')), 'total_amount']
-      ],
-      group: ['Status']
-    });
-
-    res.json({
-      success: true,
-      summary
-    });
-  } catch (error) {
-    console.error('Booking summary error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error generating booking summary'
-    });
-  }
-};
 
 // FIXED: Updated Total_Amount to Quoted_Amount
 exports.getRevenueReport = async (req, res) => {
@@ -1222,37 +1146,6 @@ exports.sendBulkReminders = async (req, res) => {
   } catch (error) {
     console.error('Bulk reminders error:', error);
     res.status(500).json({ message: 'Error sending bulk reminders' });
-  }
-};
-
-// ==================== SERVICE AVAILABILITY ====================
-
-exports.toggleServiceAvailability = async (req, res) => {
-  const { id } = req.params;  // ✅ CORRECT: uses 'id'
-  const { isAvailable } = req.body;
-
-  try {
-    const service = await Service.findByPk(id);
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found.'
-      });
-    }
-
-    await service.update({ Is_Available: isAvailable });
-
-    res.json({
-      success: true,
-      message: `Service ${isAvailable ? 'activated' : 'deactivated'} successfully`,
-      service
-    });
-  } catch (err) {
-    console.error('Toggle service availability error:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating service availability: ' + err.message
-    });
   }
 };
 
@@ -1412,11 +1305,6 @@ exports.getCustomerDetails = async (req, res) => {
             }
           ],
           order: [['Date', 'DESC']],
-          limit: 10
-        },
-        {
-          model: Quotation,
-          order: [['createdAt', 'DESC']],
           limit: 10
         },
         {
@@ -1737,40 +1625,6 @@ exports.getProductById = async (req, res) => {
     });
   }
 };
-// ==================== QUOTATION DETAILS ====================
-
-exports.getQuotationDetails = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const quotation = await Quotation.findByPk(id, {
-      include: [
-        {
-          model: Customer,
-          attributes: ['ID', 'Full_Name', 'Email', 'Phone', 'Address']
-        }
-      ]
-    });
-
-    if (!quotation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quotation not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      quotation
-    });
-  } catch (error) {
-    console.error('Get quotation details error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching quotation details'
-    });
-  }
-};
 
 // Add to adminController.js - Role checking middleware
 exports.checkAdminPermissions = async (req, res, next) => {
@@ -1792,7 +1646,6 @@ exports.checkAdminPermissions = async (req, res, next) => {
     // Check if sub-admin is trying to access main-admin only features
     const mainAdminOnlyRoutes = [
       '/api/admin/admins',
-      '/api/admin/reports',
       '/api/admin/system',
       '/api/admin/customers', // Add customers to restricted routes
       '/api/admin/dashboard/stats' // Restrict full dashboard stats

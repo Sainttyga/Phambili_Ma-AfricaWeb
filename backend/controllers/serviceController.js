@@ -1,4 +1,4 @@
-// serviceController.js - FINAL VERSION (keep only one copy)
+// serviceController.js - Updated to show all services
 const { Service } = require('../models');
 const path = require('path');
 const fs = require('fs');
@@ -57,6 +57,50 @@ exports.getServices = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching services: ' + err.message 
+    });
+  }
+};
+
+// Update public services endpoint to show ALL services (not just available ones)
+exports.getPublicServices = async (req, res) => {
+  try {
+    console.log('📋 Fetching ALL public services...');
+    
+    const services = await Service.findAll({
+      order: [['Name', 'ASC']],
+      attributes: [
+        'ID', 
+        'Name', 
+        'Description', 
+        'Duration', 
+        'Category', 
+        'Is_Available', 
+        'Image_URL',
+        'created_at'
+      ]
+    });
+
+    console.log(`✅ Found ${services.length} services total`);
+
+    res.json({
+      success: true,
+      services: services.map(service => ({
+        ID: service.ID,
+        Name: service.Name,
+        Description: service.Description,
+        Duration: service.Duration,
+        Category: service.Category,
+        Is_Available: service.Is_Available,
+        Image_URL: service.Image_URL,
+        Created_At: service.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching public services:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching services'
     });
   }
 };

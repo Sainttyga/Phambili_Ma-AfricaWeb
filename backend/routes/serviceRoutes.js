@@ -9,23 +9,97 @@ const upload = require('../middleware/upload');
 const { Service } = require('../models');
 
 // ==================== PUBLIC ROUTES ====================
+// Get all available services (public - no auth required)
 router.get('/public/services', async (req, res) => {
   try {
-    const services = await Service.findAll({
-      where: { Is_Available: true },
-      order: [['created_at', 'DESC']],
-      attributes: ['ID', 'Name', 'Description', 'Duration', 'Category', 'Is_Available', 'Image_URL'] // Removed Price
-    });
+    console.log('📋 Fetching public services...');
     
-    res.json({ 
-      success: true,
-      services 
+    const services = await Service.findAll({
+      where: { 
+        Is_Available: true 
+      },
+      order: [['Name', 'ASC']],
+      attributes: [
+        'ID', 
+        'Name', 
+        'Description', 
+        'Duration', 
+        'Category', 
+        'Is_Available', 
+        'Image_URL',
+        'created_at'
+      ]
     });
-  } catch (err) {
-    console.error('Public services error:', err);
-    res.status(500).json({ 
+
+    console.log(`✅ Found ${services.length} public services`);
+
+    res.json({
+      success: true,
+      services: services.map(service => ({
+        ID: service.ID,
+        Name: service.Name,
+        Description: service.Description,
+        Duration: service.Duration,
+        Category: service.Category,
+        Is_Available: service.Is_Available,
+        Image_URL: service.Image_URL,
+        Created_At: service.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching public services:', error);
+    res.status(500).json({
       success: false,
-      message: 'Error fetching services' 
+      message: 'Error fetching services'
+    });
+  }
+});
+
+// Get single service details (public)
+router.get('/public/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const service = await Service.findByPk(id, {
+      attributes: [
+        'ID', 
+        'Name', 
+        'Description', 
+        'Duration', 
+        'Category', 
+        'Is_Available', 
+        'Image_URL',
+        'created_at'
+      ]
+    });
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      service: {
+        ID: service.ID,
+        Name: service.Name,
+        Description: service.Description,
+        Duration: service.Duration,
+        Category: service.Category,
+        Is_Available: service.Is_Available,
+        Image_URL: service.Image_URL,
+        Created_At: service.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching service details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching service details'
     });
   }
 });

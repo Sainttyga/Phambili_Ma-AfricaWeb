@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, query } = require('express-validator'); // Added query import
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
 const auth = require('../middleware/auth');
@@ -31,7 +31,11 @@ router.put(
   validate,
   bookingController.updateBookingStatus
 );
-
+router.get(
+  '/admin/:id',
+  auth,
+  bookingController.getAdminBookingById
+);
 // Get all bookings with advanced filtering (admin)
 router.get(
   '/admin/all',
@@ -62,6 +66,26 @@ router.put(
   bookingController.updateBooking
 );
 
+// Check booking availability before submitting
+router.get(
+  '/check-availability',
+  auth,
+  [
+    query('Customer_ID').isInt(),
+    query('Service_ID').isInt(), 
+    query('Date').isDate()
+  ],
+  validate,
+  bookingController.checkBookingAvailability
+);
+
+// Get customer's booking history
+router.get(
+  '/customer/:Customer_ID',
+  auth,
+  bookingController.getCustomerBookings
+);
+
 // Get all bookings (basic)
 router.get('/', auth, bookingController.getAllBookings);
 
@@ -71,4 +95,5 @@ router.get('/:id', auth, bookingController.getBookingById);
 // Delete booking
 router.delete('/:id', auth, bookingController.deleteBooking);
 
+router.get('/test-availability', auth, bookingController.testAvailabilityCheck);
 module.exports = router;

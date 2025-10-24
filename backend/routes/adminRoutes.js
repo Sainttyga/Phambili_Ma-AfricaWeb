@@ -111,17 +111,8 @@ router.patch('/products/:id/availability', [
   body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
 ], validate, adminController.toggleProductAvailability);
 
-// ==================== QUOTATION MANAGEMENT ====================
-router.get('/quotations', adminController.getAllQuotations);
-router.get('/quotations/:id', adminController.getQuotationDetails);
-router.post('/quotations/:id/respond', adminController.respondToQuotation);
-
 // ==================== ORDER MANAGEMENT ====================
 router.get('/orders', adminController.getAllOrders);
-
-// ==================== REPORTS ====================
-router.get('/reports/booking-summary', adminController.getBookingSummary);
-router.get('/reports/revenue', adminController.getRevenueReport);
 
 // ==================== SYSTEM HEALTH ====================
 router.get('/system/health', adminController.getSystemHealth);

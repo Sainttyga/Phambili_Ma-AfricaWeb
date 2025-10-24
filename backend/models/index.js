@@ -3,7 +3,6 @@ const Customer = require('./customer');
 const Admin = require('./admin');
 const Booking = require('./booking');
 const Service = require('./service');
-const Quotation = require('./quotation');
 const Product = require('./product');
 const Order = require('./order');
 const Payment = require('./payment');
@@ -11,7 +10,6 @@ const sequelize = require('../config'); // Import sequelize instance
 
 // Customer associations
 Customer.hasMany(Booking, { foreignKey: 'Customer_ID' });
-Customer.hasMany(Quotation, { foreignKey: 'Customer_ID' });
 Customer.hasMany(Order, { foreignKey: 'Customer_ID' });
 
 // Booking associations
@@ -21,11 +19,6 @@ Booking.hasOne(Payment, { foreignKey: 'Booking_ID' });
 
 // Service associations
 Service.hasMany(Booking, { foreignKey: 'Service_ID' });
-Service.hasMany(Quotation, { foreignKey: 'Service_ID' });
-
-// Quotation associations
-Quotation.belongsTo(Customer, { foreignKey: 'Customer_ID' });
-Quotation.belongsTo(Service, { foreignKey: 'Service_ID' });
 
 // Product associations
 Product.hasMany(Order, { foreignKey: 'Product_ID' });
@@ -53,7 +46,6 @@ module.exports = {
   Admin,
   Booking,
   Service,
-  Quotation,
   Product,
   Order,
   Payment,

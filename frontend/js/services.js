@@ -66,14 +66,16 @@ class CustomerServices {
                 'Content-Type': 'application/json'
             };
 
-            // Add auth headers if user is authenticated
-            if (window.authManager && window.authManager.isAuthenticated()) {
+            // Add auth headers if user is authenticated AND endpoint requires auth
+            if (window.authManager && window.authManager.isAuthenticated() &&
+                !endpoint.includes('/public/')) { // Don't add auth for public endpoints
                 headers['Authorization'] = `Bearer ${window.authManager.token}`;
             }
 
             const config = {
                 method: method,
-                headers: headers
+                headers: headers,
+                credentials: 'include' // Add this for cookies if needed
             };
 
             if (data && (method === 'POST' || method === 'PUT')) {
@@ -84,7 +86,16 @@ class CustomerServices {
             const response = await fetch(`${this.baseURL}${endpoint}`, config);
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // Get more details about the error
+                let errorDetails = '';
+                try {
+                    const errorResponse = await response.json();
+                    errorDetails = JSON.stringify(errorResponse);
+                } catch (e) {
+                    errorDetails = await response.text();
+                }
+
+                throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetails}`);
             }
 
             return await response.json();
@@ -94,39 +105,64 @@ class CustomerServices {
         }
     }
 
+    async loadServiceDetails(serviceId) {
+        try {
+            const response = await fetch(`${this.baseURL}/public/services/${serviceId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data && data.success && data.service) {
+                return data.service;
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            console.error('Error loading service details:', error);
+            throw error;
+        }
+    }
     async loadServices() {
         try {
-            this.showLoading();
+            this.showLoading('Loading services...');
+            console.log('Loading ALL services from public endpoint...');
 
-            console.log('Loading services from database...');
-            const data = await this.fetchRequest('GET', '/services');
+            // Use the public endpoint that shows ALL services
+            const response = await fetch(`${this.baseURL}/services/public/services`);
 
-            let servicesArray = [];
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            // Handle different API response structures
-            if (data && Array.isArray(data)) {
-                servicesArray = data;
-            } else if (data && data.services && Array.isArray(data.services)) {
-                servicesArray = data.services;
-            } else if (data && data.data && Array.isArray(data.data)) {
-                servicesArray = data.data;
-            } else if (data && data.success && Array.isArray(data.data)) {
-                servicesArray = data.data;
+            const data = await response.json();
+
+            if (data && data.success && Array.isArray(data.services)) {
+                this.services = this.processServiceData(data.services);
+                console.log(`✅ Successfully loaded ${this.services.length} services (including unavailable)`);
+
+                // DEBUG: Log service availability
+                const availableCount = this.services.filter(s => s.Is_Available).length;
+                const unavailableCount = this.services.filter(s => !s.Is_Available).length;
+                console.log(`📊 Services: ${availableCount} available, ${unavailableCount} unavailable`);
+
+                // DEBUG: Log each service's availability
+                this.services.forEach(service => {
+                    console.log(`🔍 Service: ${service.Name} - Available: ${service.Is_Available}`);
+                });
+
+                if (this.services.length === 0) {
+                    this.showInfo('No services available at the moment');
+                }
             } else {
                 throw new Error('Invalid response format from services API');
             }
 
-            if (servicesArray.length > 0) {
-                this.services = this.processServiceData(servicesArray);
-                console.log(`✅ Successfully loaded ${this.services.length} services from database`);
-                this.showSuccess(`Loaded ${this.services.length} services from database`);
-            } else {
-                throw new Error('No services found in database');
-            }
-
         } catch (error) {
-            console.error('❌ Error loading services from database:', error);
-            this.showError('Failed to load services from database. Please try again later.');
+            console.error('❌ Error loading services:', error);
+            this.showError('Failed to load services. Please try again later.');
             this.showDatabaseError();
         } finally {
             this.filteredServices = [...this.services];
@@ -141,19 +177,14 @@ class CustomerServices {
             ID: service.ID || service.id,
             Name: service.Name || service.service_name,
             Description: service.Description || service.description,
-            Price: parseFloat(service.Price || service.price || 0),
             Duration: service.Duration || service.duration || 60,
             Category: service.Category || service.category,
             Is_Available: service.Is_Available !== undefined ? service.Is_Available :
                 (service.is_available !== undefined ? service.is_available : true),
             Image_URL: service.Image_URL || service.image_url,
-            Service_Type_ID: service.Service_Type_ID || service.service_type_id,
-            Service_Category_ID: service.Service_Category_ID || service.service_category_id,
-            Features: this.parseFeatures(service.Features || service.features),
-            Requirements: this.parseRequirements(service.Requirements || service.requirements),
             Created_At: service.Created_At || service.created_at,
             Updated_At: service.Updated_At || service.updated_at
-        })).filter(service => service.Name && service.Price);
+        })).filter(service => service.Name && service.Duration);
     }
 
     parseFeatures(features) {
@@ -241,61 +272,61 @@ class CustomerServices {
     createServiceCardHTML(service) {
         const isAvailable = service.Is_Available;
         const category = this.getCategoryName(service.Category);
-        const features = service.Features || [];
-        const badgeType = this.getServiceBadgeType(service);
+        const badgeType = isAvailable ? null : 'unavailable';
 
         return `
-        <div class="service-card" data-service-id="${service.ID}" data-category="${service.Category}">
-            ${badgeType ? `<div class="service-badge ${badgeType}">${this.getBadgeText(badgeType)}</div>` : ''}
-            
-            <div class="service-image-container">
-                <div class="service-image-placeholder">
-                    <i class="fas ${this.getServiceIcon(service.Name)}"></i>
-                </div>
-                ${service.Image_URL ? `
-                    <img src="${this.getImageUrl(service.Image_URL)}" alt="${service.Name}" 
-                         onerror="this.style.display='none'">
-                ` : ''}
-            </div>
-            
-            <div class="service-content">
-                <h3>${this.escapeHtml(service.Name)}</h3>
-                <p>${this.escapeHtml(service.Description)}</p>
-                
-                ${features.length > 0 ? `
-                    <div class="service-features">
-                        ${features.slice(0, 3).map(feature => `
-                            <span class="feature-tag">
-                                <i class="fas fa-check"></i>${this.escapeHtml(feature)}
-                            </span>
-                        `).join('')}
-                        ${features.length > 3 ? `<span class="feature-tag">+${features.length - 3} more</span>` : ''}
-                    </div>
-                ` : ''}
-                
-                <div class="service-meta">
-                    <span class="service-category">${this.escapeHtml(category)}</span>
-                    <span class="service-status ${isAvailable ? 'available' : 'unavailable'}">
-                        <i class="fas ${isAvailable ? 'fa-check-circle' : 'fa-times-circle'}"></i>
-                        ${isAvailable ? 'Available' : 'Unavailable'}
-                    </span>
-                </div>
-                
-                <div class="service-footer">
-                    <div class="duration-container">
-                        <span class="service-duration">${service.Duration || 60} min service</span>
-                    </div>
-                    <button class="service-cta-btn ${!isAvailable ? 'disabled' : ''}" 
-                            data-service-id="${service.ID}"
-                            ${!isAvailable ? 'disabled' : ''}>
-                        ${isAvailable ? 'Request Quote' : 'Unavailable'}
-                    </button>
-                </div>
-            </div>
+    <div class="service-card ${!isAvailable ? 'unavailable-service' : ''}" data-service-id="${service.ID}" data-category="${service.Category}">
+      ${badgeType ? `<div class="service-badge ${badgeType}">${this.getBadgeText(badgeType)}</div>` : ''}
+      
+      <div class="service-image-container">
+        ${service.Image_URL ? `
+          <img src="${this.getImageUrl(service.Image_URL)}" alt="${service.Name}" 
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        ` : ''}
+        <div class="service-image-placeholder" style="${service.Image_URL ? 'display: none;' : ''}">
+          <i class="fas ${this.getServiceIcon(service.Name)}"></i>
         </div>
-    `;
+      </div>
+      
+      <!-- Description below the image -->
+      <div class="service-description-container">
+        <p class="service-description">${this.escapeHtml(service.Description)}</p>
+      </div>
+      
+      <div class="service-content">
+        <h3>${this.escapeHtml(service.Name)}</h3>
+        
+        <div class="service-meta">
+          <span class="service-category">${this.escapeHtml(category)}</span>
+          <span class="service-status ${isAvailable ? 'available' : 'unavailable'}">
+            <i class="fas ${isAvailable ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+            ${isAvailable ? 'Available' : 'Currently Unavailable'}
+          </span>
+        </div>
+        
+        <div class="service-footer">
+          <div class="duration-container">
+            <span class="service-duration">
+              <i class="fas fa-clock"></i> ${service.Duration || 60} minutes
+            </span>
+          </div>
+          <button class="service-cta-btn ${!isAvailable ? 'disabled' : ''}" 
+                  data-service-id="${service.ID}"
+                  ${!isAvailable ? 'disabled' : ''}>
+            ${isAvailable ? 'Request Quote' : 'Service Unavailable'}
+          </button>
+        </div>
+        
+        ${!isAvailable ? `
+          <div class="unavailable-notice">
+            <i class="fas fa-info-circle"></i>
+            <small>This service is temporarily unavailable. Please check back later.</small>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
     }
-
 
     getImageUrl(imageUrl) {
         if (!imageUrl) return '';
@@ -358,56 +389,80 @@ class CustomerServices {
     }
 
     attachServiceButtonListeners() {
-        const bookButtons = document.querySelectorAll('.service-cta-btn:not(.disabled)');
-        bookButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const serviceId = button.getAttribute('data-service-id');
-                this.handleBookService(serviceId);
-            });
-        });
+        // Use event delegation for better performance and reliability
+        const grid = document.querySelector('.services-grid');
+        if (!grid) return;
 
-        const serviceCards = document.querySelectorAll('.service-card');
-        serviceCards.forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('service-cta-btn')) {
-                    const serviceId = card.getAttribute('data-service-id');
-                    this.showServiceDetails(serviceId);
-                }
-            });
-        });
+        // Remove any existing event listeners to prevent duplicates
+        grid.removeEventListener('click', this.handleGridClick);
+
+        // Add event delegation
+        grid.addEventListener('click', this.handleGridClick.bind(this));
+    }
+
+    handleGridClick(event) {
+        const target = event.target;
+
+        // Check if the click was on a service CTA button or its child elements
+        const ctaButton = target.closest('.service-cta-btn');
+        if (ctaButton && !ctaButton.classList.contains('disabled')) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const serviceId = ctaButton.getAttribute('data-service-id');
+            if (serviceId) {
+                this.handleBookService(serviceId);
+            }
+            return;
+        }
+
+        // Check if the click was on a service card (but not on a button)
+        const serviceCard = target.closest('.service-card');
+        if (serviceCard && !target.closest('.service-cta-btn')) {
+            const serviceId = serviceCard.getAttribute('data-service-id');
+            if (serviceId) {
+                this.showServiceDetails(serviceId);
+            }
+        }
     }
 
     showServiceDetails(serviceId) {
         const service = this.services.find(s => s.ID == serviceId);
-        if (!service) return;
-        this.handleBookService(serviceId);
-    }
+        if (!service) {
+            this.showError('Service details not found.');
+            return;
+        }
 
+        // For now, just open the booking modal since we don't have a separate details page
+        this.openBookingModal(service);
+    }
     handleBookService(serviceId) {
         const service = this.services.find(s => s.ID == serviceId);
         if (!service) {
             this.showError('Service not found. Please try again.');
             return;
+
         }
 
-        if (!service.Is_Available) {
-            this.showError('This service is currently unavailable. Please check back later.');
-            return;
-        }
-
-        // Check authentication
+        // CHECK AUTHENTICATION - Only required for booking/quote requests
         if (!window.authManager || !window.authManager.isAuthenticated()) {
+            // Store intended service and redirect to login
             localStorage.setItem('intendedService', serviceId);
             localStorage.setItem('intendedServiceData', JSON.stringify(service));
             localStorage.setItem('returnUrl', window.location.href);
-            window.location.href = 'login.html';
+
+            this.showInfo('Please login or register to request a quotation');
+
+            // Redirect to login after a short delay
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
             return;
         }
 
+        // User is authenticated - open booking modal
         this.openBookingModal(service);
     }
-
     openBookingModal(service) {
         const popup = document.getElementById('service-popup');
         if (!popup) {
@@ -415,37 +470,44 @@ class CustomerServices {
             return;
         }
 
-        // Populate service details from database
-        document.getElementById('popup-service-title').textContent = service.Name;
-        document.getElementById('popup-service-description').textContent = service.Description;
-        document.getElementById('popup-service-duration').textContent = `${service.Duration} minutes`;
+        // Populate service details - FIXED VERSION
+        const leftTitle = document.getElementById('popup-service-title');
+        const rightTitle = document.getElementById('popup-service-title-main');
+        const description = document.getElementById('popup-service-description');
+        const duration = document.getElementById('popup-service-duration');
+
+        if (leftTitle) leftTitle.textContent = service.Name;
+        if (rightTitle) rightTitle.textContent = `Request Quotation - ${service.Name}`;
+        if (description) description.textContent = service.Description;
+        if (duration) duration.textContent = `${service.Duration} minutes`;
 
         // Set service image
         const popupImage = document.getElementById('popup-service-image');
-        if (popupImage) {
-            if (service.Image_URL) {
-                popupImage.src = this.getImageUrl(service.Image_URL);
-                popupImage.alt = service.Name;
-                popupImage.style.display = 'block';
-                // Hide placeholder if image loads
-                const placeholder = document.querySelector('.popup-image-placeholder');
-                if (placeholder) placeholder.style.display = 'none';
-            } else {
-                popupImage.style.display = 'none';
-                const placeholder = document.querySelector('.popup-image-placeholder') || document.createElement('div');
-                placeholder.className = 'popup-image-placeholder';
-                placeholder.innerHTML = `<i class="fas ${this.getServiceIcon(service.Name)}"></i>`;
-                if (!popupImage.nextElementSibling) {
-                    popupImage.parentNode.appendChild(placeholder);
+        const imagePlaceholder = document.getElementById('image-placeholder');
+
+        if (popupImage && service.Image_URL) {
+            popupImage.src = this.getImageUrl(service.Image_URL);
+            popupImage.alt = service.Name;
+            popupImage.style.display = 'block';
+
+            // Hide placeholder if image loads
+            if (imagePlaceholder) imagePlaceholder.style.display = 'none';
+        } else {
+            if (popupImage) popupImage.style.display = 'none';
+            if (imagePlaceholder) {
+                imagePlaceholder.style.display = 'flex';
+                // Update placeholder icon based on service
+                const icon = imagePlaceholder.querySelector('i');
+                if (icon) {
+                    icon.className = `fas ${this.getServiceIcon(service.Name)}`;
                 }
-                placeholder.style.display = 'flex';
             }
         }
 
         // Populate service options based on default service types
         this.populateServiceOptions(service);
 
-        // Show the popup - FIXED: Remove aria-hidden to fix accessibility issue
+        // Show the popup
         popup.classList.add('active');
         popup.removeAttribute('aria-hidden');
         document.body.style.overflow = 'hidden';
@@ -454,6 +516,46 @@ class CustomerServices {
         this.setupBookingForm(service);
     }
 
+
+    showInfo(message) {
+        this.showNotification(message, 'info');
+    }
+
+    showError(message) {
+        this.showNotification(message, 'error');
+    }
+
+    showSuccess(message) {
+        this.showNotification(message, 'success');
+    }
+
+    showNotification(message, type = 'info') {
+        const existingNotification = document.querySelector('.customer-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.className = `customer-notification notification-${type}`;
+        notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas ${type === 'error' ? 'fa-exclamation-triangle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="notification-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
     populateServiceOptions(service) {
         const serviceTypeSelect = document.getElementById('service-type');
         if (!serviceTypeSelect) return;
@@ -461,17 +563,17 @@ class CustomerServices {
         // Clear existing options
         serviceTypeSelect.innerHTML = '<option value="" disabled selected>Select service type</option>';
 
-        // Add service types from default types
+        // Add service types without prices
         this.serviceTypes.forEach(type => {
             const option = document.createElement('option');
             option.value = type.ID;
-            const calculatedPrice = this.calculateServicePrice(service.Price, type.ID);
-            option.textContent = `${type.Name} - R ${calculatedPrice.toFixed(2)}`;
-            option.setAttribute('data-price', calculatedPrice);
+            option.textContent = `${type.Name} - Custom Quote`;
+            option.setAttribute('data-description', type.Description);
             serviceTypeSelect.appendChild(option);
         });
-
     }
+
+
 
     calculateServicePrice(basePrice, serviceTypeId) {
         const serviceType = this.serviceTypes.find(type => type.ID == serviceTypeId);
@@ -479,54 +581,690 @@ class CustomerServices {
         return basePrice * multiplier;
     }
 
+    // Update the setupBookingForm method to include date validation
     setupBookingForm(service) {
         const form = document.getElementById('service-booking-form');
         if (!form) return;
 
         form.reset();
 
-        // Set minimum date to today
+        // Set minimum date to today and add date validation
         const dateInput = document.getElementById('booking-date');
         if (dateInput) {
             const today = new Date().toISOString().split('T')[0];
             dateInput.min = today;
 
-            // Set default date to tomorrow
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            dateInput.value = tomorrow.toISOString().split('T')[0];
+            // Set default date based on current time
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinutes = now.getMinutes();
+            const currentTimeTotal = currentHour * 60 + currentMinutes;
+            const cutoffTimeTotal = 12 * 60;
+
+            let defaultDate = new Date();
+
+            // If after 12 PM, default to tomorrow
+            if (currentTimeTotal >= cutoffTimeTotal) {
+                defaultDate.setDate(defaultDate.getDate() + 1);
+            }
+
+            dateInput.value = defaultDate.toISOString().split('T')[0];
+
+            // Setup enhanced date validation with hints
+            this.setupDateValidation();
+
+            // Setup time selection
+            this.setupTimeSelection();
         }
 
         // Prefill user data if available
         this.prefillUserData();
 
-        // Handle form submission
+        // Handle form submission with enhanced validation
         form.onsubmit = async (e) => {
             e.preventDefault();
             await this.submitBooking(service, new FormData(form));
         };
     }
+    // Enhanced error message display for form
+    showFormError(message, type = 'error', targetElement = null) {
+        // Remove existing error messages
+        this.hideFormErrors();
 
-    // In the submitBooking method, replace with:
+        const errorMessage = document.createElement('div');
+        errorMessage.className = `form-error-message ${type === 'warning' ? 'warning' : ''}`;
+        errorMessage.innerHTML = `
+        <i class="fas ${type === 'warning' ? 'fa-exclamation-triangle' : 'fa-exclamation-circle'}"></i>
+        <span>${message}</span>
+    `;
+
+        if (targetElement) {
+            // Add error to specific form group
+            const formGroup = targetElement.closest('.form-group');
+            if (formGroup) {
+                formGroup.classList.add(type === 'warning' ? 'has-warning' : 'has-error');
+                formGroup.appendChild(errorMessage);
+            }
+        } else {
+            // Add general error at the top of the form
+            const form = document.getElementById('service-booking-form');
+            if (form) {
+                form.insertBefore(errorMessage, form.firstChild);
+            }
+        }
+
+        // Scroll to error message if it's not visible
+        setTimeout(() => {
+            errorMessage.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }, 100);
+    }
+    hideFormErrors() {
+        // Remove all error messages
+        document.querySelectorAll('.form-error-message').forEach(error => error.remove());
+
+        // Remove error classes from form groups
+        document.querySelectorAll('.form-group.has-error, .form-group.has-warning').forEach(group => {
+            group.classList.remove('has-error', 'has-warning');
+        });
+    }
+    // Enhanced time validation with error messages
+    validateTimeSelection(selectedDate, selectedTime) {
+        const now = new Date();
+        const today = new Date(now.toDateString());
+        const selected = new Date(selectedDate);
+
+        if (selected.getTime() === today.getTime()) {
+            const currentHour = now.getHours();
+            const currentMinutes = now.getMinutes();
+            const currentTimeTotal = currentHour * 60 + currentMinutes;
+
+            if (selectedTime) {
+                const [selectedHours, selectedMinutes] = selectedTime.split(':').map(Number);
+                const selectedTimeTotal = selectedHours * 60 + selectedMinutes;
+
+                // Check if selected time has passed
+                if (selectedTimeTotal <= currentTimeTotal) {
+                    return {
+                        valid: false,
+                        message: 'Selected time has already passed. Please choose a future time.',
+                        type: 'error'
+                    };
+                }
+
+                // Check if it's after 12 PM for same-day bookings
+                if (currentTimeTotal >= 720) { // 12:00 PM
+                    return {
+                        valid: false,
+                        message: 'Same-day bookings after 12:00 PM are not allowed. Please select tomorrow.',
+                        type: 'error'
+                    };
+                }
+
+                // Warning for booking close to cutoff time
+                const timeUntilCutoff = 720 - currentTimeTotal; // Minutes until 12 PM
+                if (timeUntilCutoff <= 60) { // Less than 1 hour until cutoff
+                    return {
+                        valid: true,
+                        message: `Hurry! Same-day bookings close in ${timeUntilCutoff} minutes.`,
+                        type: 'warning'
+                    };
+                }
+            }
+        }
+
+        return { valid: true };
+    }
+    // Update the setupTimeSelection method to remove auto-correction
+    setupTimeSelection() {
+        const timeSelect = document.getElementById('booking-time');
+        if (!timeSelect) return;
+
+        // Set default time to 09:00 AM
+        timeSelect.value = '09:00';
+
+        // If it's today and after specific times, adjust available times
+        const dateInput = document.getElementById('booking-date');
+        if (dateInput) {
+            const updateTimeAvailability = () => {
+                const selectedDate = new Date(dateInput.value);
+                const today = new Date();
+                const isToday = selectedDate.toDateString() === today.toDateString();
+
+                // Clear previous errors
+                this.hideFormErrors();
+
+                if (isToday) {
+                    const currentHour = today.getHours();
+                    const currentMinutes = today.getMinutes();
+                    const currentTimeTotal = currentHour * 60 + currentMinutes;
+
+                    // Check if it's after 12 PM for same-day bookings
+                    if (currentTimeTotal >= 720) {
+                        // After 12 PM - disable time selection and show error
+                        timeSelect.value = '';
+                        timeSelect.disabled = true;
+                        this.showFormError('Same-day bookings after 12:00 PM are not allowed. Please select another date.', 'error', timeSelect);
+                        return; // Stop further processing
+                    }
+
+                    // Disable past times for today (only if before 12 PM)
+                    for (let option of timeSelect.options) {
+                        if (option.value) {
+                            const [hours, minutes] = option.value.split(':').map(Number);
+                            const optionTimeTotal = hours * 60 + minutes;
+
+                            if (optionTimeTotal <= currentTimeTotal) {
+                                option.disabled = true;
+                                option.textContent = option.textContent.replace(' (Passed)', '') + ' (Passed)';
+                                option.classList.add('error');
+                            } else {
+                                option.disabled = false;
+                                option.textContent = option.textContent.replace(' (Passed)', '');
+                                option.classList.remove('error');
+                            }
+                        }
+                    }
+
+                    // If current time is after 17:00 (5 PM), disable all times for today
+                    if (currentTimeTotal >= 1020) { // 17:00 = 1020 minutes
+                        timeSelect.value = '';
+                        timeSelect.disabled = true;
+                        this.showFormError('No more available times for today. Please select another date.', 'error', timeSelect);
+                    } else {
+                        timeSelect.disabled = false;
+
+                        // Set to next available time slot
+                        const availableOptions = Array.from(timeSelect.options)
+                            .filter(opt => !opt.disabled && opt.value)
+                            .map(opt => opt.value);
+
+                        if (availableOptions.length > 0) {
+                            timeSelect.value = availableOptions[0];
+                        }
+                    }
+
+                    // Show warning if close to cutoff time
+                    const timeUntilCutoff = 720 - currentTimeTotal;
+                    if (timeUntilCutoff <= 120) { // 2 hours or less
+                        this.showFormError(
+                            `Same-day bookings close in ${Math.ceil(timeUntilCutoff / 60)} hours. Complete your booking soon!`,
+                            'warning',
+                            dateInput
+                        );
+                    }
+                } else {
+                    // For future dates, enable all times
+                    for (let option of timeSelect.options) {
+                        option.disabled = false;
+                        option.textContent = option.textContent.replace(' (Passed)', '');
+                        option.classList.remove('error');
+                    }
+                    timeSelect.disabled = false;
+                }
+            };
+
+            // Update time availability when date changes
+            dateInput.addEventListener('change', updateTimeAvailability);
+
+            // Also validate when time selection changes
+            timeSelect.addEventListener('change', () => {
+                const selectedDate = dateInput.value;
+                const selectedTime = timeSelect.value;
+                const validation = this.validateTimeSelection(selectedDate, selectedTime);
+
+                if (!validation.valid) {
+                    this.showFormError(validation.message, validation.type, timeSelect);
+                } else if (validation.message) {
+                    this.showFormError(validation.message, validation.type, timeSelect);
+                } else {
+                    this.hideFormErrors();
+                }
+            });
+
+            // Initial update
+            setTimeout(updateTimeAvailability, 100);
+        }
+    }
+
+    // Helper methods for time messages - UPDATED VERSION
+    showTimeMessage(message, type = 'warning') {
+        this.hideTimeMessage(); // Remove existing message first
+
+        const timeSelect = document.getElementById('booking-time');
+        if (!timeSelect) return;
+
+        const timeMessage = document.createElement('div');
+        timeMessage.className = `time-message ${type}`;
+        timeMessage.innerHTML = `
+        <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-clock'}"></i>
+        <span>${message}</span>
+    `;
+
+        timeSelect.parentNode.appendChild(timeMessage);
+    }
+
+    hideTimeMessage() {
+        const existingMessage = document.querySelector('.time-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+    }
+    // Add this missing method to your class
+    validateBookingDate(selectedDate) {
+        const now = new Date();
+        const today = new Date(now.toDateString());
+        const selected = new Date(selectedDate);
+
+        // Check if selected date is today
+        if (selected.getTime() === today.getTime()) {
+            const currentHour = now.getHours();
+            const currentMinutes = now.getMinutes();
+            const currentTimeTotal = currentHour * 60 + currentMinutes;
+            const cutoffTimeTotal = 12 * 60; // 12:00 PM in minutes
+
+            if (currentTimeTotal >= cutoffTimeTotal) {
+                return {
+                    valid: false,
+                    message: 'Same-day bookings must be made before 12:00 PM. Please select tomorrow or a future date.'
+                };
+            }
+        }
+
+        // Check for past dates
+        if (selected < today) {
+            return {
+                valid: false,
+                message: 'Cannot book for past dates. Please select today or a future date.'
+            };
+        }
+
+        return { valid: true };
+    }
+
+    // Enhanced validation that includes both time cutoff and duplicate prevention
+    validateBookingDateTime(selectedDate, selectedTime = null) {
+        const now = new Date();
+        const today = new Date(now.toDateString());
+        const selected = new Date(selectedDate);
+
+        // Check for past dates
+        if (selected < today) {
+            return {
+                valid: false,
+                message: 'Cannot book for past dates. Please select today or a future date.'
+            };
+        }
+
+        // Check if selected date is today
+        if (selected.getTime() === today.getTime()) {
+            const currentHour = now.getHours();
+            const currentMinutes = now.getMinutes();
+            const currentTimeTotal = currentHour * 60 + currentMinutes;
+            const cutoffTimeTotal = 12 * 60; // 12:00 PM in minutes
+
+            // Check 12 PM cutoff
+            if (currentTimeTotal >= cutoffTimeTotal) {
+                return {
+                    valid: false,
+                    message: 'Same-day bookings must be made before 12:00 PM. Please select tomorrow or a future date.'
+                };
+            }
+
+            // If time is provided, check if it's in the past
+            if (selectedTime) {
+                const [selectedHours, selectedMinutes] = selectedTime.split(':').map(Number);
+                const selectedTimeTotal = selectedHours * 60 + selectedMinutes;
+
+                if (selectedTimeTotal <= currentTimeTotal) {
+                    return {
+                        valid: false,
+                        message: 'Selected time has already passed. Please choose a future time.'
+                    };
+                }
+            }
+        }
+
+        return { valid: true };
+    }
+
+    // Enhanced availability check that prevents duplicate bookings
+    async checkBookingAvailabilityWithDuplicates(serviceId, date, customerId) {
+        try {
+            const user = window.authManager.getUser();
+            if (!user) return { available: false, message: 'Not authenticated' };
+
+            // First check the standard availability
+            const response = await this.fetchRequest('GET',
+                `/bookings/check-availability?Customer_ID=${customerId}&Service_ID=${serviceId}&Date=${date}`
+            );
+
+            if (!response.available) {
+                return response;
+            }
+
+            // Additional client-side duplicate check for today
+            const today = new Date().toISOString().split('T')[0];
+            const selectedDate = new Date(date).toISOString().split('T')[0];
+
+            if (selectedDate === today) {
+                // Check if user already has a booking for this service today
+                const existingBookings = await this.getCustomerBookingsForToday(customerId);
+                const hasDuplicate = existingBookings.some(booking =>
+                    booking.Service_ID == serviceId &&
+                    booking.Status !== 'cancelled' &&
+                    booking.Status !== 'rejected'
+                );
+
+                if (hasDuplicate) {
+                    return {
+                        available: false,
+                        message: 'You already have an active booking for this service today. Please choose a different service or wait until tomorrow.'
+                    };
+                }
+            }
+
+            return response;
+        } catch (error) {
+            console.error('Enhanced availability check failed:', error);
+            return { available: false, message: 'Availability check failed. Please try again.' };
+        }
+    }
+
+    // Method to get customer's bookings for today
+    async getCustomerBookingsForToday(customerId) {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const response = await this.fetchRequest('GET',
+                `/bookings/customer/${customerId}?date=${today}`
+            );
+
+            if (response.success) {
+                return response.bookings || [];
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching today\'s bookings:', error);
+            return [];
+        }
+    }
+
+    // Replace the current setupDateValidation method with this version
+    setupDateValidation() {
+        const dateInput = document.getElementById('booking-date');
+        const dateHint = document.getElementById('date-hint');
+        const hintText = document.getElementById('date-hint-text');
+        const timeSelect = document.getElementById('booking-time');
+
+        if (!dateInput || !dateHint) return;
+
+        dateInput.addEventListener('change', (e) => {
+            const now = new Date();
+            const selected = new Date(e.target.value);
+            const today = new Date(now.toDateString());
+            const currentHour = now.getHours();
+            const currentMinutes = now.getMinutes();
+            const currentTimeTotal = currentHour * 60 + currentMinutes;
+
+            // Reset styles and hint
+            dateInput.classList.remove('date-input-warning', 'date-input-error');
+            dateHint.style.display = 'none';
+            this.hideFormErrors();
+
+            if (selected.getTime() === today.getTime()) {
+                // Check if it's after 12 PM
+                if (currentTimeTotal >= 720) { // 12:00 PM = 720 minutes
+                    // After 12 PM - show error but DON'T auto-correct
+                    dateInput.classList.add('date-input-error');
+                    dateHint.classList.add('error');
+                    hintText.textContent = 'Same-day bookings after 12:00 PM are not allowed. Please select tomorrow or a future date.';
+                    dateHint.style.display = 'flex';
+
+                    // Show form error - this is what the user needs to see
+                    this.showFormError('Same-day bookings after 12:00 PM are not allowed. Please select tomorrow or a future date.', 'error', dateInput);
+
+                    // DON'T auto-correct - let the user see the error and choose themselves
+                    // Just disable time selection for this invalid date
+                    if (timeSelect) {
+                        timeSelect.disabled = true;
+                        timeSelect.value = '';
+                    }
+                } else {
+                    // Before 12 PM - show warning but allow selection
+                    const hoursLeft = 12 - currentHour;
+                    const minutesLeft = 60 - currentMinutes;
+                    dateInput.classList.add('date-input-warning');
+                    dateHint.classList.add('warning');
+                    hintText.textContent = `Same-day booking available. Must be booked within ${hoursLeft}h ${minutesLeft}m.`;
+                    dateHint.style.display = 'flex';
+
+                    // Update time availability
+                    if (timeSelect) {
+                        setTimeout(() => this.setupTimeSelection(), 100);
+                    }
+                }
+            } else if (selected < today) {
+                // Past date - show error but DON'T auto-correct
+                dateInput.classList.add('date-input-error');
+                dateHint.classList.add('error');
+                hintText.textContent = 'Cannot book for past dates. Please select today or a future date.';
+                dateHint.style.display = 'flex';
+
+                // Show form error
+                this.showFormError('Cannot book for past dates. Please select today or a future date.', 'error', dateInput);
+
+                // DON'T auto-correct - let user see the error
+                if (timeSelect) {
+                    timeSelect.disabled = true;
+                    timeSelect.value = '';
+                }
+            } else {
+                // Future date - valid selection
+                if (timeSelect) {
+                    timeSelect.disabled = false;
+                    setTimeout(() => this.setupTimeSelection(), 100);
+                }
+            }
+        });
+
+        // Trigger validation on page load
+        setTimeout(() => {
+            dateInput.dispatchEvent(new Event('change'));
+        }, 100);
+    }
+
+    async checkBookingAvailability(serviceId, date) {
+        try {
+            const user = window.authManager.getUser();
+            if (!user) return { available: false, message: 'Not authenticated' };
+
+            const response = await this.fetchRequest('GET',
+                `/bookings/check-availability?Customer_ID=${user.ID}&Service_ID=${serviceId}&Date=${date}`
+            );
+
+            return response;
+        } catch (error) {
+            console.error('Availability check failed:', error);
+            return { available: false, message: 'Check failed' };
+        }
+    }
+    handleBookService(serviceId) {
+        const service = this.services.find(s => s.ID == serviceId);
+        if (!service) {
+            this.showError('Service not found. Please try again.');
+            return;
+        }
+
+        // Allow viewing service details without authentication
+        // Only require authentication when actually booking
+        this.openBookingModal(service);
+    }
+    checkPendingIntendedBooking() {
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
+            return;
+        }
+
+        const intendedService = localStorage.getItem('intendedService');
+        const intendedServiceData = localStorage.getItem('intendedServiceData');
+        const intendedBookingData = localStorage.getItem('intendedBookingData');
+
+        if (intendedService && intendedServiceData && intendedBookingData) {
+            console.log('Found pending intended booking for authenticated user');
+
+            setTimeout(() => {
+                try {
+                    const service = JSON.parse(intendedServiceData);
+                    const bookingData = JSON.parse(intendedBookingData);
+
+                    if (service) {
+                        this.openBookingModal(service);
+
+                        // Pre-fill the form with stored data
+                        this.prefillBookingForm(bookingData);
+                    }
+                } catch (error) {
+                    console.error('Error parsing intended booking data:', error);
+                }
+            }, 1000);
+        }
+    }
+
+    // Add prefill method
+    prefillBookingForm(bookingData) {
+        if (!bookingData) return;
+
+        const form = document.getElementById('service-booking-form');
+        if (!form) return;
+
+        // Pre-fill form fields
+        if (bookingData.date) {
+            const dateInput = document.getElementById('booking-date');
+            if (dateInput) dateInput.value = bookingData.date;
+        }
+
+        if (bookingData.time) {
+            const timeInput = document.getElementById('booking-time');
+            if (timeInput) timeInput.value = bookingData.time;
+        }
+
+        if (bookingData.address) {
+            const addressFields = ['address-street', 'address-city', 'address-state', 'address-postal-code'];
+            addressFields.forEach(field => {
+                const input = document.getElementById(field);
+                if (input && bookingData.address[field.replace('address-', '')]) {
+                    input.value = bookingData.address[field.replace('address-', '')];
+                }
+            });
+        }
+
+        if (bookingData.instructions) {
+            const instructionsInput = document.getElementById('special-requests');
+            if (instructionsInput) instructionsInput.value = bookingData.instructions;
+        }
+
+        if (bookingData.propertyType) {
+            const propertyTypeInput = document.getElementById('property-type');
+            if (propertyTypeInput) propertyTypeInput.value = bookingData.propertyType;
+        }
+
+        if (bookingData.cleaningFrequency) {
+            const frequencyInput = document.getElementById('cleaning-frequency');
+            if (frequencyInput) frequencyInput.value = bookingData.cleaningFrequency;
+        }
+    }
+
+    // Update the submitBooking method to include better date validation
     async submitBooking(service, formData) {
         try {
-            this.showLoading('Processing your quotation request...');
+            // Clear previous errors
+            this.hideFormErrors();
 
-            if (!window.authManager || !window.authManager.isAuthenticated()) {
-                throw new Error('Please log in to request a quotation.');
+            // Get form values
+            const selectedDate = formData.get('booking-date');
+            const selectedTime = formData.get('booking-time');
+
+            // Validate date and time before proceeding
+            const dateTimeValidation = this.validateBookingDateTime(selectedDate, selectedTime);
+
+            if (!dateTimeValidation.valid) {
+                this.showFormError(dateTimeValidation.message, 'error', document.getElementById('booking-date'));
+
+                // Scroll to the error
+                setTimeout(() => {
+                    document.getElementById('booking-date').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }, 100);
+                return;
             }
+
+            // Additional time validation
+            const timeValidation = this.validateTimeSelection(selectedDate, selectedTime);
+            if (!timeValidation.valid) {
+                this.showFormError(timeValidation.message, timeValidation.type, document.getElementById('booking-time'));
+
+                // Scroll to the error
+                setTimeout(() => {
+                    document.getElementById('booking-time').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }, 100);
+                return;
+            }
+
+            // Check authentication before submitting
+            if (!window.authManager || !window.authManager.isAuthenticated()) {
+                this.showFormError('Please log in to request a quotation.', 'error');
+
+                // Store intended booking data and redirect to login
+                localStorage.setItem('intendedService', service.ID);
+                localStorage.setItem('intendedServiceData', JSON.stringify(service));
+                localStorage.setItem('intendedBookingData', JSON.stringify({
+                    date: selectedDate,
+                    time: selectedTime,
+                    address: {
+                        street: formData.get('address-street'),
+                        city: formData.get('address-city'),
+                        state: formData.get('address-state'),
+                        postalCode: formData.get('address-postal-code')
+                    },
+                    instructions: formData.get('special-requests'),
+                    propertyType: formData.get('property-type'),
+                    cleaningFrequency: formData.get('cleaning-frequency')
+                }));
+
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                return;
+            }
+
+            this.showLoading('Processing your quotation request...');
 
             const user = window.authManager.getUser();
             if (!user || !user.ID) {
                 throw new Error('User information not found. Please log in again.');
             }
 
-            // Prepare quotation request data (no prices)
+            // Enhanced availability check that includes duplicate prevention
+            const availability = await this.checkBookingAvailabilityWithDuplicates(service.ID, selectedDate, user.ID);
+
+            if (!availability.available) {
+                this.showFormError(availability.message, 'error', document.getElementById('booking-date'));
+                this.hideLoading();
+                return;
+            }
+
+            // Prepare quotation request data
             const bookingData = {
                 Service_ID: service.ID,
                 Customer_ID: user.ID,
-                Date: formData.get('booking-date'),
-                Time: formData.get('booking-time') || '09:00',
+                Date: selectedDate,
+                Time: selectedTime || '09:00',
                 Address_Street: formData.get('address-street') || '',
                 Address_City: formData.get('address-city') || '',
                 Address_State: formData.get('address-state') || '',
@@ -538,7 +1276,7 @@ class CustomerServices {
                 Cleaning_Frequency: formData.get('cleaning-frequency')
             };
 
-            console.log('Submitting quotation request:', bookingData);
+            console.log('📤 Submitting quotation request:', bookingData);
 
             // Submit to database
             const response = await this.fetchRequest('POST', '/bookings', bookingData);
@@ -546,28 +1284,50 @@ class CustomerServices {
             if (response && (response.success || response.booking)) {
                 this.showSuccess('Quotation request submitted successfully! We will contact you within 24 hours.');
                 this.closeBookingModal();
+
+                // Clear any intended booking data
+                localStorage.removeItem('intendedService');
+                localStorage.removeItem('intendedServiceData');
+                localStorage.removeItem('intendedBookingData');
             } else {
                 throw new Error('Failed to submit quotation request');
             }
 
         } catch (error) {
-            console.error('Quotation request submission error:', error);
-            this.showError(error.message || 'Failed to submit quotation request. Please try again.');
+            console.error('❌ Quotation request submission error:', error);
+
+            // Handle specific error cases
+            if (error.message.includes('already have a booking')) {
+                this.showFormError('You already have a booking for this service today. Please choose a different service or date.', 'error', document.getElementById('booking-date'));
+            } else if (error.message.includes('500')) {
+                this.showFormError('Server error. Please check if the backend server is running and try again.', 'error');
+            } else if (error.message.includes('401')) {
+                this.showFormError('Authentication failed. Please log in again.', 'error');
+                localStorage.setItem('intendedService', service.ID);
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+            } else if (error.message.includes('404')) {
+                this.showFormError('Booking endpoint not found. Please contact support.', 'error');
+            } else {
+                this.showFormError(error.message || 'Failed to submit quotation request. Please try again.', 'error');
+            }
         } finally {
             this.hideLoading();
         }
     }
+
     prefillUserData() {
         if (!window.authManager || !window.authManager.isAuthenticated()) return;
 
         const user = window.authManager.getUser();
         if (!user) return;
 
+        // Prefill basic user information
         const fields = {
             'customer-name': user.Full_Name,
             'customer-email': user.Email,
-            'customer-phone': user.Phone,
-            'customer-address': user.Address
+            'customer-phone': user.Phone
         };
 
         Object.entries(fields).forEach(([fieldId, value]) => {
@@ -576,8 +1336,70 @@ class CustomerServices {
                 field.value = value;
             }
         });
-    }
 
+        // NEW: Prefill address fields by parsing the combined address
+        if (user.Address) {
+            const parsedAddress = this.parseAddress(user.Address);
+
+            const addressFields = {
+                'address-street': parsedAddress.street,
+                'address-city': parsedAddress.city,
+                'address-state': parsedAddress.state,
+                'address-postal-code': parsedAddress.zip
+            };
+
+            Object.entries(addressFields).forEach(([fieldId, value]) => {
+                const field = document.getElementById(fieldId);
+                if (field && value) {
+                    field.value = value;
+                }
+            });
+        }
+    }
+    parseAddress(addressString) {
+        if (!addressString || addressString === 'Not set') {
+            return { street: '', city: '', state: '', zip: '' };
+        }
+
+        try {
+            // Split by commas and trim each part
+            const parts = addressString.split(',').map(part => part.trim());
+
+            // Handle different address formats
+            if (parts.length >= 4) {
+                return {
+                    street: parts[0],
+                    city: parts[1],
+                    state: parts[2],
+                    zip: parts[3]
+                };
+            } else if (parts.length === 3) {
+                return {
+                    street: parts[0],
+                    city: parts[1],
+                    state: parts[2],
+                    zip: ''
+                };
+            } else if (parts.length === 2) {
+                return {
+                    street: parts[0],
+                    city: parts[1],
+                    state: '',
+                    zip: ''
+                };
+            } else {
+                return {
+                    street: addressString,
+                    city: '',
+                    state: '',
+                    zip: ''
+                };
+            }
+        } catch (error) {
+            console.error('Error parsing address:', error);
+            return { street: addressString, city: '', state: '', zip: '' };
+        }
+    }
     closeBookingModal() {
         const popup = document.getElementById('service-popup');
         if (popup) {

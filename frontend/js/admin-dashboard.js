@@ -117,7 +117,7 @@ class AdminDashboard {
   // Hide restricted tabs for sub-admins
   hideRestrictedTabs() {
     try {
-      const restrictedTabs = ['customers', 'admin-management', 'reports'];
+      const restrictedTabs = ['customers', 'admin-management', ];
 
       restrictedTabs.forEach(tab => {
         const tabElement = document.querySelector(`[data-section="${tab}"]`);
@@ -195,7 +195,7 @@ class AdminDashboard {
 
       // Check if sub-admin is trying to access restricted section
       if (!this.isMainAdmin) {
-        const restrictedSections = ['customers', 'admin-management', 'reports'];
+        const restrictedSections = ['customers', 'admin-management',];
         if (restrictedSections.includes(section)) {
           this.showNotification('Access denied. This section is restricted to Main Administrators.', 'error');
           // Redirect to dashboard
@@ -421,44 +421,89 @@ class AdminDashboard {
 
       let stats;
       try {
+        console.log('📊 Fetching dashboard stats from API...');
         stats = await this.api.getDashboardStats();
+        console.log('✅ Dashboard stats received:', stats);
       } catch (error) {
-        console.warn('Using mock dashboard stats due to API error:', error);
-        stats = {
-          totalRevenue: 12500.00,
-          todayBookings: 15,
-          newCustomers: 8,
-          pendingBookings: 3
-        };
+        console.warn('⚠️ Using mock dashboard stats due to API error:', error.message);
+
+        // More detailed error logging
+        if (error.response) {
+          console.error('📊 Backend Error Details:', {
+            status: error.response.status,
+            data: error.response.data
+          });
+        } else if (error.request) {
+          console.error('🌐 Network Error: No response received from server');
+        } else {
+          console.error('🔧 Setup Error:', error.message);
+        }
+
+        // Fallback to mock data
+        stats = this.getFallbackStats();
       }
 
-      // Update stats cards
+      // Validate stats before updating UI
+      if (!stats || typeof stats !== 'object') {
+        console.warn('⚠️ Invalid stats received, using fallback data');
+        stats = this.getFallbackStats();
+      }
+
       this.updateStatsCards(stats);
 
     } catch (error) {
-      console.error('Error loading dashboard stats:', error);
+      console.error('❌ Critical error in loadDashboardStats:', error);
       this.showNotification('Failed to load dashboard statistics', 'error');
+      // Ensure UI still gets some data
+      this.updateStatsCards(this.getFallbackStats());
     } finally {
       this.hideLoading();
     }
   }
 
+  // In admin-dashboard.js - Update getFallbackStats
+  getFallbackStats() {
+    return {
+      totalRevenue: 12500.00,
+      todayBookings: 15,
+      newCustomers: 8,
+      pendingBookings: 3,
+      completedBookings: 12
+    };
+  }
   updateStatsCards(stats) {
     try {
+      console.log('📊 Updating stats cards with data:', stats);
+
       const revenueEl = document.getElementById('totalRevenue');
       const bookingsEl = document.getElementById('totalBookings');
       const customersEl = document.getElementById('totalCustomers');
       const pendingEl = document.getElementById('pendingBookings');
 
-      if (revenueEl) revenueEl.textContent = `R ${(stats.totalRevenue || 0).toFixed(2)}`;
-      if (bookingsEl) bookingsEl.textContent = stats.todayBookings || 0;
-      if (customersEl) customersEl.textContent = stats.newCustomers || 0;
-      if (pendingEl) pendingEl.textContent = stats.pendingBookings || 0;
+      // Safely convert values to numbers before using toFixed
+      if (revenueEl) {
+        const revenueValue = parseFloat(stats.totalRevenue) || 0;
+        revenueEl.textContent = `R ${revenueValue.toFixed(2)}`;
+      }
+
+      if (bookingsEl) {
+        bookingsEl.textContent = parseInt(stats.todayBookings) || 0;
+      }
+
+      if (customersEl) {
+        customersEl.textContent = parseInt(stats.newCustomers) || 0;
+      }
+
+      if (pendingEl) {
+        pendingEl.textContent = parseInt(stats.pendingBookings) || 0;
+      }
+
+      console.log('✅ Stats cards updated successfully');
     } catch (error) {
-      console.error('Error updating stats cards:', error);
+      console.error('❌ Error updating stats cards:', error);
+      console.error('📊 Stats data that caused error:', stats);
     }
   }
-
   async loadRecentBookings() {
     try {
       let response;
@@ -584,23 +629,6 @@ class AdminDashboard {
         });
       }
 
-      const quotationStatusFilter = document.getElementById('quotationStatusFilter');
-      if (quotationStatusFilter) {
-        quotationStatusFilter.addEventListener('change', () => {
-          this.loadQuotations();
-        });
-      }
-
-      // Report period change
-      const reportPeriod = document.getElementById('reportPeriod');
-      if (reportPeriod) {
-        reportPeriod.addEventListener('change', () => {
-          if (this.currentSection === 'reports') {
-            this.loadReports();
-          }
-        });
-      }
-
       // Service form submission
       const serviceForm = document.getElementById('service-form');
       if (serviceForm) {
@@ -675,7 +703,7 @@ class AdminDashboard {
 
           // Check if this is a restricted section for sub-admins
           if (!this.isMainAdmin) {
-            const restrictedSections = ['customers', 'admin-management', 'reports'];
+            const restrictedSections = ['customers', 'admin-management'];
             if (restrictedSections.includes(section)) {
               this.showNotification('Access denied. This section is restricted to Main Administrators.', 'error');
               return;
@@ -833,12 +861,6 @@ class AdminDashboard {
         case 'products':
           await this.loadProducts();
           break;
-        case 'quotations':
-          await this.loadQuotations();
-          break;
-        case 'reports':
-          await this.loadReports();
-          break;
         case 'admin-profile':
           this.loadAdminProfile();
           break;
@@ -856,7 +878,7 @@ class AdminDashboard {
 
   async loadBookings() {
     try {
-      this.showLoading('Loading bookings...');
+      this.showLoading('Loading quotation requests...');
 
       const statusFilter = document.getElementById('bookingStatusFilter')?.value || '';
       const searchTerm = document.getElementById('bookingSearch')?.value || '';
@@ -870,46 +892,14 @@ class AdminDashboard {
         response = await this.api.getBookings(params);
       } catch (error) {
         console.warn('Using mock bookings data due to API error:', error);
-        response = { bookings: [] };
+        response = { bookings: this.getMockBookingCards() };
       }
 
-      const tableBody = document.getElementById('bookingsTable');
-      if (!tableBody) return;
+      this.displayBookingCards(response.bookings);
 
-      if (response.bookings && response.bookings.length > 0) {
-        tableBody.innerHTML = response.bookings.map(booking => `
-          <tr>
-            <td>#${booking.ID}</td>
-            <td>${booking.Customer?.Full_Name || 'Unknown'}</td>
-            <td>${booking.Service?.Name || 'Unknown Service'}</td>
-            <td>${new Date(booking.Date).toLocaleDateString()} ${booking.Time}</td>
-            <td>R ${parseFloat(booking.Quoted_Amount || 0).toFixed(2)}</td> <!-- FIXED: Quoted_Amount -->
-            <td><span class="status-badge ${booking.Status}">${booking.Status}</span></td>
-            <td>
-              <button class="btn-icon" onclick="adminDashboard.editBooking(${booking.ID})" title="Edit">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button class="btn-icon delete" onclick="adminDashboard.deleteBooking(${booking.ID})" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-        `).join('');
-      } else {
-        tableBody.innerHTML = `
-          <tr>
-            <td colspan="7" class="text-center">
-              <div class="empty-state">
-                <i class="fas fa-calendar-times"></i>
-                <p>No bookings found</p>
-              </div>
-            </td>
-          </tr>
-        `;
-      }
     } catch (error) {
       console.error('Error loading bookings:', error);
-      this.showNotification('Failed to load bookings', 'error');
+      this.showNotification('Failed to load quotation requests', 'error');
     } finally {
       this.hideLoading();
     }
@@ -1423,100 +1413,6 @@ class AdminDashboard {
     }
   }
 
-  async loadQuotations() {
-    try {
-      this.showLoading('Loading quotations...');
-
-      const statusFilter = document.getElementById('quotationStatusFilter')?.value || '';
-
-      let response;
-      try {
-        response = await this.api.getQuotations(statusFilter);
-      } catch (error) {
-        console.warn('Using mock quotations data due to API error:', error);
-        response = { quotations: [] };
-      }
-
-      const tableBody = document.getElementById('quotationsTable');
-      if (!tableBody) return;
-
-      if (response.quotations && response.quotations.length > 0) {
-        tableBody.innerHTML = response.quotations.map(quote => `
-          <tr>
-            <td>#${quote.ID}</td>
-            <td>${quote.Customer?.Full_Name || 'Unknown'}</td>
-            <td>${quote.Service_Type || 'Unknown Service'}</td>
-            <td>${new Date(quote.createdAt || Date.now()).toLocaleDateString()}</td>
-            <td>R ${parseFloat(quote.Estimated_Amount || 0).toFixed(2)}</td>
-            <td><span class="status-badge ${quote.Status}">${quote.Status}</span></td>
-            <td>
-              <button class="btn-icon" onclick="adminDashboard.viewQuotation(${quote.ID})" title="View">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button class="btn-icon" onclick="adminDashboard.respondQuotation(${quote.ID})" title="Respond">
-                <i class="fas fa-reply"></i>
-              </button>
-            </td>
-          </tr>
-        `).join('');
-      } else {
-        tableBody.innerHTML = `
-          <tr>
-            <td colspan="7" class="text-center">
-              <div class="empty-state">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <p>No quotations found</p>
-              </div>
-            </td>
-          </tr>
-        `;
-      }
-    } catch (error) {
-      console.error('Error loading quotations:', error);
-      this.showNotification('Failed to load quotations', 'error');
-    } finally {
-      this.hideLoading();
-    }
-  }
-
-  async loadReports() {
-    try {
-      this.showLoading('Loading reports...');
-
-      const period = document.getElementById('reportPeriod')?.value || 'monthly';
-
-      // Use mock data for reports
-      const metricsContainer = document.getElementById('performanceMetrics');
-      if (metricsContainer) {
-        metricsContainer.innerHTML = `
-          <div class="metrics-grid">
-            <div class="metric">
-              <span class="metric-value">94%</span>
-              <span class="metric-label">Completion Rate</span>
-            </div>
-            <div class="metric">
-              <span class="metric-value">4.8/5</span>
-              <span class="metric-label">Customer Rating</span>
-            </div>
-            <div class="metric">
-              <span class="metric-value">2.3</span>
-              <span class="metric-label">Avg. Response Time (hrs)</span>
-            </div>
-            <div class="metric">
-              <span class="metric-value">12%</span>
-              <span class="metric-label">Growth Rate</span>
-            </div>
-          </div>
-        `;
-      }
-    } catch (error) {
-      console.error('Error loading reports:', error);
-      this.showNotification('Failed to load reports', 'error');
-    } finally {
-      this.hideLoading();
-    }
-  }
-
   setupAdminProfile() {
     try {
       console.log('Setting up admin profile manager');
@@ -1624,14 +1520,6 @@ class AdminDashboard {
     this.showNotification(`Edit customer #${id} functionality would open here`, 'info');
   }
 
-  viewQuotation(id) {
-    this.showNotification(`View quotation #${id} details would open here`, 'info');
-  }
-
-  respondQuotation(id) {
-    this.showNotification(`Respond to quotation #${id} functionality would open here`, 'info');
-  }
-
   editAdmin(id) {
     this.showNotification(`Edit admin #${id} functionality would open here`, 'info');
   }
@@ -1660,25 +1548,7 @@ class AdminDashboard {
     }
   }
 
-  exportReport() {
-    this.showNotification('Export functionality would be implemented here', 'info');
-  }
 
-  enableTwoFactor() {
-    this.showNotification('Two-factor authentication setup would open here', 'info');
-  }
-
-  viewLoginHistory() {
-    this.showNotification('Login history would be displayed here', 'info');
-  }
-
-  manageNotifications() {
-    this.showNotification('Notification settings would open here', 'info');
-  }
-
-  changeTheme() {
-    this.showNotification('Theme settings would open here', 'info');
-  }
 
   manageBackups() {
     this.showNotification('Backup management would open here', 'info');
@@ -1987,303 +1857,472 @@ class AdminDashboard {
       console.error('Error hiding loading:', error);
     }
   }
-  // Add to AdminDashboard class
-
-  async loadBookingsAsCards() {
-    try {
-      this.showLoading('Loading quotation requests...');
-
-      const statusFilter = document.getElementById('bookingStatusFilter')?.value || '';
-      const params = statusFilter ? { status: statusFilter } : {};
-
-      let response;
-      try {
-        response = await this.api.makeRequest('GET', `/bookings/cards?${new URLSearchParams(params)}`);
-      } catch (error) {
-        console.warn('Using mock booking cards due to API error:', error);
-        response = {
-          success: true,
-          bookings: this.getMockBookingCards()
-        };
-      }
-
-      this.displayBookingCards(response.bookings);
-
-    } catch (error) {
-      console.error('Error loading booking cards:', error);
-      this.showNotification('Failed to load quotation requests', 'error');
-    } finally {
-      this.hideLoading();
-    }
-  }
-
   displayBookingCards(bookings) {
     const container = document.getElementById('bookingsGrid');
     if (!container) return;
 
     if (bookings && bookings.length > 0) {
-      container.innerHTML = bookings.map(booking => `
-      <div class="booking-card" data-booking-id="${booking.id}">
-        <div class="booking-card-header">
-          <div class="booking-service-info">
-            <h3>${booking.service.name}</h3>
-            <span class="booking-category">${booking.service.category || 'General'}</span>
+      container.innerHTML = bookings.map(booking => {
+        console.log('📝 Rendering compact booking card:', booking);
+
+        // Format the date and time
+        const bookingDate = booking.Date ? new Date(booking.Date).toLocaleDateString() : 'Not specified';
+        const bookingTime = booking.Time ? booking.Time.replace(/:00$/, '') : 'Flexible';
+
+        // Short address for compact display
+        const shortAddress = booking.Address ?
+          (booking.Address.length > 20 ? booking.Address.substring(0, 20) + '...' : booking.Address) :
+          'Not specified';
+
+        return `
+      <div class="booking-card-compact" data-booking-id="${booking.ID}" data-status="${booking.Status}">
+        <!-- Header with service and status -->
+        <div class="card-header-compact">
+          <div class="service-badge">
+            <span class="service-name">${booking.Service?.Name || 'Unknown'}</span>
+            <span class="service-category">${booking.Service?.Category || 'General'}</span>
           </div>
-          <span class="booking-status ${booking.status}">${booking.status}</span>
+          <span class="status-badge ${booking.Status}">${booking.Status}</span>
         </div>
-        
-        <div class="booking-card-body">
-          <div class="booking-customer">
-            <div class="customer-avatar">
-              <i class="fas fa-user"></i>
-            </div>
-            <div class="customer-info">
-              <h4>${booking.customer.name}</h4>
-              <p>${booking.customer.email}</p>
-              <p>${booking.customer.phone || 'No phone'}</p>
+
+        <!-- Customer info row -->
+        <div class="customer-row">
+          <div class="customer-avatar-small">
+            ${booking.Customer?.Full_Name?.charAt(0) || 'C'}
+          </div>
+          <div class="customer-details">
+            <strong>${booking.Customer?.Full_Name || 'Unknown Customer'}</strong>
+            <div class="customer-contact-small">
+              <span>${booking.Customer?.Phone || 'No phone'}</span>
             </div>
           </div>
-          
-          <div class="booking-details">
+        </div>
+
+        <!-- Essential details in compact grid -->
+        <div class="details-grid-compact">
+          <div class="detail-item">
+            <i class="fas fa-calendar"></i>
+            <span>${bookingDate}</span>
+          </div>
+          <div class="detail-item">
+            <i class="fas fa-clock"></i>
+            <span>${bookingTime}</span>
+          </div>
+          <div class="detail-item">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>${shortAddress}</span>
+          </div>
+          ${booking.Duration ? `
             <div class="detail-item">
-              <i class="fas fa-calendar"></i>
-              <span>${new Date(booking.date).toLocaleDateString()}</span>
+              <i class="fas fa-hourglass-half"></i>
+              <span>${booking.Duration}m</span>
             </div>
-            <div class="detail-item">
+          ` : ''}
+        </div>
+
+        <!-- Quote information -->
+        <div class="quote-info-compact">
+          ${booking.Quoted_Amount ? `
+            <div class="quote-amount-badge">
+              <i class="fas fa-dollar-sign"></i>
+              R ${parseFloat(booking.Quoted_Amount).toFixed(2)}
+            </div>
+          ` : `
+            <div class="quote-pending-badge">
               <i class="fas fa-clock"></i>
-              <span>${booking.time || 'Flexible'}</span>
+              Quote Pending
             </div>
-            <div class="detail-item">
-              <i class="fas fa-home"></i>
-              <span>${booking.propertyType || 'Not specified'}</span>
-            </div>
-            <div class="detail-item">
-              <i class="fas fa-ruler-combined"></i>
-              <span>${booking.propertySize || 'Not specified'}</span>
-            </div>
-          </div>
+          `}
           
-          ${booking.specialInstructions ? `
-            <div class="special-instructions">
-              <strong>Special Instructions:</strong>
-              <p>${booking.specialInstructions}</p>
-            </div>
-          ` : ''}
-          
-          ${booking.quotedAmount ? `
-            <div class="quoted-amount">
-              <strong>Quoted Amount:</strong>
-              <span class="amount">R ${parseFloat(booking.quotedAmount).toFixed(2)}</span>
+          ${booking.Special_Instructions ? `
+            <div class="notes-indicator" title="Has special instructions">
+              <i class="fas fa-sticky-note"></i>
             </div>
           ` : ''}
         </div>
-        
-        <div class="booking-card-actions">
-          <button class="btn-icon" onclick="adminDashboard.viewBookingDetails(${booking.id})" title="View Details">
+
+        <!-- Action buttons -->
+        <div class="actions-compact">
+          <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails(${booking.ID})">
             <i class="fas fa-eye"></i>
+            View Details
           </button>
-          ${booking.status === 'requested' ? `
-            <button class="btn-icon quote-btn" onclick="adminDashboard.openQuoteModal(${booking.id})" title="Provide Quote">
+          ${booking.Status === 'requested' ? `
+            <button class="btn-quote-small" onclick="adminDashboard.openQuoteModal(${booking.ID})" title="Provide Quote">
               <i class="fas fa-dollar-sign"></i>
             </button>
           ` : ''}
-          <button class="btn-icon" onclick="adminDashboard.updateBookingStatus(${booking.id})" title="Update Status">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="btn-icon delete" onclick="adminDashboard.deleteBooking(${booking.id})" title="Delete">
-            <i class="fas fa-trash"></i>
-          </button>
         </div>
       </div>
-    `).join('');
+      `;
+      }).join('');
     } else {
       container.innerHTML = `
-      <div class="empty-state">
-        <i class="fas fa-calendar-times"></i>
-        <p>No quotation requests found</p>
-        <p class="empty-subtitle">When customers request services, they'll appear here as quotation requests.</p>
-      </div>
+    <div class="empty-state">
+      <i class="fas fa-calendar-times"></i>
+      <p>No quotation requests found</p>
+    </div>
     `;
     }
   }
 
   async viewBookingDetails(id) {
     try {
+      this.showLoading('Loading booking details...');
+
       const response = await this.api.makeRequest('GET', `/bookings/${id}`);
+
       if (response.success) {
         this.showBookingDetailsModal(response.booking);
+      } else {
+        throw new Error('Failed to load booking details');
       }
     } catch (error) {
       console.error('Error fetching booking details:', error);
       this.showNotification('Failed to load booking details', 'error');
+    } finally {
+      this.hideLoading();
     }
   }
 
   showBookingDetailsModal(booking) {
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal booking-details-modal';
     modal.style.display = 'flex';
+
+    // Format dates and times
+    const bookingDate = booking.Date ? new Date(booking.Date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 'Not specified';
+
+    const bookingTime = booking.Time || 'Flexible';
+    const createdAt = booking.created_at ? new Date(booking.created_at).toLocaleString() : 'Unknown';
+    const updatedAt = booking.updated_at ? new Date(booking.updated_at).toLocaleString() : 'Unknown';
+
     modal.innerHTML = `
-    <div class="modal-content" style="max-width: 800px;">
-      <div class="modal-header">
-        <h2>Quotation Request Details</h2>
-        <button class="modal-close" onclick="this.closest('.modal').remove()">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="booking-details-grid">
-          <div class="detail-section">
-            <h3>Customer Information</h3>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <label>Name:</label>
-                <span>${booking.customer.name}</span>
-              </div>
-              <div class="detail-item">
-                <label>Email:</label>
-                <span>${booking.customer.email}</span>
-              </div>
-              <div class="detail-item">
-                <label>Phone:</label>
-                <span>${booking.customer.phone || 'Not provided'}</span>
-              </div>
-              <div class="detail-item">
-                <label>Address:</label>
-                <span>${booking.customer.address || 'Not provided'}</span>
-              </div>
-            </div>
+  <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header">
+      <h2>
+        <i class="fas fa-file-alt"></i>
+        Booking Details - #${booking.ID}
+      </h2>
+      <button class="modal-close" onclick="this.closest('.modal').remove()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Status Banner -->
+      <div class="status-banner ${booking.Status}">
+        <div class="status-content">
+          <i class="fas fa-${this.getStatusIcon(booking.Status)}"></i>
+          <div>
+            <h3>${this.formatStatus(booking.Status)}</h3>
+            <p>Current booking status</p>
           </div>
-          
-          <div class="detail-section">
-            <h3>Service Requested</h3>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <label>Service:</label>
-                <span>${booking.service.name}</span>
-              </div>
-              <div class="detail-item">
-                <label>Duration:</label>
-                <span>${booking.service.duration} minutes</span>
-              </div>
-              <div class="detail-item">
-                <label>Category:</label>
-                <span>${booking.service.category || 'General'}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="detail-section">
-            <h3>Booking Details</h3>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <label>Date:</label>
-                <span>${new Date(booking.date).toLocaleDateString()}</span>
-              </div>
-              <div class="detail-item">
-                <label>Time:</label>
-                <span>${booking.time || 'Flexible'}</span>
-              </div>
-              <div class="detail-item">
-                <label>Status:</label>
-                <span class="status-badge ${booking.status}">${booking.status}</span>
-              </div>
-              ${booking.quotedAmount ? `
-                <div class="detail-item">
-                  <label>Quoted Amount:</label>
-                  <span class="amount">R ${parseFloat(booking.quotedAmount).toFixed(2)}</span>
-                </div>
-              ` : ''}
-            </div>
-          </div>
-          
-          ${booking.propertyType || booking.propertySize || booking.cleaningFrequency ? `
-            <div class="detail-section">
-              <h3>Property Information</h3>
-              <div class="detail-grid">
-                ${booking.propertyType ? `
-                  <div class="detail-item">
-                    <label>Property Type:</label>
-                    <span>${booking.propertyType}</span>
-                  </div>
-                ` : ''}
-                ${booking.propertySize ? `
-                  <div class="detail-item">
-                    <label>Property Size:</label>
-                    <span>${booking.propertySize}</span>
-                  </div>
-                ` : ''}
-                ${booking.cleaningFrequency ? `
-                  <div class="detail-item">
-                    <label>Cleaning Frequency:</label>
-                    <span>${booking.cleaningFrequency}</span>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          ` : ''}
-          
-          ${booking.specialInstructions ? `
-            <div class="detail-section">
-              <h3>Special Instructions</h3>
-              <div class="instructions-content">
-                <p>${booking.specialInstructions}</p>
-              </div>
-            </div>
-          ` : ''}
-          
-          ${booking.address ? `
-            <div class="detail-section">
-              <h3>Service Address</h3>
-              <div class="address-content">
-                <p>${booking.address}</p>
-              </div>
-            </div>
-          ` : ''}
+        </div>
+        <div class="booking-id">
+          <strong>Booking ID:</strong> #${booking.ID}
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
-        ${booking.status === 'requested' ? `
-          <button class="btn btn-primary" onclick="adminDashboard.openQuoteModal(${booking.id})">
-            <i class="fas fa-dollar-sign"></i> Provide Quote
-          </button>
+
+      <!-- Main Content Grid -->
+      <div class="details-grid">
+        <!-- Customer Information -->
+        <div class="details-section">
+          <h3 class="section-title">
+            <i class="fas fa-user"></i>
+            Customer Information
+          </h3>
+          <div class="section-content">
+            <div class="detail-row">
+              <label>Full Name:</label>
+              <span>${booking.Customer?.Full_Name || 'Unknown Customer'}</span>
+            </div>
+            <div class="detail-row">
+              <label>Email:</label>
+              <span>${booking.Customer?.Email || 'Not provided'}</span>
+            </div>
+            <div class="detail-row">
+              <label>Phone:</label>
+              <span>${booking.Customer?.Phone || 'Not provided'}</span>
+            </div>
+            <div class="detail-row">
+              <label>Customer ID:</label>
+              <span>#${booking.Customer_ID}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Service Information -->
+        <div class="details-section">
+          <h3 class="section-title">
+            <i class="fas fa-concierge-bell"></i>
+            Service Details
+          </h3>
+          <div class="section-content">
+            <div class="detail-row">
+              <label>Service:</label>
+              <span>${booking.Service?.Name || 'Unknown Service'}</span>
+            </div>
+            <div class="detail-row">
+              <label>Category:</label>
+              <span class="category-tag">${booking.Service?.Category || 'General'}</span>
+            </div>
+            <div class="detail-row">
+              <label>Duration:</label>
+              <span>${booking.Duration || booking.Service?.Duration || 0} minutes</span>
+            </div>
+            <div class="detail-row">
+              <label>Service ID:</label>
+              <span>#${booking.Service_ID}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Booking Schedule -->
+        <div class="details-section">
+          <h3 class="section-title">
+            <i class="fas fa-calendar-alt"></i>
+            Schedule
+          </h3>
+          <div class="section-content">
+            <div class="detail-row">
+              <label>Booking Date:</label>
+              <span>${bookingDate}</span>
+            </div>
+            <div class="detail-row">
+              <label>Preferred Time:</label>
+              <span>${bookingTime}</span>
+            </div>
+            <div class="detail-row">
+              <label>Requested On:</label>
+              <span>${createdAt}</span>
+            </div>
+            ${booking.updated_at !== booking.created_at ? `
+              <div class="detail-row">
+                <label>Last Updated:</label>
+                <span>${updatedAt}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Property Information -->
+        <div class="details-section">
+          <h3 class="section-title">
+            <i class="fas fa-home"></i>
+            Property Details
+          </h3>
+          <div class="section-content">
+            <div class="detail-row">
+              <label>Property Type:</label>
+              <span>${booking.Property_Type || 'Not specified'}</span>
+            </div>
+            ${booking.Property_Size ? `
+              <div class="detail-row">
+                <label>Property Size:</label>
+                <span>${booking.Property_Size}</span>
+              </div>
+            ` : ''}
+            <div class="detail-row">
+              <label>Cleaning Frequency:</label>
+              <span>${booking.Cleaning_Frequency || 'One-time'}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Address Information -->
+        <div class="details-section full-width">
+          <h3 class="section-title">
+            <i class="fas fa-map-marker-alt"></i>
+            Service Location
+          </h3>
+          <div class="section-content">
+            <div class="address-display">
+              <i class="fas fa-home"></i>
+              <div class="address-text">
+                <strong>Service Address:</strong>
+                <p>${booking.Address || 'Not specified'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial Information -->
+        <div class="details-section">
+          <h3 class="section-title">
+            <i class="fas fa-money-bill-wave"></i>
+            Quotation
+          </h3>
+          <div class="section-content">
+            <div class="detail-row ${booking.Quoted_Amount ? 'has-quote' : 'no-quote'}">
+              <label>Quoted Amount:</label>
+              <span class="quote-amount">
+                ${booking.Quoted_Amount ?
+        `R ${parseFloat(booking.Quoted_Amount).toFixed(2)}` :
+        '<em class="pending">Pending Quote</em>'
+      }
+              </span>
+            </div>
+            ${booking.Quoted_Amount ? `
+              <div class="quote-status approved">
+                <i class="fas fa-check-circle"></i>
+                <span>Quote Provided</span>
+              </div>
+            ` : `
+              <div class="quote-status pending">
+                <i class="fas fa-clock"></i>
+                <span>Awaiting Quote</span>
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- Special Instructions -->
+        ${booking.Special_Instructions ? `
+          <div class="details-section full-width">
+            <h3 class="section-title">
+              <i class="fas fa-sticky-note"></i>
+              Special Instructions & Requirements
+            </h3>
+            <div class="section-content">
+              <div class="instructions-content">
+                <p>${booking.Special_Instructions}</p>
+              </div>
+            </div>
+          </div>
         ` : ''}
+
+        <!-- System Information -->
+        <div class="details-section">
+          <h3 class="section-title">
+            <i class="fas fa-info-circle"></i>
+            System Information
+          </h3>
+          <div class="section-content">
+            <div class="detail-row">
+              <label>Booking ID:</label>
+              <span>#${booking.ID}</span>
+            </div>
+            <div class="detail-row">
+              <label>Created:</label>
+              <span>${createdAt}</span>
+            </div>
+            ${booking.updated_at !== booking.created_at ? `
+              <div class="detail-row">
+                <label>Last Updated:</label>
+                <span>${updatedAt}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
       </div>
     </div>
+    
+    <div class="modal-footer">
+      <div class="footer-actions">
+        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+          <i class="fas fa-times"></i>
+          Close
+        </button>
+        <div class="action-group">
+          ${booking.Status === 'requested' ? `
+            <button class="btn btn-primary" onclick="adminDashboard.openQuoteModal(${booking.ID})">
+              <i class="fas fa-dollar-sign"></i>
+              Provide Quote
+            </button>
+          ` : ''}
+          <button class="btn btn-outline" onclick="adminDashboard.editBooking(${booking.ID})">
+            <i class="fas fa-edit"></i>
+            Edit Booking
+          </button>
+          <button class="btn btn-danger" onclick="adminDashboard.deleteBooking(${booking.ID})">
+            <i class="fas fa-trash"></i>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   `;
 
     document.body.appendChild(modal);
+
+    // Add escape key listener
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        modal.remove();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
   }
 
+  // Helper methods for the modal
+  getStatusIcon(status) {
+    const icons = {
+      'requested': 'clock',
+      'confirmed': 'check-circle',
+      'completed': 'check-double',
+      'cancelled': 'times-circle',
+      'quoted': 'dollar-sign'
+    };
+    return icons[status] || 'info-circle';
+  }
+
+  formatStatus(status) {
+    const statusMap = {
+      'requested': 'Quotation Requested',
+      'confirmed': 'Confirmed',
+      'completed': 'Completed',
+      'cancelled': 'Cancelled',
+      'quoted': 'Quoted'
+    };
+    return statusMap[status] || status;
+  }
   getMockBookingCards() {
     return [
       {
-        id: 1,
-        customer: {
-          id: 1,
-          name: 'John Doe',
-          email: 'john@example.com',
-          phone: '+27 12 345 6789'
+        ID: 1,
+        Customer: {
+          Full_Name: 'John Doe',
+          Email: 'john@example.com',
+          Phone: '+27 12 345 6789'
         },
-        service: {
-          id: 1,
-          name: 'Deep Cleaning',
-          description: 'Comprehensive deep cleaning service',
-          duration: 180,
-          category: 'Residential',
-          image: null
+        Service: {
+          Name: 'Deep Cleaning',
+          Category: 'Residential',
+          Duration: 180
         },
-        date: new Date().toISOString(),
-        time: '10:00',
-        address: '123 Main St, Johannesburg',
-        specialInstructions: 'Please focus on kitchen and bathrooms',
-        status: 'requested',
-        quotedAmount: null,
-        propertyType: 'House',
-        propertySize: '150m²',
-        cleaningFrequency: 'One-time',
-        createdAt: new Date().toISOString()
+        Date: new Date().toISOString(),
+        Time: '10:00',
+        Address: '123 Main St, Johannesburg',
+        Special_Instructions: 'Please focus on kitchen and bathrooms',
+        Status: 'requested',
+        Quoted_Amount: null
+      },
+      {
+        ID: 2,
+        Customer: {
+          Full_Name: 'Jane Smith',
+          Email: 'jane@example.com',
+          Phone: '+27 12 345 6790'
+        },
+        Service: {
+          Name: 'Basic Cleaning',
+          Category: 'Commercial',
+          Duration: 120
+        },
+        Date: new Date().toISOString(),
+        Time: '14:00',
+        Address: '456 Oak Ave, Pretoria',
+        Special_Instructions: '',
+        Status: 'confirmed',
+        Quoted_Amount: 450.00
       }
     ];
   }
@@ -2364,8 +2403,6 @@ class AdminDashboard {
       'customers': 'Customer Management',
       'services': 'Service Management',
       'products': 'Product Management',
-      'quotations': 'Quotation Management',
-      'reports': 'Reports & Analytics',
       'admin-management': 'Admin Management',
       'admin-profile': 'Admin Profile'
     };

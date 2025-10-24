@@ -9,7 +9,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/admin-dashboard.css">
-    
+
 </head>
 
 <body>
@@ -67,20 +67,6 @@
                             id="products-tab" data-section="products">
                             <i class="fas fa-box"></i>
                             <span>Products</span>
-                        </a>
-                    </li>
-                    <li role="presentation">
-                        <a href="#quotations" class="nav-link" role="tab" aria-selected="false"
-                            aria-controls="quotations" id="quotations-tab" data-section="quotations">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                            <span>Quotations</span>
-                        </a>
-                    </li>
-                    <li role="presentation">
-                        <a href="#reports" class="nav-link" role="tab" aria-selected="false" aria-controls="reports"
-                            id="reports-tab" data-section="reports">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>Reports</span>
                         </a>
                     </li>
                     <!-- Add this to your sidebar navigation -->
@@ -187,7 +173,8 @@
                             <div class="card recent-bookings">
                                 <div class="card-header">
                                     <h3>Recent Bookings</h3>
-                                    <a href="javascript:void(0);" class="view-all" onclick="showSection('bookings')" role="link">View All</a>
+                                    <a href="javascript:void(0);" class="view-all" onclick="showSection('bookings')"
+                                        role="link">View All</a>
                                 </div>
                                 <div class="card-body">
                                     <div id="recentBookings">
@@ -213,90 +200,7 @@
                                             <i class="fas fa-cog" aria-hidden="true"></i>
                                             <span>Manage Services</span>
                                         </button>
-                                        <button class="action-btn" onclick="sendBulkReminders()" role="button">
-                                            <i class="fas fa-bell" aria-hidden="true"></i>
-                                            <span>Send Reminders</span>
-                                        </button>
-                                        <button class="action-btn" onclick="showSection('reports')" role="button">
-                                            <i class="fas fa-chart-line" aria-hidden="true"></i>
-                                            <span>View Reports</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="content-row">
-                            <div class="card revenue-chart">
-                                <div class="card-header">
-                                    <h3>Revenue Overview</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div id="revenueChart" class="chart-placeholder">
-                                        <div class="chart-bars">
-                                            <div class="chart-bar" style="height: 60%">
-                                                <span>Mon</span>
-                                            </div>
-                                            <div class="chart-bar" style="height: 80%">
-                                                <span>Tue</span>
-                                            </div>
-                                            <div class="chart-bar" style="height: 45%">
-                                                <span>Wed</span>
-                                            </div>
-                                            <div class="chart-bar" style="height: 90%">
-                                                <span>Thu</span>
-                                            </div>
-                                            <div class="chart-bar" style="height: 75%">
-                                                <span>Fri</span>
-                                            </div>
-                                            <div class="chart-bar" style="height: 85%">
-                                                <span>Sat</span>
-                                            </div>
-                                            <div class="chart-bar" style="height: 70%">
-                                                <span>Sun</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card activity-feed">
-                                <div class="card-header">
-                                    <h3>Recent Activity</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="activity-list">
-                                        <div class="activity-item">
-                                            <i class="fas fa-user-plus activity-icon new-customer"
-                                                aria-hidden="true"></i>
-                                            <div class="activity-content">
-                                                <p>New customer registered</p>
-                                                <span>2 minutes ago</span>
-                                            </div>
-                                        </div>
-                                        <div class="activity-item">
-                                            <i class="fas fa-calendar-check activity-icon new-booking"
-                                                aria-hidden="true"></i>
-                                            <div class="activity-content">
-                                                <p>New booking confirmed</p>
-                                                <span>15 minutes ago</span>
-                                            </div>
-                                        </div>
-                                        <div class="activity-item">
-                                            <i class="fas fa-check-circle activity-icon completed"
-                                                aria-hidden="true"></i>
-                                            <div class="activity-content">
-                                                <p>Service completed</p>
-                                                <span>1 hour ago</span>
-                                            </div>
-                                        </div>
-                                        <div class="activity-item">
-                                            <i class="fas fa-comment activity-icon feedback" aria-hidden="true"></i>
-                                            <div class="activity-content">
-                                                <p>New customer feedback</p>
-                                                <span>2 hours ago</span>
-                                            </div>
-                                        </div>
+                                    
                                     </div>
                                 </div>
                             </div>
@@ -390,65 +294,6 @@
                                                 Change Password
                                             </button>
                                         </div>
-                                        <div class="setting-item">
-                                            <div class="setting-info">
-                                                <h4><i class="fas fa-shield-alt" aria-hidden="true"></i> Two-Factor
-                                                    Authentication</h4>
-                                                <p>Add an extra layer of security to your account</p>
-                                            </div>
-                                            <button class="btn-outline" onclick="enableTwoFactor()" role="button">
-                                                Enable 2FA
-                                            </button>
-                                        </div>
-                                        <div class="setting-item">
-                                            <div class="setting-info">
-                                                <h4><i class="fas fa-history" aria-hidden="true"></i> Login History</h4>
-                                                <p>View your recent login activity</p>
-                                            </div>
-                                            <button class="btn-outline" onclick="viewLoginHistory()" role="button">
-                                                View History
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <!-- System Settings Section -->
-                            <section class="profile-section" id="admin-system">
-                                <div class="section-header">
-                                    <h2>System Settings</h2>
-                                </div>
-                                <div class="section-content">
-                                    <div class="settings-list">
-                                        <div class="setting-item">
-                                            <div class="setting-info">
-                                                <h4><i class="fas fa-bell" aria-hidden="true"></i> Notifications</h4>
-                                                <p>Manage system notifications and alerts</p>
-                                            </div>
-                                            <button class="btn-outline" onclick="manageNotifications()" role="button">
-                                                Configure
-                                            </button>
-                                        </div>
-                                        <div class="setting-item">
-                                            <div class="setting-info">
-                                                <h4><i class="fas fa-palette" aria-hidden="true"></i> Theme Settings
-                                                </h4>
-                                                <p>Customize the dashboard appearance</p>
-                                            </div>
-                                            <button class="btn-outline" onclick="changeTheme()" role="button">
-                                                Change Theme
-                                            </button>
-                                        </div>
-                                        <div class="setting-item">
-                                            <div class="setting-info">
-                                                <h4><i class="fas fa-database" aria-hidden="true"></i> Backup & Restore
-                                                </h4>
-                                                <p>Manage system backups and data restoration</p>
-                                            </div>
-                                            <button class="btn-outline" onclick="manageBackups()" role="button">
-                                                Manage
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             </section>
@@ -456,45 +301,34 @@
                     </div>
                 </section>
 
-                <!-- Bookings Section -->
+                <!-- Bookings Section - Card Layout -->
                 <section id="bookings" class="content-section" role="tabpanel" aria-labelledby="bookings-tab"
                     tabindex="0" hidden>
                     <div class="section-header">
-                        <h2>Booking Management</h2>
-                        <button class="btn btn-primary" onclick="openBookingModal()" role="button">
-                            <i class="fas fa-plus" aria-hidden="true"></i> New Booking
-                        </button>
+                        <h2>Quotation Requests</h2>
                     </div>
 
                     <div class="filters">
-                        <input type="text" id="bookingSearch" placeholder="Search bookings..." class="search-input"
-                            aria-label="Search bookings">
-                        <select id="bookingStatusFilter" class="filter-select" aria-label="Filter by booking status">
+                        <input type="text" id="bookingSearch" placeholder="Search quotation requests..."
+                            class="search-input" aria-label="Search quotation requests">
+                        <select id="bookingStatusFilter" class="filter-select" aria-label="Filter by quotation status">
                             <option value="">All Status</option>
-                            <option value="pending">Pending</option>
+                            <option value="requested">Requested</option>
                             <option value="confirmed">Confirmed</option>
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
 
-                    <div class="table-container">
-                        <table class="data-table" aria-label="Bookings management table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">ID</th>
-                                    <th scope="col">Customer</th>
-                                    <th scope="col">Service</th>
-                                    <th scope="col">Date & Time</th>
-                                    <th scope="col">Amount</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bookingsTable">
-                                <!-- Bookings will be loaded here -->
-                            </tbody>
-                        </table>
+                    <!-- Card Grid Container -->
+                    <div class="bookings-grid" id="bookingsGrid">
+                        <!-- Booking cards will be loaded here dynamically -->
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-plus"></i>
+                            <p>No quotation requests found</p>
+                            <p class="empty-subtitle">When customers request services, they'll appear here as quotation
+                                requests.</p>
+                        </div>
                     </div>
                 </section>
 
@@ -708,91 +542,6 @@
                         </div>
                     </div>
                 </section>
-
-                <!-- Quotations Section -->
-                <section id="quotations" class="content-section" role="tabpanel" aria-labelledby="quotations-tab"
-                    tabindex="0" hidden>
-                    <div class="section-header">
-                        <h2>Quotation Management</h2>
-                    </div>
-
-                    <div class="filters">
-                        <select id="quotationStatusFilter" class="filter-select"
-                            aria-label="Filter by quotation status">
-                            <option value="">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="responded">Responded</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-
-                    <div class="table-container">
-                        <table class="data-table" aria-label="Quotations management table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">ID</th>
-                                    <th scope="col">Customer</th>
-                                    <th scope="col">Service</th>
-                                    <th scope="col">Date</th>
-                                    <th scope="col">Amount</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="quotationsTable">
-                                <!-- Quotations will be loaded here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- Reports Section -->
-                <section id="reports" class="content-section" role="tabpanel" aria-labelledby="reports-tab" tabindex="0"
-                    hidden>
-                    <div class="section-header">
-                        <h2>Reports & Analytics</h2>
-                        <div class="report-controls">
-                            <select id="reportPeriod" class="filter-select" aria-label="Select report period">
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly" selected>Monthly</option>
-                                <option value="yearly">Yearly</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="exportReport()" role="button">
-                                <i class="fas fa-download" aria-hidden="true"></i> Export
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="reports-grid">
-                        <div class="report-card">
-                            <h3>Revenue Overview</h3>
-                            <div id="revenueChart" class="chart-placeholder">
-                                <!-- Chart will be implemented here -->
-                            </div>
-                        </div>
-
-                        <div class="report-card">
-                            <h3>Booking Trends</h3>
-                            <div id="bookingsChart" class="chart-placeholder">
-                                <!-- Chart will be implemented here -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="detailed-stats">
-                        <div class="card">
-                            <div class="card-header">
-                                <h3>Performance Metrics</h3>
-                            </div>
-                            <div class="card-body">
-                                <div id="performanceMetrics">
-                                    <!-- Performance metrics will be loaded here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </div>
         </main>
     </div>
@@ -964,13 +713,7 @@
                         </div>
                     </div>
 
-                    <!-- Recent Quotations -->
-                    <div class="customer-section">
-                        <h3>Recent Quotations</h3>
-                        <div id="customer-recent-quotations" class="quotation-list">
-                            <!-- Quotations will be loaded here -->
-                        </div>
-                    </div>
+
 
                     <!-- Customer Feedback -->
                     <div class="customer-section">

@@ -1,17 +1,17 @@
-// profile.js - Complete updated version with modern notifications throughout
+// profile.js - Complete updated version with address fixes
 class ProfileManager {
     constructor() {
         // Check authentication first
         if (!this.checkAuthentication()) {
             return;
         }
-        
+
         // Check if this is an admin trying to access customer profile
         if (authManager.userType === 'admin') {
             this.redirectToAdminDashboard();
             return;
         }
-        
+
         this.user = authManager.getUser();
         this.isEditing = false;
         this.currentEditingSection = null;
@@ -24,13 +24,13 @@ class ProfileManager {
             this.redirectToLogin();
             return false;
         }
-        
+
         if (!authManager.isAuthenticated()) {
             console.log('User not authenticated, redirecting to login');
             this.redirectToLogin();
             return false;
         }
-        
+
         return true;
     }
 
@@ -109,11 +109,68 @@ class ProfileManager {
         const joinDate = this.user.Created_At || this.user.createdAt || this.user.created_at;
         document.getElementById('info-join-date').textContent = joinDate ? new Date(joinDate).toLocaleDateString() : 'Unknown';
 
-        // Update address information
-        document.getElementById('info-address').textContent = this.user.Address || 'Not set';
-        document.getElementById('info-city').textContent = this.user.City || 'Not set';
-        document.getElementById('info-state').textContent = this.user.State || 'Not set';
-        document.getElementById('info-zip').textContent = this.user.ZipCode || this.user.ZIP_Code || this.user.ZIP || 'Not set';
+        // Update address information by parsing the combined address
+        if (this.user.Address && this.user.Address !== 'Not set') {
+            const parsedAddress = this.parseAddress(this.user.Address);
+            this.updateAddressDisplay(parsedAddress);
+        } else {
+            // Initialize empty address display
+            this.updateAddressDisplay({ street: '', city: '', state: '', zip: '' });
+        }
+    }
+
+    // Parse existing address into components for display
+    parseAddress(addressString) {
+        if (!addressString || addressString === 'Not set') {
+            return { street: '', city: '', state: '', zip: '' };
+        }
+
+        try {
+            // Split by commas and trim each part
+            const parts = addressString.split(',').map(part => part.trim());
+            
+            // Handle different address formats
+            if (parts.length >= 4) {
+                return {
+                    street: parts[0],
+                    city: parts[1],
+                    state: parts[2],
+                    zip: parts[3]
+                };
+            } else if (parts.length === 3) {
+                return {
+                    street: parts[0],
+                    city: parts[1],
+                    state: parts[2],
+                    zip: ''
+                };
+            } else if (parts.length === 2) {
+                return {
+                    street: parts[0],
+                    city: parts[1],
+                    state: '',
+                    zip: ''
+                };
+            } else {
+                return {
+                    street: addressString,
+                    city: '',
+                    state: '',
+                    zip: ''
+                };
+            }
+        } catch (error) {
+            console.error('Error parsing address:', error);
+            return { street: addressString, city: '', state: '', zip: '' };
+        }
+    }
+
+    // Update address display
+    updateAddressDisplay(addressData) {
+        document.getElementById('info-address-street').textContent = addressData.street || 'Not set';
+        document.getElementById('info-address-city').textContent = addressData.city || 'Not set';
+        document.getElementById('info-address-state').textContent = addressData.state || 'Not set';
+        document.getElementById('info-address-zip').textContent = addressData.zip || 'Not set';
     }
 
     setupEventListeners() {
@@ -154,21 +211,6 @@ class ProfileManager {
                 if (e.target === passwordModal) {
                     this.closePasswordModal();
                 }
-            });
-        }
-
-        // Notification and privacy buttons
-        const notificationBtn = document.querySelector('.notification-btn');
-        if (notificationBtn) {
-            notificationBtn.addEventListener('click', () => {
-                this.showComingSoon('Notification preferences');
-            });
-        }
-
-        const privacyBtn = document.querySelector('.privacy-btn');
-        if (privacyBtn) {
-            privacyBtn.addEventListener('click', () => {
-                this.showComingSoon('Privacy settings');
             });
         }
     }
@@ -219,17 +261,26 @@ class ProfileManager {
         const displays = sectionElement.querySelectorAll('.info-item p');
 
         displays.forEach(display => {
-            if (!display.id.includes('join-date')) {
-                display.style.display = 'none';
-            }
+            display.style.display = 'none';
         });
 
         inputs.forEach(input => {
             input.style.display = 'block';
-            const displayId = input.id.replace('edit-', 'info-');
-            const displayElement = document.getElementById(displayId);
-            if (displayElement) {
-                input.value = displayElement.textContent !== 'Not set' ? displayElement.textContent : '';
+            
+            if (section === 'address-info') {
+                // Parse the current address and populate individual fields
+                const currentAddress = document.getElementById('info-address-street').textContent;
+                const parsedAddress = this.parseAddress(currentAddress);
+                
+                const fieldName = input.id.replace('edit-address-', '');
+                input.value = parsedAddress[fieldName] || '';
+            } else {
+                // Handle personal info as before
+                const displayId = input.id.replace('edit-', 'info-');
+                const displayElement = document.getElementById(displayId);
+                if (displayElement) {
+                    input.value = displayElement.textContent !== 'Not set' ? displayElement.textContent : '';
+                }
             }
         });
     }
@@ -278,21 +329,44 @@ class ProfileManager {
                     throw new Error('Please enter a valid email address');
                 }
 
-            } else if (section === 'address-info') {
-                updatedData.Address = document.getElementById('edit-address').value.trim();
-                updatedData.City = document.getElementById('edit-city').value.trim();
-                updatedData.State = document.getElementById('edit-state').value.trim();
-                updatedData.ZIP_Code = document.getElementById('edit-zip').value.trim();
-            }
+                await this.updateUserProfile(updatedData);
+                this.updateLocalDisplay(section, updatedData);
+                this.cancelEditing(section);
+                this.showSuccess('Profile updated successfully!');
 
-            await this.updateUserProfile(updatedData);
-            this.updateLocalDisplay(section, updatedData);
-            this.cancelEditing(section);
-            this.showSuccess('Profile updated successfully!');
+            } else if (section === 'address-info') {
+                // Combine all address fields into one string for the Address column
+                const addressStreet = document.getElementById('edit-address-street').value.trim();
+                const addressCity = document.getElementById('edit-address-city').value.trim();
+                const addressState = document.getElementById('edit-address-state').value.trim();
+                const addressZip = document.getElementById('edit-address-zip').value.trim();
+
+                // Validate required address fields
+                if (!addressStreet || !addressCity || !addressState || !addressZip) {
+                    throw new Error('All address fields are required');
+                }
+
+                // Combine into single address string
+                const combinedAddress = `${addressStreet}, ${addressCity}, ${addressState}, ${addressZip}`;
+                
+                // Update user profile with the combined address
+                await this.updateUserProfile({ Address: combinedAddress });
+                
+                // Update local display for all address fields
+                this.updateAddressDisplay({
+                    street: addressStreet,
+                    city: addressCity,
+                    state: addressState,
+                    zip: addressZip
+                });
+                
+                this.cancelEditing(section);
+                this.showSuccess('Address updated successfully!');
+            }
 
         } catch (error) {
             console.error('Error saving changes:', error);
-            this.showError(error.message || 'Failed to update profile. Please try again.');
+            this.showError(error.message || 'Failed to update. Please try again.');
         } finally {
             this.hideLoading();
         }
@@ -342,9 +416,10 @@ class ProfileManager {
     // Booking History Methods
     async loadBookingHistory() {
         try {
-            this.showLoading('Loading bookings...');
+            this.showLoading('Loading your bookings...');
 
-            const response = await axios.get('http://localhost:5000/api/bookings', {
+            // Use the customer-specific bookings endpoint
+            const response = await axios.get(`http://localhost:5000/api/bookings/customer/${this.user.ID}`, {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -352,17 +427,61 @@ class ProfileManager {
                 const bookings = response.data.bookings || [];
                 this.displayBookingHistory(bookings);
                 if (bookings.length > 0) {
-                    this.showSuccess(`Loaded ${bookings.length} booking(s)`);
+                    this.showSuccess(`Loaded ${bookings.length} of your booking(s)`);
+                } else {
+                    this.showInfo('No bookings found for your account');
                 }
             } else {
                 throw new Error('No booking data received');
             }
         } catch (error) {
             console.error('Error loading booking history:', error);
-            this.displayBookingHistory([]);
-            this.showError('Failed to load booking history');
+
+            // Fallback: Try to filter general bookings by current user
+            if (error.response?.status === 404) {
+                await this.loadBookingsFallback();
+            } else {
+                this.displayBookingHistory([]);
+                this.showError('Failed to load your booking history');
+            }
         } finally {
             this.hideLoading();
+        }
+    }
+
+    // Fallback method if customer-specific endpoint doesn't exist
+    async loadBookingsFallback() {
+        try {
+            console.log('Trying fallback method to load user bookings...');
+
+            const response = await axios.get('http://localhost:5000/api/bookings', {
+                headers: authManager.getAuthHeaders()
+            });
+
+            if (response.data && response.data.success) {
+                const allBookings = response.data.bookings || [];
+
+                // Filter bookings to only show current user's bookings
+                const userBookings = allBookings.filter(booking =>
+                    booking.Customer_ID === this.user.ID ||
+                    booking.customer_id === this.user.ID ||
+                    (booking.Customer && booking.Customer.ID === this.user.ID)
+                );
+
+                this.displayBookingHistory(userBookings);
+
+                if (userBookings.length > 0) {
+                    this.showSuccess(`Loaded ${userBookings.length} of your booking(s)`);
+                } else {
+                    this.showInfo('No bookings found for your account');
+                }
+            } else {
+                throw new Error('No booking data received in fallback');
+            }
+        } catch (fallbackError) {
+            console.error('Fallback loading failed:', fallbackError);
+            this.displayBookingHistory([]);
+            this.showError('Failed to load your booking history');
         }
     }
 
@@ -394,17 +513,18 @@ class ProfileManager {
     }
 
     createBookingCard(booking) {
-        const serviceName = booking.service_name || 
-                           booking.Service_Name || 
-                           booking.serviceName ||
-                           booking.service?.Name ||
-                           booking.Service?.Name ||
-                           (booking.Service_ID === 12 ? 'Standard & Deep Cleaning' :
-                            booking.Service_ID === 3 ? 'Window Cleaning' :
-                            booking.Service_ID === 4 ? 'Carpet Cleaning' :
-                            booking.Service_ID === 5 ? 'Upholstery Cleaning' :
+        // Extract service name from various possible data structures
+        const serviceName = booking.service_name ||
+            booking.Service_Name ||
+            booking.serviceName ||
+            booking.service?.Name ||
+            booking.Service?.Name ||
+            (booking.Service_ID === 12 ? 'Standard & Deep Cleaning' :
+                booking.Service_ID === 3 ? 'Window Cleaning' :
+                    booking.Service_ID === 4 ? 'Carpet Cleaning' :
+                        booking.Service_ID === 5 ? 'Upholstery Cleaning' :
                             booking.Service_ID === 6 ? 'Pest Control' :
-                            'Cleaning Service');
+                                'Cleaning Service');
 
         const bookingDate = new Date(booking.Date).toLocaleDateString('en-US', {
             weekday: 'long',
@@ -412,104 +532,112 @@ class ProfileManager {
             month: 'long',
             day: 'numeric'
         });
+
         const bookingTime = booking.Time || '09:00';
-        const totalAmount = parseFloat(booking.Total_Amount || 0).toFixed(2);
-        const status = booking.Status || 'pending';
+        const totalAmount = parseFloat(booking.Total_Amount || booking.Quoted_Amount || 0).toFixed(2);
+        const status = booking.Status || 'requested';
         const address = booking.Address || 'Address to be confirmed';
         const specialInstructions = booking.Special_Instructions || 'No special instructions';
+        const duration = booking.Duration || booking.service?.Duration || 60;
 
         const statusClass = this.getStatusClass(status);
         const statusIcon = this.getStatusIcon(status);
 
         return `
-            <div class="booking-card" data-booking-id="${booking.ID}">
-                <div class="booking-header">
-                    <div class="booking-service-info">
-                        <h3 class="booking-service-name">${serviceName}</h3>
-                        <span class="booking-date">
-                            <i class="fas fa-calendar"></i>
-                            ${bookingDate} at ${bookingTime}
-                        </span>
-                    </div>
-                    <div class="booking-status ${statusClass}">
-                        <i class="fas ${statusIcon}"></i>
-                        ${this.formatStatus(status)}
-                    </div>
+        <div class="booking-card" data-booking-id="${booking.ID}">
+            <div class="booking-header">
+                <div class="booking-service-info">
+                    <h3 class="booking-service-name">${serviceName}</h3>
+                    <span class="booking-date">
+                        <i class="fas fa-calendar"></i>
+                        ${bookingDate} at ${bookingTime}
+                    </span>
                 </div>
-                
-                <div class="booking-details">
-                    <div class="booking-detail-item">
-                        <span class="detail-label">
-                            <i class="fas fa-map-marker-alt"></i>
-                            Address:
-                        </span>
-                        <span class="detail-value">${address}</span>
-                    </div>
-                    
-                    <div class="booking-detail-item">
-                        <span class="detail-label">
-                            <i class="fas fa-comment"></i>
-                            Instructions:
-                        </span>
-                        <span class="detail-value">${specialInstructions}</span>
-                    </div>
-                    
-                    <div class="booking-detail-item">
-                        <span class="detail-label">
-                            <i class="fas fa-clock"></i>
-                            Duration:
-                        </span>
-                        <span class="detail-value">${booking.Duration || 60} minutes</span>
-                    </div>
-                </div>
-                
-                <div class="booking-footer">
-                    <div class="booking-amount">
-                        <strong>R ${totalAmount}</strong>
-                    </div>
-                    <div class="booking-actions">
-                        ${status === 'pending' ? `
-                            <button class="btn-outline cancel-booking-btn" data-booking-id="${booking.ID}">
-                                <i class="fas fa-times"></i>
-                                Cancel
-                            </button>
-                        ` : ''}
-                        <button class="btn-outline view-booking-btn" data-booking-id="${booking.ID}">
-                            <i class="fas fa-eye"></i>
-                            View Details
-                        </button>
-                    </div>
+                <div class="booking-status ${statusClass}">
+                    <i class="fas ${statusIcon}"></i>
+                    ${this.formatStatus(status)}
                 </div>
             </div>
-        `;
+            
+            <div class="booking-details">
+                <div class="booking-detail-item">
+                    <span class="detail-label">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Address:
+                    </span>
+                    <span class="detail-value">${address}</span>
+                </div>
+                
+                <div class="booking-detail-item">
+                    <span class="detail-label">
+                        <i class="fas fa-comment"></i>
+                        Instructions:
+                    </span>
+                    <span class="detail-value">${specialInstructions}</span>
+                </div>
+                
+                <div class="booking-detail-item">
+                    <span class="detail-label">
+                        <i class="fas fa-clock"></i>
+                        Duration:
+                    </span>
+                    <span class="detail-value">${duration} minutes</span>
+                </div>
+            </div>
+            
+            <div class="booking-footer">
+                <div class="booking-amount">
+                    ${totalAmount > 0 ? `<strong>R ${totalAmount}</strong>` : '<em>Quote Pending</em>'}
+                </div>
+                <div class="booking-actions">
+                    ${status === 'requested' || status === 'confirmed' ? `
+                        <button class="btn-outline cancel-booking-btn" data-booking-id="${booking.ID}">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                    ` : ''}
+                    <button class="btn-outline view-booking-btn" data-booking-id="${booking.ID}">
+                        <i class="fas fa-eye"></i>
+                        View Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
     }
 
     getStatusClass(status) {
         const statusClasses = {
+            'requested': 'status-pending',
             'pending': 'status-pending',
             'confirmed': 'status-confirmed',
             'completed': 'status-completed',
-            'cancelled': 'status-cancelled'
+            'cancelled': 'status-cancelled',
+            'quoted': 'status-confirmed'
         };
         return statusClasses[status] || 'status-pending';
     }
 
     getStatusIcon(status) {
         const statusIcons = {
+            'requested': 'fa-clock',
             'pending': 'fa-clock',
             'confirmed': 'fa-check-circle',
             'completed': 'fa-check-double',
-            'cancelled': 'fa-times-circle'
+            'cancelled': 'fa-times-circle',
+            'quoted': 'fa-dollar-sign'
         };
         return statusIcons[status] || 'fa-clock';
     }
 
     formatStatus(status) {
         const statusMap = {
+            'requested': 'Quotation Requested',
             'pending': 'Pending Confirmation',
             'confirmed': 'Confirmed',
             'completed': 'Completed',
-            'cancelled': 'Cancelled'
+            'cancelled': 'Cancelled',
+            'quoted': 'Quoted'
         };
         return statusMap[status] || status;
     }
@@ -520,7 +648,7 @@ class ProfileManager {
                 const bookingId = e.target.closest('.cancel-booking-btn').dataset.bookingId;
                 this.cancelBooking(bookingId);
             }
-            
+
             if (e.target.closest('.view-booking-btn')) {
                 const bookingId = e.target.closest('.view-booking-btn').dataset.bookingId;
                 this.viewBookingDetails(bookingId);
@@ -544,10 +672,10 @@ class ProfileManager {
 
         try {
             this.showLoading('Cancelling booking...');
-            
+
             const response = await axios.put(
-                `http://localhost:5000/api/bookings/${bookingId}/cancel`,
-                {},
+                `http://localhost:5000/api/bookings/${bookingId}`,
+                { Status: 'cancelled' },
                 {
                     headers: authManager.getAuthHeaders()
                 }
@@ -555,7 +683,7 @@ class ProfileManager {
 
             if (response.data.success) {
                 this.showSuccess('Booking cancelled successfully!');
-                await this.loadBookingHistory();
+                await this.loadBookingHistory(); // Reload to show updated list
             } else {
                 throw new Error(response.data.message || 'Failed to cancel booking');
             }
@@ -716,10 +844,7 @@ class ProfileManager {
             'Full_Name': 'fullname',
             'Email': 'email',
             'Phone': 'phone',
-            'Address': 'address',
-            'City': 'city',
-            'State': 'state',
-            'ZIP_Code': 'zip'
+            'Address': 'address'
         };
         return fieldMap[dbField] || dbField.toLowerCase();
     }
