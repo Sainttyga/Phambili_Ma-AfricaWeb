@@ -5,33 +5,31 @@ const router = express.Router();
 const serviceController = require('../controllers/serviceController');
 const validate = require('../middleware/validate');
 const auth = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { upload } = require('../middleware/upload'); // Destructure the upload instance
 const { Service } = require('../models');
 
 // ==================== PUBLIC ROUTES ====================
-// Get all available services (public - no auth required)
+// Get ALL services (public - no auth required) - including unavailable ones
 router.get('/public/services', async (req, res) => {
   try {
-    console.log('📋 Fetching public services...');
-    
+    console.log('📋 Fetching ALL public services (including unavailable)...');
+
     const services = await Service.findAll({
-      where: { 
-        Is_Available: true 
-      },
       order: [['Name', 'ASC']],
       attributes: [
-        'ID', 
-        'Name', 
-        'Description', 
-        'Duration', 
-        'Category', 
-        'Is_Available', 
+        'ID',
+        'Name',
+        'Description',
+        'Duration',
+        'Category',
+        'Is_Available',
         'Image_URL',
         'created_at'
       ]
     });
 
-    console.log(`✅ Found ${services.length} public services`);
+    console.log(`✅ Found ${services.length} total services`);
+    console.log(`📊 Available: ${services.filter(s => s.Is_Available).length}, Unavailable: ${services.filter(s => !s.Is_Available).length}`);
 
     res.json({
       success: true,
@@ -60,15 +58,15 @@ router.get('/public/services', async (req, res) => {
 router.get('/public/services/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const service = await Service.findByPk(id, {
       attributes: [
-        'ID', 
-        'Name', 
-        'Description', 
-        'Duration', 
-        'Category', 
-        'Is_Available', 
+        'ID',
+        'Name',
+        'Description',
+        'Duration',
+        'Category',
+        'Is_Available',
         'Image_URL',
         'created_at'
       ]

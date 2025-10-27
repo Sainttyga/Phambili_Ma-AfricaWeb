@@ -1,12 +1,13 @@
-// script.js - Enhanced with Rate Limiting Protection and Beautiful Loading
-
-// ========== RATE LIMIT MANAGER ==========
+// ========== GLOBAL RATE LIMIT MANAGER ==========
 class RateLimitManager {
   constructor() {
     this.requests = new Map();
-    this.maxRequests = 10; // Maximum requests per minute
+    this.maxRequests = 15; // Increased from 10
     this.windowMs = 60000; // 1 minute window
-    this.retryAfter = 5000; // 5 seconds retry delay
+    this.retryAfter = 3000; // Reduced from 5000
+    this.globalRequestCount = 0;
+    this.lastGlobalRequest = 0;
+    this.globalDelay = 300; // Base delay between requests
   }
 
   checkLimit(key) {
@@ -35,12 +36,300 @@ class RateLimitManager {
 
     // Record this request
     this.requests.set(now, { key, timestamp: now });
+    this.globalRequestCount++;
+    this.lastGlobalRequest = now;
 
     return { allowed: true };
   }
 
+  // Enhanced: Wait before making requests to avoid hitting server limits
+  async waitForGlobalRateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastGlobalRequest;
+
+    if (timeSinceLastRequest < this.globalDelay) {
+      const waitTime = this.globalDelay - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    this.lastGlobalRequest = Date.now();
+  }
+
   clear() {
     this.requests.clear();
+    this.globalRequestCount = 0;
+  }
+
+  getStats() {
+    return {
+      totalRequests: this.globalRequestCount,
+      activeRequests: this.requests.size,
+      lastRequest: this.lastGlobalRequest
+    };
+  }
+}
+
+// ========== ENHANCED API CLIENT WITH RATE LIMIT COORDINATION ==========
+class EnhancedAPIClient {
+  constructor() {
+    this.baseURL = 'http://localhost:5000/api';
+    this.pendingRequests = new Map();
+    this.requestQueue = [];
+    this.maxConcurrentRequests = 2;
+    this.activeRequests = 0;
+    this.isPaused = false;
+  }
+
+  async request(method, endpoint, data = null, options = {}) {
+    // Wait for global rate limit
+    await window.rateLimitManager.waitForGlobalRateLimit();
+
+    const requestKey = `${method}:${endpoint}:${JSON.stringify(data)}`;
+
+    // Check client-side rate limiting
+    const limitCheck = window.rateLimitManager.checkLimit(requestKey);
+    if (!limitCheck.allowed) {
+      this.showRateLimitNotification(limitCheck.retryAfter);
+      throw new Error(limitCheck.message);
+    }
+
+    // Queue the request if we're at max concurrent requests
+    if (this.activeRequests >= this.maxConcurrentRequests && !options.urgent) {
+      return new Promise((resolve, reject) => {
+        this.requestQueue.push({
+          method,
+          endpoint,
+          data,
+          options,
+          resolve,
+          reject
+        });
+        this.processQueue();
+      });
+    }
+
+    return this.executeRequest(method, endpoint, data, options);
+  }
+
+  async processQueue() {
+    if (this.isPaused ||
+      this.activeRequests >= this.maxConcurrentRequests ||
+      this.requestQueue.length === 0) {
+      return;
+    }
+
+    this.activeRequests++;
+    const request = this.requestQueue.shift();
+
+    try {
+      const result = await this.executeRequest(
+        request.method,
+        request.endpoint,
+        request.data,
+        request.options
+      );
+      request.resolve(result);
+    } catch (error) {
+      request.reject(error);
+    } finally {
+      this.activeRequests--;
+      // Process next request with a small delay
+      setTimeout(() => this.processQueue(), 50);
+    }
+  }
+
+  async executeRequest(method, endpoint, data = null, options = {}) {
+    // Show loading for non-background requests
+    if (!options.background) {
+      window.beautifulLoader.show(options.loadingMessage || 'Processing your request...');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), options.timeout || 20000);
+
+    try {
+      const config = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        signal: controller.signal
+      };
+
+      if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+        config.body = JSON.stringify(data);
+      }
+
+      console.log(`🌐 Making ${method} request to: ${endpoint}`);
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, config);
+
+      // Handle rate limiting from server
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after') || 5;
+        this.showRateLimitNotification(retryAfter * 1000);
+        throw new Error(`Rate limited by server. Please try again in ${retryAfter} seconds.`);
+      }
+
+      // Check if response is OK
+      if (!response.ok) {
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+        } catch {
+          errorMessage = `HTTP error! status: ${response.status}`;
+        }
+
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        throw error;
+      }
+
+      // Parse response
+      const responseData = await response.json();
+      return responseData;
+
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout. Please check your connection and try again.');
+      }
+
+      // Don't show rate limit notification again if we already showed it
+      if (error.message.includes('Rate limited')) {
+        throw error;
+      }
+
+      if (error.status === 429) {
+        this.showRateLimitNotification(5000);
+        throw new Error('Too many requests. Please slow down.');
+      }
+
+      throw this.handleError(error);
+    } finally {
+      clearTimeout(timeoutId);
+      if (!options.background) {
+        window.beautifulLoader.hide();
+      }
+    }
+  }
+
+  // Enhanced error handling with better user feedback
+  handleError(error) {
+    console.log('🔧 Error details:', error);
+
+    if (error.message?.includes('timeout')) {
+      return new Error('Request timeout. Please check your connection and try again.');
+    }
+
+    if (!navigator.onLine) {
+      return new Error('No internet connection. Please check your network and try again.');
+    }
+
+    if (error.status) {
+      const status = error.status;
+
+      // Use server message if available
+      if (error.message && !error.message.includes('HTTP error')) {
+        return error;
+      }
+
+      // Fallback to status-based messages
+      switch (status) {
+        case 400:
+          return new Error('Invalid request. Please check your input and try again.');
+        case 401:
+          return new Error('Invalid email or password. Please try again.');
+        case 404:
+          if (error.config?.url?.includes('/auth/')) {
+            return new Error('Authentication service unavailable. Please try again later.');
+          }
+          return new Error('Service not available. Please try again later.');
+        case 429:
+          return new Error('Too many attempts. Please wait a moment and try again.');
+        case 500:
+          return new Error('Server error. Our team has been notified. Please try again later.');
+        default:
+          return new Error('Something went wrong. Please try again.');
+      }
+    }
+
+    // Network errors or other issues
+    if (error.message) {
+      return error;
+    }
+
+    return new Error('Network error. Please check your connection and try again.');
+  }
+
+  showRateLimitNotification(retryAfter) {
+    // Remove existing notification
+    const existingNotification = document.querySelector('.rate-limit-notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = 'rate-limit-notification';
+    notification.innerHTML = `
+      <i class="fas fa-hourglass-half"></i>
+      <div>
+        <strong>Too Many Requests</strong>
+        <div>Please wait <span class="rate-limit-countdown">${Math.round(retryAfter / 1000)}</span> seconds</div>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+    notification.classList.add('active');
+
+    // Update countdown
+    let seconds = Math.round(retryAfter / 1000);
+    const countdownEl = notification.querySelector('.rate-limit-countdown');
+    const countdownInterval = setInterval(() => {
+      seconds--;
+      if (countdownEl) {
+        countdownEl.textContent = seconds;
+      }
+      if (seconds <= 0) {
+        clearInterval(countdownInterval);
+        notification.classList.remove('active');
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 1000);
+
+    // Auto-remove after retry time
+    setTimeout(() => {
+      notification.classList.remove('active');
+      setTimeout(() => notification.remove(), 300);
+    }, retryAfter);
+  }
+
+  // Enhanced: Pause all requests when rate limited
+  pauseRequests() {
+    this.isPaused = true;
+  }
+
+  resumeRequests() {
+    this.isPaused = false;
+    this.processQueue();
+  }
+
+  // Convenience methods
+  async get(endpoint, options = {}) {
+    return this.request('GET', endpoint, null, options);
+  }
+
+  async post(endpoint, data, options = {}) {
+    return this.request('POST', endpoint, data, options);
+  }
+
+  async put(endpoint, data, options = {}) {
+    return this.request('PUT', endpoint, data, options);
+  }
+
+  async delete(endpoint, options = {}) {
+    return this.request('DELETE', endpoint, null, options);
   }
 }
 
@@ -48,25 +337,25 @@ class RateLimitManager {
 class BeautifulLoader {
   constructor() {
     this.loaderHTML = `
-            <div id="global-loader" class="beautiful-loader">
-                <div class="loader-container">
-                    <div class="loader-logo">
-                        <div class="bubble bubble-1"></div>
-                        <div class="bubble bubble-2"></div>
-                        <div class="bubble bubble-3"></div>
-                        <div class="bubble bubble-4"></div>
-                    </div>
-                    <div class="loader-text">
-                        <span class="loader-message">Cleaning things up...</span>
-                        <div class="loader-dots">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </div>
-                </div>
+      <div id="global-loader" class="beautiful-loader">
+        <div class="loader-container">
+          <div class="loader-logo">
+            <div class="bubble bubble-1"></div>
+            <div class="bubble bubble-2"></div>
+            <div class="bubble bubble-3"></div>
+            <div class="bubble bubble-4"></div>
+          </div>
+          <div class="loader-text">
+            <span class="loader-message">Cleaning things up...</span>
+            <div class="loader-dots">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
-        `;
+          </div>
+        </div>
+      </div>
+    `;
     this.init();
   }
 
@@ -79,219 +368,274 @@ class BeautifulLoader {
 
   addStyles() {
     const styles = `
-            .beautiful-loader {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(135deg, #e6f7ff 0%, #b3e0ff 100%);
-                display: none;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                font-family: 'Arial', sans-serif;
-            }
+      .beautiful-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #e6f7ff 0%, #b3e0ff 100%);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        font-family: 'Arial', sans-serif;
+      }
 
-            .beautiful-loader.active {
-                display: flex;
-                animation: fadeIn 0.3s ease;
-            }
+      .beautiful-loader.active {
+        display: flex;
+        animation: fadeIn 0.3s ease;
+      }
 
-            .loader-container {
-              text-align: center;
-              background: rgba(255, 255, 255, 0.95);
-              padding: 5rem 4rem; /* Keep padding for internal space */
-              width: 20%; /* Decreased width */
-              height: 300px; /* Height remains the same */
-              border-radius: 20px;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              backdrop-filter: blur(10px);
-              border: 1px solid rgba(255, 255, 255, 0.2);
-              margin: 0 auto; /* Centers the container */
-            }
+      .loader-container {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 5rem 4rem;
+        width: 20%;
+        height: 300px;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        margin: 0 auto;
+      }
 
+      .loader-logo {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 2rem;
+      }
 
-            .loader-logo {
-                position: relative;
-                width: 80px;
-                height: 80px;
-                margin: 0 auto 2rem;
-            }
+      .bubble {
+        position: absolute;
+        border-radius: 50%;
+        background: #0066cc;
+        animation: float 2s ease-in-out infinite;
+      }
 
-            .bubble {
-                position: absolute;
-                border-radius: 50%;
-                background: #0066cc;
-                animation: float 2s ease-in-out infinite;
-            }
+      .bubble-1 {
+        width: 30px;
+        height: 30px;
+        top: 0;
+        left: 0;
+        animation-delay: 0s;
+        background: #0066cc;
+      }
 
-            .bubble-1 {
-                width: 30px;
-                height: 30px;
-                top: 0;
-                left: 0;
-                animation-delay: 0s;
-                background: #0066cc;
-            }
+      .bubble-2 {
+        width: 25px;
+        height: 25px;
+        top: 10px;
+        right: 0;
+        animation-delay: 0.5s;
+        background: #ffcc00;
+      }
 
-            .bubble-2 {
-                width: 25px;
-                height: 25px;
-                top: 10px;
-                right: 0;
-                animation-delay: 0.5s;
-                background: #ffcc00;
-            }
+      .bubble-3 {
+        width: 20px;
+        height: 20px;
+        bottom: 0;
+        left: 15px;
+        animation-delay: 1s;
+        background: #667eea;
+      }
 
-            .bubble-3 {
-                width: 20px;
-                height: 20px;
-                bottom: 0;
-                left: 15px;
-                animation-delay: 1s;
-                background: #667eea;
-            }
+      .bubble-4 {
+        width: 15px;
+        height: 15px;
+        bottom: 20px;
+        right: 10px;
+        animation-delay: 1.5s;
+        background: #764ba2;
+      }
 
-            .bubble-4 {
-                width: 15px;
-                height: 15px;
-                bottom: 20px;
-                right: 10px;
-                animation-delay: 1.5s;
-                background: #764ba2;
-            }
+      .loader-text {
+        margin-top: 1rem;
+      }
 
-            .loader-text {
-                margin-top: 1rem;
-            }
+      .loader-message {
+        display: block;
+        font-size: 1.1rem;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
 
-            .loader-message {
-                display: block;
-                font-size: 1.1rem;
-                color: #333;
-                font-weight: 600;
-                margin-bottom: 1rem;
-            }
+      .loader-dots {
+        display: flex;
+        justify-content: center;
+        gap: 4px;
+      }
 
-            .loader-dots {
-                display: flex;
-                justify-content: center;
-                gap: 4px;
-            }
+      .loader-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #0066cc;
+        animation: bounce 1.4s ease-in-out infinite both;
+      }
 
-            .loader-dots span {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: #0066cc;
-                animation: bounce 1.4s ease-in-out infinite both;
-            }
+      .loader-dots span:nth-child(1) { animation-delay: -0.32s; }
+      .loader-dots span:nth-child(2) { animation-delay: -0.16s; }
+      .loader-dots span:nth-child(3) { animation-delay: 0s; }
 
-            .loader-dots span:nth-child(1) { animation-delay: -0.32s; }
-            .loader-dots span:nth-child(2) { animation-delay: -0.16s; }
-            .loader-dots span:nth-child(3) { animation-delay: 0s; }
+      .rate-limit-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ff6b6b;
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        max-width: 400px;
+        animation: slideInRight 0.3s ease;
+      }
 
-            .rate-limit-notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #ff6b6b;
-                color: white;
-                padding: 1rem 1.5rem;
-                border-radius: 10px;
-                box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
-                z-index: 10000;
-                display: none;
-                align-items: center;
-                gap: 10px;
-                max-width: 400px;
-                animation: slideInRight 0.3s ease;
-            }
+      .rate-limit-notification.active {
+        display: flex;
+      }
 
-            .rate-limit-notification.active {
-                display: flex;
-            }
+      .rate-limit-notification i {
+        font-size: 1.2rem;
+      }
 
-            .rate-limit-notification i {
-                font-size: 1.2rem;
-            }
+      .rate-limit-countdown {
+        font-weight: bold;
+        margin-left: 5px;
+      }
 
-            .rate-limit-countdown {
-                font-weight: bold;
-                margin-left: 5px;
-            }
+      .btn-loading {
+        position: relative;
+        color: transparent !important;
+        pointer-events: none;
+      }
 
-            .btn-loading {
-                position: relative;
-                color: transparent !important;
-                pointer-events: none;
-            }
+      .btn-loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid transparent;
+        border-top: 2px solid #ffffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
 
-            .btn-loading::after {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                width: 20px;
-                height: 20px;
-                margin: -10px 0 0 -10px;
-                border: 2px solid transparent;
-                border-top: 2px solid #ffffff;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
+      @keyframes float {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-10px) scale(1.1); }
+      }
 
-            @keyframes float {
-                0%, 100% { transform: translateY(0) scale(1); }
-                50% { transform: translateY(-10px) scale(1.1); }
-            }
+      @keyframes bounce {
+        0%, 80%, 100% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1);
+        }
+      }
 
-            @keyframes bounce {
-                0%, 80%, 100% {
-                    transform: scale(0);
-                }
-                40% {
-                    transform: scale(1);
-                }
-            }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
 
-            @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
 
-            @keyframes slideInRight {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
 
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
 
-            @keyframes shake {
-                0%, 100% { transform: translateX(0); }
-                25% { transform: translateX(-5px); }
-                75% { transform: translateX(5px); }
-            }
+      .fade-in {
+        animation: fadeIn 0.5s ease-in;
+      }
 
-            .fade-in {
-                animation: fadeIn 0.5s ease-in;
-            }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
 
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(20px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        `;
+      /* Forgot Password Modal Styles */
+      .forgot-password-modal {
+        max-width: 450px;
+        width: 90%;
+      }
+
+      .forgot-password-modal .modal-header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .forgot-password-modal .modal-header h2 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-size: 1.5rem;
+      }
+
+      .forgot-password-modal .modal-header p {
+        color: #7f8c8d;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .auth-footer-links {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #ecf0f1;
+      }
+
+      .auth-footer-links a {
+        color: #3498db;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .auth-footer-links a:hover {
+        text-decoration: underline;
+      }
+
+      .password-security-hint {
+        font-size: 12px;
+        color: #7f8c8d;
+        margin-top: 5px;
+      }
+
+      .rate-limit-message {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        font-size: 14px;
+      }
+    `;
 
     const styleSheet = document.createElement('style');
     styleSheet.textContent = styles;
@@ -328,142 +672,6 @@ class BeautifulLoader {
   }
 }
 
-// ========== ENHANCED API CLIENT ==========
-class EnhancedAPIClient {
-  constructor() {
-    this.baseURL = 'http://localhost:5000/api';
-    this.pendingRequests = new Map();
-  }
-
-  async request(method, endpoint, data = null, options = {}) {
-    const requestKey = `${method}:${endpoint}`;
-
-    // Check rate limiting
-    const limitCheck = window.rateLimitManager.checkLimit(requestKey);
-    if (!limitCheck.allowed) {
-      this.showRateLimitNotification(limitCheck.retryAfter);
-      throw new Error(limitCheck.message);
-    }
-
-    // Show loading for non-background requests
-    if (!options.background) {
-      window.beautifulLoader.show(options.loadingMessage || 'Processing your request...');
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeout || 15000);
-
-    try {
-      const config = {
-        method,
-        url: `${this.baseURL}${endpoint}`,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        },
-        signal: controller.signal,
-        timeout: options.timeout || 15000
-      };
-
-      if (data) {
-        config.data = data;
-      }
-
-      const response = await axios(config);
-      return response.data;
-
-    } catch (error) {
-      if (error.response?.status === 429) {
-        this.showRateLimitNotification(5000);
-        throw new Error('Too many requests. Please slow down.');
-      }
-
-      throw this.handleError(error);
-    } finally {
-      clearTimeout(timeoutId);
-      if (!options.background) {
-        window.beautifulLoader.hide();
-      }
-    }
-  }
-
-  handleError(error) {
-    if (error.code === 'ECONNABORTED') {
-      return new Error('Request timeout. Please check your connection.');
-    }
-
-    if (!navigator.onLine) {
-      return new Error('No internet connection. Please check your network.');
-    }
-
-    if (error.response) {
-      switch (error.response.status) {
-        case 429:
-          return new Error('Too many requests. Please try again later.');
-        case 500:
-          return new Error('Server error. Please try again later.');
-        case 404:
-          return new Error('Service not found.');
-        default:
-          return new Error(error.response.data?.message || 'Request failed');
-      }
-    }
-
-    return error;
-  }
-
-  showRateLimitNotification(retryAfter) {
-    const notification = document.createElement('div');
-    notification.className = 'rate-limit-notification';
-    notification.innerHTML = `
-            <i class="fas fa-hourglass-half"></i>
-            <div>
-                <strong>Too Many Requests</strong>
-                <div>Please wait <span class="rate-limit-countdown">${retryAfter / 1000}</span> seconds</div>
-            </div>
-        `;
-
-    document.body.appendChild(notification);
-    notification.classList.add('active');
-
-    // Update countdown
-    let seconds = retryAfter / 1000;
-    const countdownEl = notification.querySelector('.rate-limit-countdown');
-    const countdownInterval = setInterval(() => {
-      seconds--;
-      countdownEl.textContent = seconds;
-      if (seconds <= 0) {
-        clearInterval(countdownInterval);
-        notification.classList.remove('active');
-        setTimeout(() => notification.remove(), 300);
-      }
-    }, 1000);
-
-    // Auto-remove after retry time
-    setTimeout(() => {
-      notification.classList.remove('active');
-      setTimeout(() => notification.remove(), 300);
-    }, retryAfter);
-  }
-
-  // Convenience methods
-  async get(endpoint, options = {}) {
-    return this.request('GET', endpoint, null, options);
-  }
-
-  async post(endpoint, data, options = {}) {
-    return this.request('POST', endpoint, data, options);
-  }
-
-  async put(endpoint, data, options = {}) {
-    return this.request('PUT', endpoint, data, options);
-  }
-
-  async delete(endpoint, options = {}) {
-    return this.request('DELETE', endpoint, null, options);
-  }
-}
-
 // ========== GLOBAL INITIALIZATION ==========
 window.rateLimitManager = new RateLimitManager();
 window.beautifulLoader = new BeautifulLoader();
@@ -471,6 +679,197 @@ window.apiClient = new EnhancedAPIClient();
 
 // ========== GLOBAL VARIABLES ==========
 let cartItems = [];
+
+// ========== FORGOT PASSWORD FUNCTIONALITY ==========
+
+// Show Forgot Password Modal
+function showForgotPasswordModal() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal forgot-password-modal">
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
+        <i class="fas fa-times"></i>
+      </button>
+      
+      <div class="modal-header">
+        <h2><i class="fas fa-key"></i> Reset Your Password</h2>
+        <p>Enter your email address and we'll send you a link to reset your password.</p>
+      </div>
+      
+      <div class="modal-body">
+        <div id="forgot-password-success" class="auth-success" style="display: none">
+          <i class="fas fa-check-circle"></i>
+          <span id="forgot-password-success-text"></span>
+        </div>
+        
+        <div id="forgot-password-error" class="auth-error-message" style="display: none">
+          <i class="fas fa-exclamation-circle"></i>
+          <span id="forgot-password-error-text"></span>
+        </div>
+        
+        <form id="forgot-password-form">
+          <div class="auth-form-group">
+            <label for="forgot-password-email" class="auth-label">Email Address</label>
+            <input type="email" id="forgot-password-email" class="auth-input" 
+                   placeholder="your@email.com" required />
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="auth-btn">
+              <i class="fas fa-paper-plane"></i> Send Reset Link
+            </button>
+          </div>
+        </form>
+        
+        <div class="auth-footer-links">
+          <p>Remember your password? <a href="#" onclick="switchToLogin()">Back to Login</a></p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Setup form handler
+  const form = document.getElementById('forgot-password-form');
+  form.addEventListener('submit', handleForgotPasswordSubmit);
+}
+
+// Handle Forgot Password Submission
+async function handleForgotPasswordSubmit(e) {
+  e.preventDefault();
+
+  const email = document.getElementById('forgot-password-email').value.trim();
+  const submitBtn = this.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+
+  // Hide previous messages
+  const successEl = document.getElementById('forgot-password-success');
+  const errorEl = document.getElementById('forgot-password-error');
+  if (successEl) successEl.style.display = 'none';
+  if (errorEl) errorEl.style.display = 'none';
+
+  // Validation
+  if (!email) {
+    showForgotPasswordError('Please enter your email address.');
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showForgotPasswordError('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+    window.beautifulLoader.show('Sending reset instructions...');
+
+    const response = await window.apiClient.post('/auth/forgot-password', {
+      Email: email
+    });
+
+    window.beautifulLoader.hide();
+
+    if (response.success) {
+      showForgotPasswordSuccess(response.message);
+
+      // Clear form
+      document.getElementById('forgot-password-form').reset();
+
+      // Auto-close after 3 seconds
+      setTimeout(() => {
+        const modal = document.querySelector('.forgot-password-modal');
+        if (modal) {
+          modal.closest('.modal-overlay').remove();
+        }
+      }, 3000);
+    }
+
+  } catch (error) {
+    window.beautifulLoader.hide();
+
+    const errorMessage = error.response?.data?.message ||
+      'Failed to send reset instructions. Please try again.';
+    showForgotPasswordError(errorMessage);
+
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+  }
+}
+
+function showForgotPasswordError(message) {
+  const errorEl = document.getElementById('forgot-password-error');
+  const errorText = document.getElementById('forgot-password-error-text');
+
+  if (errorEl && errorText) {
+    errorText.textContent = message;
+    errorEl.style.display = 'block';
+  }
+}
+
+function showForgotPasswordSuccess(message) {
+  const successEl = document.getElementById('forgot-password-success');
+  const successText = document.getElementById('forgot-password-success-text');
+
+  if (successEl && successText) {
+    successText.textContent = message;
+    successEl.style.display = 'block';
+  }
+}
+
+function switchToLogin() {
+  const modal = document.querySelector('.forgot-password-modal');
+  if (modal) {
+    modal.closest('.modal-overlay').remove();
+  }
+  // Switch to login tab if on auth page
+  if (window.location.pathname.includes('login.html')) {
+    switchTab('login');
+  }
+}
+
+// ========== ENHANCED LOGIN ERROR HANDLING ==========
+function showLoginError(message) {
+  const loginError = document.getElementById('login-error');
+  if (loginError) {
+    loginError.style.display = 'block';
+
+    // Check if it's a "user not found" error
+    if (message.toLowerCase().includes('user not found') ||
+      message.toLowerCase().includes('account not found')) {
+      loginError.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i> ${message}
+      `;
+    } else if (message.toLowerCase().includes('invalid email or password')) {
+      loginError.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i> ${message}
+        <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+          <strong>Forgot your password?</strong> 
+          <a href="javascript:void(0)" onclick="showForgotPasswordModal()" 
+             style="color: #4CAF50; text-decoration: underline; margin-left: 5px;">
+            Reset your password
+          </a>
+        </div>
+      `;
+    } else {
+      // Generic error display
+      loginError.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+    }
+
+    loginError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    loginError.style.animation = 'shake 0.5s ease-in-out';
+    setTimeout(() => {
+      loginError.style.animation = '';
+    }, 500);
+  }
+}
 
 // ========== GLOBAL FUNCTIONS ==========
 
@@ -600,19 +999,19 @@ function updateNavigation() {
       if (loginItem) {
         const listItem = loginItem.parentElement;
         listItem.innerHTML = `
-                    <div class="nav-user-info">
-                        <div class="nav-user-avatar">
-                            <i class="fas fa-user-circle"></i>
-                        </div>
-                        <div class="nav-user-details">
-                            <strong>${authManager.user.Full_Name || 'User'}</strong>
-                            <span>${authManager.user.Email || ''}</span>
-                        </div>
-                        <button class="nav-logout-btn" onclick="enhancedLogout()">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </div>
-                `;
+          <div class="nav-user-info">
+            <div class="nav-user-avatar">
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="nav-user-details">
+              <strong>${authManager.user.Full_Name || 'User'}</strong>
+              <span>${authManager.user.Email || ''}</span>
+            </div>
+            <button class="nav-logout-btn" onclick="enhancedLogout()">
+              <i class="fas fa-sign-out-alt"></i>
+            </button>
+          </div>
+        `;
       }
     }
   }
@@ -965,26 +1364,12 @@ function setupPasswordStrengthIndicator() {
       const strength = calculatePasswordStrength(password);
 
       strengthIndicator.innerHTML = `
-                <div class="strength-bar">
-                    <div class="strength-fill" style="width: ${strength.percentage}%; background: ${strength.color}"></div>
-                </div>
-                <span class="strength-text" style="color: ${strength.color}">${strength.text}</span>
-            `;
+        <div class="strength-bar">
+          <div class="strength-fill" style="width: ${strength.percentage}%; background: ${strength.color}"></div>
+        </div>
+        <span class="strength-text" style="color: ${strength.color}">${strength.text}</span>
+      `;
     });
-  }
-}
-
-function showLoginError(message) {
-  const errorBox = document.getElementById('login-error');
-  if (errorBox) {
-    errorBox.style.display = 'block';
-    errorBox.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-    errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    errorBox.style.animation = 'shake 0.5s ease-in-out';
-    setTimeout(() => {
-      errorBox.style.animation = '';
-    }, 500);
   }
 }
 
@@ -1002,17 +1387,17 @@ function updateCartDisplay() {
 
   if (!isAuthenticated) {
     cartItemsContainer.innerHTML = `
-            <div class="empty-cart">
-                <svg viewBox="0 0 24 24" width="64" height="64" style="opacity: 0.5;">
-                    <path fill="currentColor" d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
-                </svg>
-                <h3 style="margin: 1rem 0 0.5rem; color: #666;">Login Required</h3>
-                <p style="color: #888; margin-bottom: 1.5rem;">Please log in to access your shopping cart</p>
-                <button class="btn-primary" id="login-from-cart" style="width: 100%;">
-                    Login / Register
-                </button>
-            </div>
-        `;
+      <div class="empty-cart">
+        <svg viewBox="0 0 24 24" width="64" height="64" style="opacity: 0.5;">
+          <path fill="currentColor" d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+        </svg>
+        <h3 style="margin: 1rem 0 0.5rem; color: #666;">Login Required</h3>
+        <p style="color: #888; margin-bottom: 1.5rem;">Please log in to access your shopping cart</p>
+        <button class="btn-primary" id="login-from-cart" style="width: 100%;">
+          Login / Register
+        </button>
+      </div>
+    `;
 
     const loginBtn = document.getElementById('login-from-cart');
     if (loginBtn) {
@@ -1031,38 +1416,38 @@ function updateCartDisplay() {
 
   } else if (cartItems.length === 0) {
     cartItemsContainer.innerHTML = `
-            <div class="empty-cart">
-                <svg viewBox="0 0 24 24" width="64" height="64">
-                    <path fill="currentColor" d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
-                </svg>
-                <h3 style="margin: 1rem 0 0.5rem; color: #666;">It's a little empty here</h3>
-                <p style="color: #888; margin-bottom: 1.5rem;">Start adding services to your cart</p>
-                <button class="btn-primary" id="book-services-btn" style="width: 100%;">
-                    Book Services
-                </button>
-            </div>
-        `;
+      <div class="empty-cart">
+        <svg viewBox="0 0 24 24" width="64" height="64">
+          <path fill="currentColor" d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+        </svg>
+        <h3 style="margin: 1rem 0 0.5rem; color: #666;">It's a little empty here</h3>
+        <p style="color: #888; margin-bottom: 1.5rem;">Start adding services to your cart</p>
+        <button class="btn-primary" id="book-services-btn" style="width: 100%;">
+          Book Services
+        </button>
+      </div>
+    `;
   } else {
     cartItems.forEach(item => {
       const cartItem = document.createElement('div');
       cartItem.className = 'cart-item';
       cartItem.innerHTML = `
-                <div class="cart-item-details">
-                    <div class="cart-item-name">${item.name}</div>
-                    <div class="cart-item-price">R${(item.price * item.quantity).toFixed(2)}</div>
-                </div>
-                <div class="cart-item-controls">
-                    <button class="cart-item-decrease" data-id="${item.id}" aria-label="Decrease quantity">-</button>
-                    <span class="cart-item-quantity">${item.quantity}</span>
-                    <button class="cart-item-increase" data-id="${item.id}" aria-label="Increase quantity">+</button>
-                    <button class="cart-item-remove" data-id="${item.id}" aria-label="Remove item">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="cart-item-unit-price">R${item.price.toFixed(2)} each</div>
-            `;
+        <div class="cart-item-details">
+          <div class="cart-item-name">${item.name}</div>
+          <div class="cart-item-price">R${(item.price * item.quantity).toFixed(2)}</div>
+        </div>
+        <div class="cart-item-controls">
+          <button class="cart-item-decrease" data-id="${item.id}" aria-label="Decrease quantity">-</button>
+          <span class="cart-item-quantity">${item.quantity}</span>
+          <button class="cart-item-increase" data-id="${item.id}" aria-label="Increase quantity">+</button>
+          <button class="cart-item-remove" data-id="${item.id}" aria-label="Remove item">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="cart-item-unit-price">R${item.price.toFixed(2)} each</div>
+      `;
       cartItemsContainer.appendChild(cartItem);
     });
   }
@@ -1328,6 +1713,488 @@ async function waitForAuthManager(maxWait = 5000) {
   return true;
 }
 
+// ========== GALLERY FUNCTIONALITY ==========
+let currentGalleryItems = [];
+let currentFilter = 'all';
+
+async function loadGalleryItems() {
+  try {
+    console.log('🔄 Loading gallery items from API...');
+
+    const response = await window.apiClient.get('/gallery/media', {
+      background: true,
+      timeout: 10000
+    });
+
+    console.log('✅ Gallery API response:', response);
+
+    // Handle different response structures
+    let mediaItems = [];
+    if (response.success && response.media) {
+      mediaItems = response.media;
+    } else if (Array.isArray(response)) {
+      // If the API returns just an array
+      mediaItems = response;
+    }
+
+    if (mediaItems.length > 0) {
+      currentGalleryItems = mediaItems;
+      renderGalleryItems(mediaItems);
+      initializeLightbox();
+    } else {
+      showEmptyGalleryState();
+    }
+  } catch (error) {
+    console.error('❌ Failed to load gallery items:', error);
+    showEmptyGalleryState('Failed to load gallery. Please try again later.');
+  }
+}
+
+function renderGalleryItems(mediaItems) {
+  const galleryGrid = document.querySelector('.gallery-grid');
+  const loadingGallery = document.querySelector('.loading-gallery');
+
+  if (!galleryGrid) {
+    console.error('❌ Gallery grid not found');
+    return;
+  }
+
+  // Clear loading state
+  if (loadingGallery) {
+    loadingGallery.style.display = 'none';
+  }
+
+  // Clear existing content
+  galleryGrid.innerHTML = '';
+
+  // Add new items - no complex calculations needed!
+  mediaItems.forEach((item, index) => {
+    const galleryItem = document.createElement('div');
+    galleryItem.className = 'gallery-item';
+    galleryItem.setAttribute('data-category', item.category);
+    galleryItem.setAttribute('data-index', index);
+
+    const categoryName = item.category.charAt(0).toUpperCase() + item.category.slice(1).replace('-', ' ');
+
+    if (item.media_type === 'video') {
+      galleryItem.innerHTML = `
+        <video muted loop playsinline preload="metadata">
+          <source src="${item.url}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="video-icon">
+          <i class="fas fa-play"></i>
+        </div>
+        <div class="overlay">
+          <div class="item-title">${categoryName} Cleaning</div>
+          <div class="item-desc">Professional ${item.category} service</div>
+        </div>
+      `;
+    } else {
+      galleryItem.innerHTML = `
+        <img src="${item.url}" alt="${categoryName} cleaning service" loading="lazy">
+        <div class="overlay">
+          <div class="item-title">${categoryName} Cleaning</div>
+          <div class="item-desc">Professional ${item.category} service</div>
+        </div>
+      `;
+    }
+
+    galleryGrid.appendChild(galleryItem);
+  });
+
+  console.log(`✅ Rendered ${mediaItems.length} gallery items in masonry layout`);
+
+  // Initialize interactions after rendering
+  initializeGalleryInteractions();
+  setTimeout(initializeVideoAutoplay, 500);
+}
+
+function createGalleryItem(item, index, width, height) {
+  const galleryItem = document.createElement('div');
+  galleryItem.className = 'gallery-item';
+  galleryItem.setAttribute('data-category', item.category);
+  galleryItem.setAttribute('data-index', index);
+
+  const categoryName = item.category.charAt(0).toUpperCase() + item.category.slice(1).replace('-', ' ');
+
+  // Calculate row span based on aspect ratio
+  const aspectRatio = width / height;
+  let rowSpan = 30; // Default for square-ish images
+
+  if (aspectRatio < 0.7) {
+    rowSpan = 40; // Portrait images - span more rows
+  } else if (aspectRatio > 1.5) {
+    rowSpan = 25; // Landscape images - span fewer rows
+  }
+
+  galleryItem.style.gridRowEnd = `span ${rowSpan}`;
+
+  if (item.media_type === 'video') {
+    galleryItem.innerHTML = `
+      <video muted loop playsinline preload="metadata">
+        <source src="${item.url}" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div class="video-icon">
+        <i class="fas fa-play"></i>
+      </div>
+      <div class="overlay">
+        <div class="item-title">${categoryName} Cleaning</div>
+        <div class="item-desc">Professional ${item.category} service</div>
+      </div>
+    `;
+  } else {
+    galleryItem.innerHTML = `
+      <img src="${item.url}" alt="${categoryName} cleaning service" loading="lazy">
+      <div class="overlay">
+        <div class="item-title">${categoryName} Cleaning</div>
+        <div class="item-desc">Professional ${item.category} service</div>
+      </div>
+    `;
+  }
+
+  return galleryItem;
+}
+function initializeVideoAutoplay() {
+  const videos = document.querySelectorAll('.gallery-item video');
+
+  videos.forEach((video, index) => {
+    // Reset video and let it maintain natural dimensions
+    video.currentTime = 0;
+    video.muted = true;
+    video.playsInline = true;
+    video.style.width = '100%';
+    video.style.height = 'auto';
+
+    // Try to autoplay with a small delay between videos
+    setTimeout(() => {
+      video.play().catch(error => {
+        console.log(`Video ${index} autoplay prevented:`, error);
+        // Enhanced fallback for failed autoplay
+        const videoIcon = video.nextElementSibling;
+        if (videoIcon && videoIcon.classList.contains('video-icon')) {
+          videoIcon.style.opacity = '1';
+          videoIcon.style.background = 'rgba(0, 102, 204, 0.9)';
+          videoIcon.style.color = 'white';
+        }
+      });
+    }, index * 200);
+  });
+}
+
+function initializeGalleryInteractions() {
+  const filterButtons = document.querySelectorAll('.filter-btn');
+  const galleryItems = document.querySelectorAll('.gallery-item');
+
+  console.log(`🔍 Found ${filterButtons.length} filter buttons`);
+  console.log(`🔍 Found ${galleryItems.length} gallery items after rendering`);
+
+  if (galleryItems.length === 0) {
+    console.warn('❌ No gallery items found after rendering');
+    return;
+  }
+
+  // Filter functionality
+  filterButtons.forEach(button => {
+    button.addEventListener('click', function () {
+      // Remove active class from all buttons
+      filterButtons.forEach(btn => btn.classList.remove('active'));
+      // Add active class to clicked button
+      this.classList.add('active');
+
+      const filterValue = this.getAttribute('data-filter');
+      currentFilter = filterValue;
+
+      filterGalleryItems(filterValue);
+
+      // Restart video autoplay after filtering
+      setTimeout(initializeVideoAutoplay, 300);
+    });
+  });
+
+  // Video hover functionality
+  const videoItems = document.querySelectorAll('.gallery-item video');
+  videoItems.forEach(video => {
+    const galleryItem = video.closest('.gallery-item');
+    const videoIcon = video.nextElementSibling;
+
+    galleryItem.addEventListener('mouseenter', function () {
+      // Hide video icon on hover
+      if (videoIcon && videoIcon.classList.contains('video-icon')) {
+        videoIcon.style.opacity = '0';
+      }
+
+      // Try to play video
+      video.play().catch(error => {
+        console.log('Video play on hover failed:', error);
+      });
+    });
+
+    galleryItem.addEventListener('mouseleave', function () {
+      // Show video icon when not hovering
+      if (videoIcon && videoIcon.classList.contains('video-icon')) {
+        videoIcon.style.opacity = '1';
+      }
+
+      video.pause();
+      video.currentTime = 0;
+    });
+
+    // Click to open in lightbox
+    galleryItem.addEventListener('click', function () {
+      const index = parseInt(this.getAttribute('data-index'));
+      openLightbox(index);
+    });
+  });
+
+  // Image click functionality
+  const imageItems = document.querySelectorAll('.gallery-item img');
+  imageItems.forEach(img => {
+    const galleryItem = img.closest('.gallery-item');
+
+    galleryItem.addEventListener('click', function () {
+      const index = parseInt(this.getAttribute('data-index'));
+      openLightbox(index);
+    });
+  });
+
+  // Image load/error handling
+  imageItems.forEach(img => {
+    img.addEventListener('load', function () {
+      this.style.opacity = '1';
+    });
+
+    img.addEventListener('error', function () {
+      console.error('❌ Failed to load image:', this.src);
+      this.style.opacity = '0.5';
+      this.alt = 'Image failed to load';
+      const galleryItem = this.closest('.gallery-item');
+      if (galleryItem) {
+        galleryItem.style.display = 'none';
+      }
+    });
+  });
+}
+
+function filterGalleryItems(filterValue) {
+  const galleryItems = document.querySelectorAll('.gallery-item');
+
+  galleryItems.forEach(item => {
+    const itemCategory = item.getAttribute('data-category');
+
+    if (filterValue === 'all' || itemCategory === filterValue) {
+      item.style.display = 'block';
+      // Add fade-in animation
+      setTimeout(() => {
+        item.style.opacity = '1';
+        item.style.transform = 'scale(1)';
+      }, 50);
+    } else {
+      // Add fade-out animation
+      item.style.opacity = '0';
+      item.style.transform = 'scale(0.8)';
+      setTimeout(() => {
+        item.style.display = 'none';
+      }, 300);
+    }
+  });
+}
+
+// ========== LIGHTBOX FUNCTIONALITY ==========
+function initializeLightbox() {
+  // Create lightbox HTML if it doesn't exist
+  if (!document.getElementById('gallery-lightbox')) {
+    const lightboxHTML = `
+      <div class="lightbox" id="gallery-lightbox">
+        <button class="lightbox-close" id="lightbox-close">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="lightbox-nav">
+          <button class="lightbox-prev" id="lightbox-prev">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button class="lightbox-next" id="lightbox-next">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+        <div class="lightbox-content" id="lightbox-content">
+          <!-- Content will be populated dynamically -->
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', lightboxHTML);
+
+    // Add lightbox event listeners
+    setupLightboxEvents();
+  }
+}
+
+function setupLightboxEvents() {
+  const lightbox = document.getElementById('gallery-lightbox');
+  const closeBtn = document.getElementById('lightbox-close');
+  const prevBtn = document.getElementById('lightbox-prev');
+  const nextBtn = document.getElementById('lightbox-next');
+
+  // Close lightbox
+  closeBtn.addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) {
+      closeLightbox();
+    }
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', handleLightboxKeyboard);
+
+  // Navigation buttons
+  prevBtn.addEventListener('click', showPreviousItem);
+  nextBtn.addEventListener('click', showNextItem);
+}
+
+let currentLightboxIndex = 0;
+
+function openLightbox(index) {
+  currentLightboxIndex = index;
+  const lightbox = document.getElementById('gallery-lightbox');
+  const lightboxContent = document.getElementById('lightbox-content');
+
+  // Get filtered items based on current filter
+  const filteredItems = currentFilter === 'all'
+    ? currentGalleryItems
+    : currentGalleryItems.filter(item => item.category === currentFilter);
+
+  const currentItem = filteredItems[index];
+
+  if (currentItem.media_type === 'video') {
+    lightboxContent.innerHTML = `
+      <video controls autoplay muted loop playsinline>
+        <source src="${currentItem.url}" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    `;
+  } else {
+    lightboxContent.innerHTML = `
+      <img src="${currentItem.url}" alt="${currentItem.category} cleaning service">
+    `;
+  }
+
+  lightbox.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Update navigation buttons state
+  updateLightboxNavigation(filteredItems.length, index);
+}
+
+function closeLightbox() {
+  const lightbox = document.getElementById('gallery-lightbox');
+  const lightboxContent = document.getElementById('lightbox-content');
+
+  // Stop video if playing
+  const video = lightboxContent.querySelector('video');
+  if (video) {
+    video.pause();
+    video.currentTime = 0;
+  }
+
+  lightbox.classList.remove('active');
+  document.body.style.overflow = '';
+
+  // Clear content after transition
+  setTimeout(() => {
+    lightboxContent.innerHTML = '';
+  }, 300);
+}
+
+function showPreviousItem() {
+  const filteredItems = currentFilter === 'all'
+    ? currentGalleryItems
+    : currentGalleryItems.filter(item => item.category === currentFilter);
+
+  currentLightboxIndex = (currentLightboxIndex - 1 + filteredItems.length) % filteredItems.length;
+  openLightbox(currentLightboxIndex);
+}
+
+function showNextItem() {
+  const filteredItems = currentFilter === 'all'
+    ? currentGalleryItems
+    : currentGalleryItems.filter(item => item.category === currentFilter);
+
+  currentLightboxIndex = (currentLightboxIndex + 1) % filteredItems.length;
+  openLightbox(currentLightboxIndex);
+}
+
+function updateLightboxNavigation(totalItems, currentIndex) {
+  const prevBtn = document.getElementById('lightbox-prev');
+  const nextBtn = document.getElementById('lightbox-next');
+
+  // Show/hide buttons based on item count
+  if (totalItems <= 1) {
+    prevBtn.style.display = 'none';
+    nextBtn.style.display = 'none';
+  } else {
+    prevBtn.style.display = 'block';
+    nextBtn.style.display = 'block';
+  }
+}
+
+function handleLightboxKeyboard(e) {
+  const lightbox = document.getElementById('gallery-lightbox');
+  if (!lightbox.classList.contains('active')) return;
+
+  switch (e.key) {
+    case 'Escape':
+      closeLightbox();
+      break;
+    case 'ArrowLeft':
+      showPreviousItem();
+      break;
+    case 'ArrowRight':
+      showNextItem();
+      break;
+  }
+}
+
+function showEmptyGalleryState(message = "We're preparing amazing content for you!") {
+  const galleryGrid = document.querySelector('.gallery-grid');
+  const loadingGallery = document.querySelector('.loading-gallery');
+
+  if (loadingGallery) {
+    loadingGallery.style.display = 'none';
+  }
+
+  if (galleryGrid) {
+    galleryGrid.innerHTML = `
+      <div class="empty-gallery-state">
+        <i class="fas fa-images"></i>
+        <h3>Gallery Coming Soon</h3>
+        <p>${message}</p>
+        <button class="btn-primary" onclick="loadGalleryItems()">
+          <i class="fas fa-redo"></i> Try Again
+        </button>
+      </div>
+    `;
+  }
+}
+
+function initializeGallery() {
+  const galleryGrid = document.querySelector('.gallery-grid');
+  const loadingGallery = document.querySelector('.loading-gallery');
+
+  console.log('🎨 Initializing gallery...');
+  console.log('📁 Gallery grid:', galleryGrid);
+  console.log('⏳ Loading gallery element:', loadingGallery);
+
+  // If no gallery elements found at all, exit gracefully
+  if (!galleryGrid && !loadingGallery) {
+    console.log('ℹ️ No gallery section found on this page');
+    return;
+  }
+
+  // Load gallery items from API
+  loadGalleryItems();
+}
+
 // ========== MAIN DOM CONTENT LOADED ==========
 document.addEventListener('DOMContentLoaded', function () {
   // Show initial loading
@@ -1340,58 +2207,58 @@ document.addEventListener('DOMContentLoaded', function () {
   // Add CSS animations
   const style = document.createElement('style');
   style.textContent = `
-        @keyframes requirementValid {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        
-        @keyframes requirementInvalid {
-            0% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            50% { transform: translateX(5px); }
-            100% { transform: translateX(0); }
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; transform: scale(1); }
-            to { opacity: 0; transform: scale(0.9); }
-        }
-        .animate-bounce {
-            animation: bounce 0.5s;
-        }
-        .empty-animation {
-            animation: fadeOut 0.3s ease-out;
-        }
-        
-        .empty-cart {
-            text-align: center;
-            padding: 2rem 1rem;
-            color: #666;
-        }
-        
-        .empty-cart svg {
-            margin-bottom: 1rem;
-        }
-        
-        .btn-primary {
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s;
-        }
-        
-        .btn-primary:hover {
-            background-color: #0055aa;
-        }
-    `;
+    @keyframes requirementValid {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    @keyframes requirementInvalid {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      100% { transform: translateX(0); }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.9); }
+    }
+    .animate-bounce {
+      animation: bounce 0.5s;
+    }
+    .empty-animation {
+      animation: fadeOut 0.3s ease-out;
+    }
+    
+    .empty-cart {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #666;
+    }
+    
+    .empty-cart svg {
+      margin-bottom: 1rem;
+    }
+    
+    .btn-primary {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    
+    .btn-primary:hover {
+      background-color: #0055aa;
+    }
+  `;
   document.head.appendChild(style);
 
   // Initialize password requirements
@@ -1476,12 +2343,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (errorBox) {
           errorBox.style.display = 'block';
           errorBox.innerHTML = `
-                        <i class="fas fa-exclamation-circle"></i> 
-                        <strong>Password requirements:</strong>
-                        <ul style="margin: 5px 0; padding-left: 20px; text-align: left;">
-                            ${passwordErrors.map(error => `<li>${error}</li>`).join('')}
-                        </ul>
-                    `;
+            <i class="fas fa-exclamation-circle"></i> 
+            <strong>Password requirements:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px; text-align: left;">
+              ${passwordErrors.map(error => `<li>${error}</li>`).join('')}
+            </ul>
+          `;
         }
         return;
       }
@@ -1555,7 +2422,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Login Form Handler
+  // Login Form Handler - ENHANCED WITH USER NOT FOUND HANDLING
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async function (e) {
@@ -1655,9 +2522,18 @@ document.addEventListener('DOMContentLoaded', function () {
       } catch (error) {
         window.beautifulLoader.hide();
         console.error('Login error:', error);
-        const errorMessage = error.response?.data?.message ||
+
+        let errorMessage = error.response?.data?.message ||
           error.message ||
           'Login failed. Please check your credentials.';
+
+        // Enhanced error handling for user not found
+        if (error.response?.status === 404) {
+          errorMessage = 'User not found. Please check your email or register for a new account.';
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        }
+
         showLoginError(errorMessage);
 
         submitBtn.disabled = false;
@@ -1717,14 +2593,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Forgot password link
+  // Forgot password link - UPDATED
   document.querySelector('.auth-forgot')?.addEventListener('click', function (e) {
     e.preventDefault();
-    window.beautifulLoader.show('Loading password reset...');
-    setTimeout(() => {
-      window.beautifulLoader.hide();
-      alert('Password reset functionality would be implemented here');
-    }, 1000);
+    showForgotPasswordModal();
   });
 
   // Initialize navigation and protected forms after authManager loads
@@ -1846,136 +2718,248 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ========== GALLERY FUNCTIONALITY ==========
-  const filterButtons = document.querySelectorAll('.filter-btn');
-  const galleryItems = document.querySelectorAll('.gallery-item');
+  console.log('🎨 Initializing gallery...');
+  initializeGallery();
 
-  filterButtons.forEach(button => {
-    button.addEventListener('click', function () {
-      filterButtons.forEach(btn => btn.classList.remove('active'));
-      this.classList.add('active');
+  function initializeServicesCarousel() {
+    const track = document.querySelector('.home-services-bar');
+    const cards = Array.from(document.querySelectorAll('.home-service-card'));
+    const prevBtn = document.querySelector('.home-carousel-prev');
+    const nextBtn = document.querySelector('.home-carousel-next');
+    const progressBar = document.querySelector('.home-progress-bar');
 
-      const filterValue = this.getAttribute('data-filter');
+    if (!track || cards.length === 0) {
+      console.log('❌ No carousel elements found');
+      return;
+    }
 
-      galleryItems.forEach(item => {
-        if (filterValue === 'all' || item.getAttribute('data-category') === filterValue) {
-          item.style.display = 'block';
+    console.log(`🎠 Initializing carousel with ${cards.length} cards`);
+
+    let currentPosition = 0;
+    let autoScrollInterval;
+    let isDragging = false;
+    let startX = 0;
+    let currentTranslate = 0;
+    let prevTranslate = 0;
+
+    // Get the actual card width including gap
+    function getCardWidth() {
+      if (cards.length === 0) return 0;
+      const card = cards[0];
+      const cardStyle = window.getComputedStyle(card);
+      const gap = 32; // 2rem gap in pixels (matches your CSS)
+      return card.offsetWidth + gap;
+    }
+
+    // Calculate how many cards can be visible at once
+    function getVisibleCardsCount() {
+      const container = track.parentElement;
+      const cardWidth = getCardWidth();
+      return Math.floor(container.offsetWidth / cardWidth);
+    }
+
+    // Calculate maximum scroll position
+    function getMaxPosition() {
+      const visibleCards = getVisibleCardsCount();
+      return Math.max(0, cards.length - visibleCards);
+    }
+
+    // Update carousel position
+    function updateCarousel() {
+      const maxPosition = getMaxPosition();
+      const cardWidth = getCardWidth();
+
+      // Ensure current position is within bounds
+      currentPosition = Math.max(0, Math.min(currentPosition, maxPosition));
+
+      const translateX = -currentPosition * cardWidth;
+      track.style.transform = `translateX(${translateX}px)`;
+
+      console.log(`🔄 Carousel: position ${currentPosition}, translate ${translateX}px, max ${maxPosition}`);
+
+      // Update progress bar
+      if (progressBar) {
+        const progress = maxPosition > 0 ? (currentPosition / maxPosition) * 100 : 100;
+        progressBar.style.width = `${progress}%`;
+      }
+
+      // Update button states
+      updateButtonStates();
+    }
+    function updateButtonStates() {
+      const maxPosition = getMaxPosition();
+
+      if (prevBtn) {
+        prevBtn.style.opacity = currentPosition === 0 ? '0.5' : '1';
+        prevBtn.disabled = currentPosition === 0;
+      }
+
+      if (nextBtn) {
+        nextBtn.style.opacity = currentPosition >= maxPosition ? '0.5' : '1';
+        nextBtn.disabled = currentPosition >= maxPosition;
+      }
+    }
+
+    function nextSlide() {
+      const maxPosition = getMaxPosition();
+      if (currentPosition < maxPosition) {
+        currentPosition++;
+        updateCarousel();
+      }
+    }
+
+    function prevSlide() {
+      if (currentPosition > 0) {
+        currentPosition--;
+        updateCarousel();
+      }
+    }
+
+    // Auto-scroll functionality
+    function startAutoScroll() {
+      stopAutoScroll();
+      autoScrollInterval = setInterval(() => {
+        const maxPosition = getMaxPosition();
+        if (currentPosition < maxPosition) {
+          nextSlide();
         } else {
-          item.style.display = 'none';
+          currentPosition = 0; // Loop back to start
+          updateCarousel();
+        }
+      }, 2000); // Change slide every 2 seconds
+    }
+
+    function stopAutoScroll() {
+      if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+      }
+    }
+
+    // Drag functionality for touch devices
+    function dragStart(e) {
+      isDragging = true;
+      stopAutoScroll();
+      track.style.transition = 'none';
+
+      if (e.type === 'touchstart') {
+        startX = e.touches[0].clientX;
+      } else {
+        startX = e.clientX;
+        e.preventDefault();
+      }
+
+      prevTranslate = currentPosition * getCardWidth();
+    }
+
+    function drag(e) {
+      if (!isDragging) return;
+
+      let currentX;
+      if (e.type === 'touchmove') {
+        currentX = e.touches[0].clientX;
+      } else {
+        currentX = e.clientX;
+      }
+
+      const diff = startX - currentX;
+      currentTranslate = prevTranslate + diff;
+
+      track.style.transform = `translateX(${-currentTranslate}px)`;
+    }
+
+    function dragEnd() {
+      if (!isDragging) return;
+
+      isDragging = false;
+      track.style.transition = 'transform 0.6s ease';
+
+      // Calculate new position based on drag
+      const cardWidth = getCardWidth();
+      const draggedPosition = Math.round(currentTranslate / cardWidth);
+      const maxPosition = getMaxPosition();
+
+      // Snap to nearest valid position
+      currentPosition = Math.max(0, Math.min(maxPosition, draggedPosition));
+
+      updateCarousel();
+      startAutoScroll();
+    }
+
+    // Event listeners setup
+    function setupEventListeners() {
+      // Navigation buttons
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          stopAutoScroll();
+          nextSlide();
+          startAutoScroll();
+        });
+      }
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          stopAutoScroll();
+          prevSlide();
+          startAutoScroll();
+        });
+      }
+
+      // Drag events for touch devices
+      track.addEventListener('touchstart', dragStart, { passive: false });
+      track.addEventListener('touchmove', drag, { passive: false });
+      track.addEventListener('touchend', dragEnd);
+
+      // Mouse events for desktop dragging
+      track.addEventListener('mousedown', dragStart);
+      track.addEventListener('mousemove', drag);
+      track.addEventListener('mouseup', dragEnd);
+      track.addEventListener('mouseleave', dragEnd);
+
+      // Auto-scroll control
+      track.addEventListener('mouseenter', stopAutoScroll);
+      track.addEventListener('mouseleave', startAutoScroll);
+
+      // Keyboard navigation
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+          stopAutoScroll();
+          prevSlide();
+          startAutoScroll();
+        } else if (e.key === 'ArrowRight') {
+          stopAutoScroll();
+          nextSlide();
+          startAutoScroll();
         }
       });
-    });
-  });
 
-  const videoItems = document.querySelectorAll('.gallery-item video');
-  videoItems.forEach(video => {
-    video.addEventListener('mouseenter', function () {
-      this.play();
-    });
-
-    video.addEventListener('mouseleave', function () {
-      this.pause();
-      this.currentTime = 0;
-    });
-  });
-
-  // ========== HOME SERVICES CAROUSEL ==========
-  const track = document.querySelector('.home-services-bar');
-  const cards = Array.from(document.querySelectorAll('.home-service-card'));
-  const prevBtn = document.querySelector('.home-carousel-prev');
-  const nextBtn = document.querySelector('.home-carousel-next');
-  const progressBar = document.querySelector('.home-progress-bar');
-
-  if (track && cards.length > 0) {
-    const cardCount = cards.length;
-    let cardWidth = cards[0].offsetWidth + 24;
-    let currentPosition = 0;
-    let maxVisibleCards = Math.floor(track.parentElement.offsetWidth / cardWidth);
-
-    function updateCarousel() {
-      const maxScroll = (cardCount - maxVisibleCards) * cardWidth;
-
-      if (currentPosition * cardWidth > maxScroll) {
-        currentPosition = 0;
-        track.style.transition = 'none';
-        track.style.transform = `translateX(0)`;
-        setTimeout(() => {
-          track.style.transition = 'transform 0.6s ease';
-        }, 10);
-      } else if (currentPosition < 0) {
-        currentPosition = Math.floor(maxScroll / cardWidth);
-        track.style.transition = 'none';
-        track.style.transform = `translateX(-${maxScroll}px)`;
-        setTimeout(() => {
-          track.style.transition = 'transform 0.6s ease';
-        }, 10);
-      }
-
-      track.style.transform = `translateX(-${currentPosition * cardWidth}px)`;
-
-      if (progressBar) {
-        const maxProgress = (cardCount - maxVisibleCards);
-        const progress = (currentPosition % cardCount) / maxProgress * 100;
-        progressBar.style.transform = `translateX(${Math.min(100, progress)}%)`;
-      }
-    }
-
-    updateCarousel();
-
-    if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
-        currentPosition++;
+      // Window resize handling
+      window.addEventListener('resize', () => {
         updateCarousel();
       });
     }
 
-    if (prevBtn) {
-      prevBtn.addEventListener('click', () => {
-        currentPosition--;
-        updateCarousel();
-      });
+    // Initialize the carousel
+    function init() {
+      updateCarousel();
+      startAutoScroll();
+      setupEventListeners();
+
+      console.log('✅ Carousel initialized successfully');
     }
 
-    let startX, moveX;
-    track.addEventListener('touchstart', (e) => {
-      startX = e.touches[0].clientX;
-      track.style.transition = 'none';
-    });
+    // Start the carousel
+    init();
 
-    track.addEventListener('touchmove', (e) => {
-      moveX = e.touches[0].clientX;
-      track.style.transform = `translateX(calc(-${currentPosition * cardWidth}px - ${startX - moveX}px))`;
-    });
-
-    track.addEventListener('touchend', () => {
-      const diff = startX - moveX;
-      if (diff > 50) {
-        currentPosition++;
-      } else if (diff < -50) {
-        currentPosition--;
-      }
-      track.style.transition = 'transform 0.6s ease';
-      updateCarousel();
-    });
-
-    let autoScroll = setInterval(() => {
-      currentPosition++;
-      updateCarousel();
-    }, 5000);
-
-    track.addEventListener('mouseenter', () => clearInterval(autoScroll));
-    track.addEventListener('mouseleave', () => {
-      autoScroll = setInterval(() => {
-        currentPosition++;
-        updateCarousel();
-      }, 5000);
-    });
-
-    window.addEventListener('resize', () => {
-      cardWidth = cards[0].offsetWidth + 24;
-      maxVisibleCards = Math.floor(track.parentElement.offsetWidth / cardWidth);
-      updateCarousel();
-    });
+    return {
+      next: nextSlide,
+      prev: prevSlide,
+      stop: stopAutoScroll,
+      start: startAutoScroll
+    };
   }
+  setTimeout(() => {
+    initializeServicesCarousel();
+  }, 1000);
 });
 
 // ========== NETWORK AND PAGE TRANSITION HANDLING ==========

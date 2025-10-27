@@ -174,137 +174,43 @@
         </div>
     </section>
 
-    <section class="home-services-summary" aria-labelledby="home-services-title">
-        <div class="home-services-header" id="home-services-title">
-            <div class="index-quote-header">
-                <h1 class="index-quote-title">Our Services at a Glance</h1>
-            </div>
+    <!-- Fixed Home Services Summary Section -->
+<section class="home-services-summary" aria-labelledby="home-services-title">
+    <div class="home-services-header" id="home-services-title">
+        <div class="index-quote-header">
+            <h1 class="index-quote-title">Our Services at a Glance</h1>
+            <p class="home-services-subtitle">Click on any service to explore detailed information and pricing</p>
         </div>
+    </div>
 
-        <div class="home-carousel-wrapper">
-            <button class="home-carousel-prev" aria-label="Previous services">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
-                </svg>
-            </button>
+    <div class="home-carousel-wrapper">
+        <button class="home-carousel-prev" aria-label="Previous services">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
+            </svg>
+        </button>
 
-            <div class="home-carousel-container">
-                <div class="home-services-bar">
-                    <!-- Original 9 service cards -->
-                    <a href="services.html#deep-cleaning" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/deepcleaning.jpg" alt="Standard and Deep Cleaning Service"
-                                loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Standard & Deep Cleaning</h3>
-                            <span class="home-service-price">From R350</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#office-cleaning" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/office.jpg" alt="Office Cleaning Service" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Office Cleaning</h3>
-                            <span class="home-service-price">From R500</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#window-cleaning" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/window.jpg" alt="Window Cleaning Service" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Window Cleaning</h3>
-                            <span class="home-service-price">From R250</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#carpet-cleaning" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/carpet.jpg" alt="Carpet Cleaning Service" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Carpet Cleaning</h3>
-                            <span class="home-service-price">From R300</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#upholstery-cleaning" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/upholstery.jpg" alt="Upholstery Cleaning Service" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Upholstery Cleaning</h3>
-                            <span class="home-service-price">From R400</span>
-                        </div>
-                    </a>
-
-                    <a href="products.html" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/product.jpg" alt="Cleaning Products for Sale" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Cleaning Products</h3>
-                            <span class="home-service-price">Prices Vary</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#pest-control" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/pest-control.jpg" alt="Pest Control Services" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Pest Control</h3>
-                            <span class="home-service-price">From R600</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#Fumigation" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/fumigation.jpg" alt="Fumigation Services" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Fumigation</h3>
-                            <span class="home-service-price">From R800</span>
-                        </div>
-                    </a>
-
-                    <a href="services.html#Disinfecting" class="home-service-card" tabindex="0">
-                        <div class="home-card-image">
-                            <img src="/frontend/images/disinfect.jpg" alt="Disinfecting Services" loading="lazy">
-                            <div class="home-image-overlay"></div>
-                        </div>
-                        <div class="home-service-info">
-                            <h3>Disinfecting</h3>
-                            <span class="home-service-price">From R500</span>
-                        </div>
-                    </a>
+        <div class="home-carousel-container">
+            <div class="home-services-bar" id="home-services-bar">
+                <!-- Services will be loaded dynamically here -->
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading our services...</p>
                 </div>
             </div>
-
-            <button class="home-carousel-next" aria-label="Next services">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
-                </svg>
-            </button>
         </div>
 
-        <div class="home-carousel-progress">
-            <div class="home-progress-bar"></div>
-        </div>
-    </section>
+        <button class="home-carousel-next" aria-label="Next services">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
+            </svg>
+        </button>
+    </div>
 
+    <div class="home-carousel-progress">
+        <div class="home-progress-bar"></div>
+    </div>
+</section>
 
 
     <!-- Testimonials Section -->
@@ -549,7 +455,7 @@
 
     <script type="module" src="./js/auth-manager.js"></script>
     <script type="module" src="./js/script.js"></script>
-
+    <script type="module" src="./js/services.js"></script>
 </body>
 
 </html>

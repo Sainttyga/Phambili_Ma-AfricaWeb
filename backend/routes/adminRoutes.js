@@ -5,7 +5,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const adminAuth = require('../middleware/adminAuth');
 const validate = require('../middleware/validate');
-const upload = require('../middleware/upload');
+const { upload } = require('../middleware/upload'); // FIXED: Destructure upload
 
 // ==================== PUBLIC ROUTES ====================
 router.post('/first-login', [
@@ -62,7 +62,7 @@ router.put('/customers/:id', adminController.updateCustomer);
 
 // ==================== SERVICE MANAGEMENT ====================
 router.post('/services',
-  upload.single('image'),
+  upload.single('image'), // This will now work with destructured upload
   [
     body('Name').notEmpty().withMessage('Service name is required'),
     body('Duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 minute')
@@ -72,7 +72,7 @@ router.post('/services',
 );
 
 router.get('/services', adminController.getAllServices);
-router.get('/services/:id', adminController.getServiceDetails); // Fixed method name
+router.get('/services/:id', adminController.getServiceDetails);
 
 router.put('/services/:id',
   upload.single('image'),
@@ -98,7 +98,7 @@ router.post('/products',
 );
 
 router.get('/products', adminController.getAllProducts);
-router.get('/products/:id', adminController.getProductById); // Fixed method name
+router.get('/products/:id', adminController.getProductById);
 
 router.put('/products/:id',
   upload.single('image'),

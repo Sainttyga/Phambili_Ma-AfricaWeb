@@ -7,7 +7,7 @@ const createUploadDirs = () => {
   const dirs = [
     path.join(__dirname, '../public/upload/products'),
     path.join(__dirname, '../public/upload/services'),
-    path.join(__dirname, '../public/upload/general')
+    path.join(__dirname, '../public/upload/gallery')
   ];
   
   dirs.forEach(dir => {
@@ -30,6 +30,8 @@ const storage = multer.diskStorage({
       uploadPath = path.join(uploadPath, 'products');
     } else if (req.originalUrl.includes('/services')) {
       uploadPath = path.join(uploadPath, 'services');
+    } else if (req.originalUrl.includes('/gallery')) {
+      uploadPath = path.join(uploadPath, 'gallery');
     } else {
       uploadPath = path.join(uploadPath, 'general');
     }
@@ -47,9 +49,28 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter
-const fileFilter = (req, file, cb) => {
-  // Check if file is an image
+// File filter for gallery (accepts images and videos)
+const galleryFileFilter = (req, file, cb) => {
+  const allowedTypes = {
+    'image/jpeg': true,
+    'image/jpg': true,
+    'image/png': true,
+    'image/webp': true,
+    'video/mp4': true,
+    'video/quicktime': true
+  };
+  
+  if (allowedTypes[file.mimetype]) {
+    console.log(`✅ Accepting file: ${file.originalname}, type: ${file.mimetype}`);
+    cb(null, true);
+  } else {
+    console.log(`❌ Rejecting file: ${file.originalname}, type: ${file.mimetype}`);
+    cb(new Error('Only image and video files are allowed!'), false);
+  }
+};
+
+// File filter for products/services (images only)
+const imageFileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     console.log(`✅ Accepting image: ${file.originalname}, type: ${file.mimetype}`);
     cb(null, true);
@@ -59,13 +80,21 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure multer
+// Configure multer instances
 const upload = multer({
   storage: storage,
-  fileFilter: fileFilter,
+  fileFilter: imageFileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit for images
   }
 });
 
-module.exports = upload;
+const galleryUpload = multer({
+  storage: storage,
+  fileFilter: galleryFileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for gallery
+  }
+});
+
+module.exports = { upload, galleryUpload };

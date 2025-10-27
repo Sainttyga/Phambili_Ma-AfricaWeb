@@ -149,100 +149,285 @@
             <div class="services-container">
                 <div class="services-header">
                     <h1 id="services-title">Book Your Cleaning Service</h1>
-                    <p>Schedule your professional cleaning in just a few simple steps.</p>
+                    <p>Complete the form below to schedule your professional cleaning service</p>
                 </div>
             </div>
+
+            <!-- Loading State -->
+            <div id="booking-loading" class="booking-loading">
+                <div class="loading-spinner"></div>
+                <p>Loading available services...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="booking-error" class="booking-error" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Unable to Load Services</h3>
+                <p>We're having trouble loading our services. Please try again.</p>
+                <button class="retry-btn" onclick="window.customerServices.setupBookingPage()">
+                    <i class="fas fa-refresh"></i> Try Again
+                </button>
+            </div>
+
+            <!-- Booking Steps -->
             <div class="booking-steps">
                 <div class="step">
                     <div class="step-number">1</div>
-                    <h3>Tell Us Your Needs</h3>
-                    <p>Select your service type and provide property details</p>
+                    <h3>Service Details</h3>
+                    <p>Choose service & property</p>
                 </div>
                 <div class="step">
                     <div class="step-number">2</div>
-                    <h3>Choose Date & Time</h3>
-                    <p>Pick your preferred cleaning schedule</p>
+                    <h3>Schedule</h3>
+                    <p>Pick date & time</p>
                 </div>
                 <div class="step">
                     <div class="step-number">3</div>
-                    <h3>Confirm Booking</h3>
-                    <p>Review and submit your request</p>
+                    <h3>Location</h3>
+                    <p>Enter address</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Your Info</h3>
+                    <p>Contact details</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <h3>Confirm</h3>
+                    <p>Review & submit</p>
                 </div>
             </div>
 
             <div class="book-page">
-                <form id="booking-form">
-                    <div class="form-group">
-                        <label for="service-type">Service Type*</label>
-                        <select id="service-type" required>
-                            <option value="" disabled selected>Select a service</option>
-                            <option value="deep-cleaning">Deep Cleaning</option>
-                            <option value="regular-cleaning">Regular Cleaning</option>
-                            <option value="office-cleaning">Office Cleaning</option>
-                            <option value="move-cleaning">Move In/Out Cleaning</option>
+                <form id="booking-form" class="unified-booking-form">
+                    <!-- Welcome Message at the top of the form -->
+                                <div class="welcome-message">
+                                    <div class="welcome-header">
+                                        <i class="fas fa-comments"></i>
+                                        <h3>Hi there,</h3>
+                                    </div>
+                                    <div class="welcome-content">
+                                        <p>Thank you for connecting through our online booking system!</p>
+                                        <p>After you have submitted this, you will receive confirmation where you will
+                                            select a date & time for a virtual consultation to discuss your needs, view
+                                            your space, provide you a quote, and get you booked in with us!</p>
+                                        <div class="signature">
+                                            <p><strong>Thank you,</strong></p>
+                                            <p class="company-name">Phambili Ma-Africa - Trading Enterprise</p>
+                                        </div>
+                                    </div>
+                                </div>
+                    <div id="booking-restrictions-alert" class="restrictions-alert" style="display: none;">
+                        <div class="alert-header">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h4>Booking Restrictions</h4>
+                        </div>
+                        <div class="alert-content">
+                            <p><strong>Please note:</strong></p>
+                            <ul id="restrictions-list">
+                                <!-- Restrictions will be populated dynamically -->
+                            </ul>
+                        </div>
+                        <button class="alert-close" onclick="this.parentElement.style.display='none'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- Service Selection -->
+                    <div class="form-group unified-group">
+                        <label for="service-type">
+                            <i class="fas fa-concierge-bell"></i>
+                            Service Type*
+                        </label>
+                        <select id="service-type" name="service-type" required class="unified-input">
+                            <option value="" disabled selected>Choose a cleaning service</option>
                         </select>
+                        <small class="form-hint service-duration-hint">Select a service to see estimated
+                            duration</small>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="property-type">Property Type*</label>
-                            <select id="property-type" required>
-                                <option value="" disabled selected>Select property type</option>
+                    <!-- Property Details -->
+                    <div class="form-row unified-row">
+                        <div class="form-group unified-group">
+                            <label for="property-type">
+                                <i class="fas fa-home"></i>
+                                Property Type*
+                            </label>
+                            <select id="property-type" name="property-type" required class="unified-input">
+                                <option value="" disabled selected>Property type</option>
                                 <option value="house">House</option>
                                 <option value="apartment">Apartment</option>
                                 <option value="office">Office</option>
-                                <option value="commercial">Commercial</option>
+                                <option value="commercial">Commercial Space</option>
                             </select>
                         </div>
-                       
+
+                        <div class="form-group unified-group">
+                            <label for="cleaning-frequency">
+                                <i class="fas fa-calendar-week"></i>
+                                Service Frequency
+                            </label>
+                            <select id="cleaning-frequency" name="cleaning-frequency" class="unified-input">
+                                <option value="" selected>Service frequency</option>
+                                <option value="once">One-time</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Bi-weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="cleaning-date">Preferred Date*</label>
-                            <input type="date" id="cleaning-date" required>
+                    <!-- Schedule -->
+                    <div class="form-row unified-row">
+                        <div class="form-group unified-group">
+                            <label for="booking-date">
+                                <i class="fas fa-calendar-day"></i>
+                                Preferred Date*
+                            </label>
+                            <input type="date" id="booking-date" name="booking-date" required class="unified-input">
+                            <div id="date-hint" class="date-hint" style="display: none;">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="date-hint-text"></span>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="cleaning-time">Preferred Time*</label>
-                            <select id="cleaning-time" required>
+
+                        <div class="form-group unified-group">
+                            <label for="booking-time">
+                                <i class="fas fa-clock"></i>
+                                Preferred Time*
+                            </label>
+                            <select id="booking-time" name="booking-time" required class="unified-input">
                                 <option value="" disabled selected>Select time</option>
-                                <option value="morning">Morning (8am-12pm)</option>
-                                <option value="afternoon">Afternoon (12pm-4pm)</option>
-                                <option value="evening">Evening (4pm-8pm)</option>
+                                <option value="08:00">08:00 AM</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="16:00">04:00 PM</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="special-instructions">Special Instructions</label>
-                        <textarea id="special-instructions" rows="3"></textarea>
+                    <!-- Address -->
+                    <div class="form-group unified-group">
+                        <label for="address-street">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Street Address*
+                        </label>
+                        <input type="text" id="address-street" name="address-street"
+                            placeholder="Enter your complete street address" required class="unified-input">
                     </div>
 
-                    <h3>Your Contact Information</h3>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="name">Full Name*</label>
-                            <input type="text" id="name" required>
+                    <div class="form-row unified-row">
+                        <div class="form-group unified-group">
+                            <label for="address-city">
+                                <i class="fas fa-city"></i>
+                                City*
+                            </label>
+                            <input type="text" id="address-city" name="address-city" placeholder="City" required
+                                class="unified-input">
                         </div>
-                        <div class="form-group">
-                            <label for="phone">Phone Number*</label>
-                            <input type="tel" id="phone" required>
+
+                        <div class="form-group unified-group">
+                            <label for="address-state">
+                                <i class="fas fa-map"></i>
+                                State*
+                            </label>
+                            <input type="text" id="address-state" name="address-state" placeholder="State" required
+                                class="unified-input">
+                        </div>
+
+                        <div class="form-group unified-group">
+                            <label for="address-postal-code">
+                                <i class="fas fa-mail-bulk"></i>
+                                Postal Code*
+                            </label>
+                            <input type="text" id="address-postal-code" name="address-postal-code"
+                                placeholder="Postal Code" required class="unified-input">
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="email">Email Address*</label>
-                        <input type="email" id="email" required>
+                    <!-- Contact Information -->
+                    <div class="form-row unified-row">
+                        <div class="form-group unified-group">
+                            <label for="customer-name">
+                                <i class="fas fa-user"></i>
+                                Full Name*
+                            </label>
+                            <input type="text" id="customer-name" name="customer-name" placeholder="Your full name"
+                                required class="unified-input">
+                        </div>
+
+                        <div class="form-group unified-group">
+                            <label for="customer-email">
+                                <i class="fas fa-envelope"></i>
+                                Email Address*
+                            </label>
+                            <input type="email" id="customer-email" name="customer-email"
+                                placeholder="your.email@example.com" required class="unified-input">
+                        </div>
+
+                        <div class="form-group unified-group">
+                            <label for="customer-phone">
+                                <i class="fas fa-phone"></i>
+                                Phone Number*
+                            </label>
+                            <input type="tel" id="customer-phone" name="customer-phone" placeholder="Your phone number"
+                                required class="unified-input">
+                        </div>
                     </div>
 
-                    <button type="submit" class="submit-btn">Request Booking</button>
+                    <!-- Special Instructions -->
+                    <div class="form-group unified-group">
+                        <label for="special-requests">
+                            <i class="fas fa-edit"></i>
+                            Special Instructions
+                        </label>
+                        <textarea id="special-requests" name="special-requests"
+                            placeholder="Any specific requirements, access instructions, areas of focus, or additional information that will help us provide the best service..."
+                            class="unified-textarea"></textarea>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions unified-actions">
+                        <button type="submit" class="submit-btn unified-submit" id="submit-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            <span class="btn-text">Request Quotation</span>
+                            <div class="btn-loading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                Processing...
+                            </div>
+                        </button>
+                        <p class="form-note unified-note">
+                            <i class="fas fa-info-circle"></i>
+                            You'll receive a custom quotation within 24 hours. No payment required at this stage.
+                        </p>
+                    </div>
                 </form>
             </div>
 
             <div class="why-choose">
-                <h2>Why Choose Our Cleaning Services?</h2>
-                <p>All bookings include our satisfaction guarantee and insured professionals</p>
+                <h2>Why Choose Phambili Ma-Africa?</h2>
+                <div class="benefits-grid">
+                    <div class="benefit">
+                        <i class="fas fa-shield-alt"></i>
+                        <h3>Fully Insured & Certified</h3>
+                        <p>Our cleaning professionals are fully insured, certified, and background-checked for your
+                            peace of mind.</p>
+                    </div>
+                    <div class="benefit">
+                        <i class="fas fa-leaf"></i>
+                        <h3>Eco-Friendly Products</h3>
+                        <p>We use environmentally friendly cleaning products that are safe for your family and pets.</p>
+                    </div>
+                    <div class="benefit">
+                        <i class="fas fa-star"></i>
+                        <h3>Satisfaction Guarantee</h3>
+                        <p>100% satisfaction guaranteed. If you're not happy, we'll come back and make it right.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -344,6 +529,7 @@
 
     <script type="module" src="./js/auth-manager.js"></script>
     <script type="module" src="./js/script.js"></script>
+    <script type="module" src="./js/services.js"></script>
 </body>
 
 </html>

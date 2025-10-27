@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/admin-dashboard.css">
-
 </head>
 
 <body>
@@ -25,7 +24,7 @@
                 </button>
             </div>
 
-            <!-- FIXED: Proper tablist structure for navigation -->
+            <!-- Navigation -->
             <nav class="sidebar-nav" role="navigation" aria-label="Admin dashboard navigation">
                 <ul role="tablist" aria-label="Admin sections">
                     <div class="home-link-container">
@@ -69,7 +68,13 @@
                             <span>Products</span>
                         </a>
                     </li>
-                    <!-- Add this to your sidebar navigation -->
+                    <li role="presentation">
+                        <a href="#gallery" class="nav-link" role="tab" aria-selected="false" aria-controls="gallery"
+                            id="gallery-tab" data-section="gallery">
+                            <i class="fas fa-images"></i>
+                            <span>Gallery</span>
+                        </a>
+                    </li>
                     <li role="presentation">
                         <a href="#admin-management" class="nav-link" role="tab" aria-selected="false"
                             aria-controls="admin-management" id="admin-management-tab" data-section="admin-management">
@@ -121,11 +126,11 @@
 
             <!-- Content Sections - Tab Panels -->
             <div class="content-sections" role="tabpanel" aria-labelledby="dashboard-tab">
+
                 <!-- Dashboard Section -->
                 <section id="dashboard" class="content-section active" role="tabpanel" aria-labelledby="dashboard-tab"
                     tabindex="0">
                     <div class="stats-grid" id="statsGrid">
-                        <!-- Stats will be loaded dynamically -->
                         <div class="stat-card">
                             <div class="stat-icon revenue">
                                 <i class="fas fa-dollar-sign" aria-hidden="true"></i>
@@ -200,7 +205,10 @@
                                             <i class="fas fa-cog" aria-hidden="true"></i>
                                             <span>Manage Services</span>
                                         </button>
-                                    
+                                        <button class="action-btn" onclick="showSection('products')" role="button">
+                                            <i class="fas fa-cog" aria-hidden="true"></i>
+                                            <span>Manage Products</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -273,7 +281,6 @@
                                             Save Changes
                                         </button>
                                     </div>
-
                                 </div>
                             </section>
 
@@ -301,7 +308,7 @@
                     </div>
                 </section>
 
-                <!-- Bookings Section - Card Layout -->
+                <!-- Bookings Section -->
                 <section id="bookings" class="content-section" role="tabpanel" aria-labelledby="bookings-tab"
                     tabindex="0" hidden>
                     <div class="section-header">
@@ -322,7 +329,6 @@
 
                     <!-- Card Grid Container -->
                     <div class="bookings-grid" id="bookingsGrid">
-                        <!-- Booking cards will be loaded here dynamically -->
                         <div class="empty-state">
                             <i class="fas fa-calendar-plus"></i>
                             <p>No quotation requests found</p>
@@ -377,78 +383,6 @@
                     <div class="cards-grid" id="servicesGrid">
                         <!-- Services will be loaded here as cards -->
                     </div>
-                    <!-- Service Modal -->
-                    <div id="serviceModal" class="modal" style="display: none;" role="dialog"
-                        aria-labelledby="serviceModalTitle" aria-hidden="true">
-                        <div class="modal-content" style="max-width: 600px;">
-                            <div class="modal-header">
-                                <h2 id="serviceModalTitle"><i class="fas fa-plus"></i> Add New Service</h2>
-                                <button class="modal-close" onclick="closeServiceModal()" aria-label="Close modal">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <div class="modal-body">
-                                <!-- Update the service form in the modal -->
-                                <form id="service-form" enctype="multipart/form-data">
-                                    <input type="hidden" id="service-id" name="id">
-                                    <input type="hidden" id="currentServiceImage" name="current_image">
-
-                                    <div class="form-group">
-                                        <label for="service-name">Service Name *</label>
-                                        <input type="text" id="service-name" name="Name" class="form-input" required>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="service-description">Description</label>
-                                        <textarea id="service-description" name="Description" class="form-input"
-                                            rows="3" placeholder="Service description..."></textarea>
-                                    </div>
-
-                                    <!-- REMOVE PRICE FIELD -->
-                                    <div class="form-group">
-                                        <label for="service-duration">Duration (minutes) *</label>
-                                        <input type="number" id="service-duration" name="Duration" class="form-input"
-                                            min="1" required>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="service-category">Category</label>
-                                        <input type="text" id="service-category" name="Category" class="form-input"
-                                            placeholder="e.g., Residential, Commercial, Deep Cleaning">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="service-image">Service Image</label>
-                                        <input type="file" id="service-image" name="image" class="form-input"
-                                            accept="image/*" onchange="previewServiceImage(event)">
-                                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
-                                        <div id="serviceImagePreview" class="image-preview">
-                                            <div class="no-image">No image selected</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="service-available" name="Is_Available" checked>
-                                            <span class="checkmark"></span>
-                                            Service is available for booking
-                                        </label>
-                                    </div>
-
-                                    <div class="form-actions">
-                                        <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">
-                                            <i class="fas fa-times"></i>
-                                            Cancel
-                                        </button>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save"></i>
-                                            Save Service
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
                 </section>
 
                 <!-- Products Section -->
@@ -464,86 +398,241 @@
                     <div class="cards-grid" id="productsGrid">
                         <!-- Products will be loaded here as cards -->
                     </div>
-                    <div id="productModal" class="modal" style="display: none;" role="dialog"
-                        aria-labelledby="productModalTitle">
-                        <div class="modal-content" style="max-width: 600px;">
-                            <div class="modal-header">
-                                <h2 id="productModalTitle"><i class="fas fa-plus"></i> Add New Product</h2>
-                                <button class="modal-close" onclick="closeProductModal()" aria-label="Close modal">
-                                    <i class="fas fa-times"></i>
+                </section>
+
+                <!-- Gallery Section -->
+                <section id="gallery" class="content-section" role="tabpanel" aria-labelledby="gallery-tab" tabindex="0"
+                    hidden>
+                    <div class="section-header">
+                        <h2>Gallery Management</h2>
+                    </div>
+
+                    <!-- Simple Upload Form -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Upload New Media</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="gallery-upload-form" enctype="multipart/form-data">
+                                <div class="form-group">
+                                    <label for="media-file">Select Image or Video</label>
+                                    <input type="file" id="media-file" name="media" class="form-input"
+                                        accept="image/*,video/*" required>
+                                    <small>Supported formats: JPG, PNG, WebP, MP4 (Max: 50MB)</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="media-category">Category</label>
+                                    <select id="media-category" name="category" class="form-input">
+                                        <option value="residential">Residential</option>
+                                        <option value="commercial">Commercial</option>
+                                        <option value="deep-cleaning">Deep Cleaning</option>
+                                        <option value="specialty">Specialty Services</option>
+                                        <option value="before-after">Before & After</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i> Upload Media
                                 </button>
-                            </div>
-                            <div class="modal-body">
-                                <form id="product-form" enctype="multipart/form-data">
-                                    <input type="hidden" id="product-id" name="id">
-                                    <input type="hidden" id="currentProductImage" name="current_image">
+                            </form>
+                        </div>
+                    </div>
 
-                                    <div class="form-group">
-                                        <label for="product-name">Product Name *</label>
-                                        <input type="text" id="product-name" name="Name" class="form-input" required>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="product-description">Description</label>
-                                        <textarea id="product-description" name="Description" class="form-input"
-                                            rows="3" placeholder="Product description..."></textarea>
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="product-price">Price (R) *</label>
-                                            <input type="number" id="product-price" name="Price" class="form-input"
-                                                step="0.01" min="0" required>
-                                        </div>
-
-                                        <div class="form-group">
-                                            <label for="product-stock">Stock Quantity *</label>
-                                            <input type="number" id="product-stock" name="Stock_Quantity"
-                                                class="form-input" min="0" required>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="product-category">Category</label>
-                                        <input type="text" id="product-category" name="Category" class="form-input"
-                                            placeholder="e.g., Cleaning Supplies, Equipment">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="product-image">Product Image</label>
-                                        <input type="file" id="product-image" name="image" class="form-input"
-                                            accept="image/*" onchange="previewProductImage(event)">
-                                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
-                                        <div id="productImagePreview" class="image-preview">
-                                            <div class="no-image">No image selected</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="product-available" name="Is_Available" checked>
-                                            <span class="checkmark"></span>
-                                            Product is available for purchase
-                                        </label>
-                                    </div>
-
-                                    <div class="form-actions">
-                                        <button type="button" class="btn btn-secondary" onclick="closeProductModal()">
-                                            <i class="fas fa-times"></i>
-                                            Cancel
-                                        </button>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save"></i>
-                                            Save Product
-                                        </button>
-                                    </div>
-                                </form>
+                    <!-- Gallery Management -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Manage Gallery</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="gallery-management">
+                                <!-- Gallery items will be loaded here -->
                             </div>
                         </div>
                     </div>
                 </section>
-            </div>
+
+                <!-- Admin Management Section -->
+                <section id="admin-management" class="content-section" role="tabpanel"
+                    aria-labelledby="admin-management-tab" tabindex="0" hidden>
+                    <div class="section-header">
+                        <h2>Admin Management</h2>
+                        <button class="btn btn-primary" onclick="openAdminModal()" role="button">
+                            <i class="fas fa-plus" aria-hidden="true"></i> Add Admin
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" aria-label="Admin management table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">Phone</th>
+                                    <th scope="col">Role</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Last Login</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminsTable">
+                                <!-- Admins will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </div> <!-- Close content-sections -->
         </main>
+    </div>
+
+    <!-- Service Modal -->
+    <div id="serviceModal" class="modal" style="display: none;" role="dialog" aria-labelledby="serviceModalTitle"
+        aria-hidden="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="serviceModalTitle"><i class="fas fa-plus"></i> Add New Service</h2>
+                <button class="modal-close" onclick="closeServiceModal()" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="service-form" enctype="multipart/form-data">
+                    <input type="hidden" id="service-id" name="id">
+                    <input type="hidden" id="currentServiceImage" name="current_image">
+
+                    <div class="form-group">
+                        <label for="service-name">Service Name *</label>
+                        <input type="text" id="service-name" name="Name" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="service-description">Description</label>
+                        <textarea id="service-description" name="Description" class="form-input" rows="3"
+                            placeholder="Service description..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="service-duration">Duration (minutes) *</label>
+                        <input type="number" id="service-duration" name="Duration" class="form-input" min="1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="service-category">Category</label>
+                        <input type="text" id="service-category" name="Category" class="form-input"
+                            placeholder="e.g., Residential, Commercial, Deep Cleaning">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="service-image">Service Image</label>
+                        <input type="file" id="service-image" name="image" class="form-input" accept="image/*"
+                            onchange="previewServiceImage(event)">
+                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                        <div id="serviceImagePreview" class="image-preview">
+                            <div class="no-image">No image selected</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="service-available" name="Is_Available" checked>
+                            <span class="checkmark"></span>
+                            Service is available for booking
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            Save Service
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal" style="display: none;" role="dialog" aria-labelledby="productModalTitle">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="productModalTitle"><i class="fas fa-plus"></i> Add New Product</h2>
+                <button class="modal-close" onclick="closeProductModal()" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="product-form" enctype="multipart/form-data">
+                    <input type="hidden" id="product-id" name="id">
+                    <input type="hidden" id="currentProductImage" name="current_image">
+
+                    <div class="form-group">
+                        <label for="product-name">Product Name *</label>
+                        <input type="text" id="product-name" name="Name" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="product-description">Description</label>
+                        <textarea id="product-description" name="Description" class="form-input" rows="3"
+                            placeholder="Product description..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="product-price">Price (R) *</label>
+                            <input type="number" id="product-price" name="Price" class="form-input" step="0.01" min="0"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="product-stock">Stock Quantity *</label>
+                            <input type="number" id="product-stock" name="Stock_Quantity" class="form-input" min="0"
+                                required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="product-category">Category</label>
+                        <input type="text" id="product-category" name="Category" class="form-input"
+                            placeholder="e.g., Cleaning Supplies, Equipment">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="product-image">Product Image</label>
+                        <input type="file" id="product-image" name="image" class="form-input" accept="image/*"
+                            onchange="previewProductImage(event)">
+                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                        <div id="productImagePreview" class="image-preview">
+                            <div class="no-image">No image selected</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="product-available" name="Is_Available" checked>
+                            <span class="checkmark"></span>
+                            Product is available for purchase
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeProductModal()">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            Save Product
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- Admin Password Change Modal -->
@@ -713,8 +802,6 @@
                         </div>
                     </div>
 
-
-
                     <!-- Customer Feedback -->
                     <div class="customer-section">
                         <h3>Recent Feedback</h3>
@@ -730,37 +817,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Admin Management Section -->
-    <section id="admin-management" class="content-section" role="tabpanel" aria-labelledby="admin-management-tab"
-        tabindex="0" hidden>
-        <div class="section-header">
-            <h2>Admin Management</h2>
-            <button class="btn btn-primary" onclick="openAdminModal()" role="button">
-                <i class="fas fa-plus" aria-hidden="true"></i> Add Admin
-            </button>
-        </div>
-
-        <div class="table-container">
-            <table class="data-table" aria-label="Admin management table">
-                <thead>
-                    <tr>
-                        <th scope="col">ID</th>
-                        <th scope="col">Name</th>
-                        <th scope="col">Email</th>
-                        <th scope="col">Phone</th>
-                        <th scope="col">Role</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Last Login</th>
-                        <th scope="col">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="adminsTable">
-                    <!-- Admins will be loaded here -->
-                </tbody>
-            </table>
-        </div>
-    </section>
 
     <!-- Add Admin Modal -->
     <div id="adminModal" class="modal" style="display: none;" role="dialog" aria-labelledby="adminModalTitle"

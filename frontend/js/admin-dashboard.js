@@ -117,7 +117,7 @@ class AdminDashboard {
   // Hide restricted tabs for sub-admins
   hideRestrictedTabs() {
     try {
-      const restrictedTabs = ['customers', 'admin-management', ];
+      const restrictedTabs = ['customers', 'admin-management', 'gallery'];
 
       restrictedTabs.forEach(tab => {
         const tabElement = document.querySelector(`[data-section="${tab}"]`);
@@ -195,7 +195,7 @@ class AdminDashboard {
 
       // Check if sub-admin is trying to access restricted section
       if (!this.isMainAdmin) {
-        const restrictedSections = ['customers', 'admin-management',];
+        const restrictedSections = ['customers', 'admin-management', 'gallery'];
         if (restrictedSections.includes(section)) {
           this.showNotification('Access denied. This section is restricted to Main Administrators.', 'error');
           // Redirect to dashboard
@@ -695,6 +695,9 @@ class AdminDashboard {
     try {
       console.log('Setting up navigation...');
 
+      // Add gallery tab to sidebar if it doesn't exist
+      this.setupGalleryNavigation();
+
       const navLinks = document.querySelectorAll('.nav-link[data-section]');
       navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
@@ -703,7 +706,7 @@ class AdminDashboard {
 
           // Check if this is a restricted section for sub-admins
           if (!this.isMainAdmin) {
-            const restrictedSections = ['customers', 'admin-management'];
+            const restrictedSections = ['customers', 'admin-management', 'gallery'];
             if (restrictedSections.includes(section)) {
               this.showNotification('Access denied. This section is restricted to Main Administrators.', 'error');
               return;
@@ -867,6 +870,9 @@ class AdminDashboard {
         case 'admin-management':
           await this.loadAdmins();
           break;
+        case 'gallery':
+          this.initGallerySection();
+          break;
         default:
           console.log('No specific data loader for section:', section);
       }
@@ -981,6 +987,9 @@ class AdminDashboard {
       if (!grid) return;
 
       if (response.success && response.services && response.services.length > 0) {
+        console.log(`📊 Loaded ${response.services.length} services from admin API`);
+        console.log(`📈 Available: ${response.services.filter(s => s.Is_Available).length}, Unavailable: ${response.services.filter(s => !s.Is_Available).length}`);
+
         grid.innerHTML = response.services.map(service => {
           // Fix image URL - use absolute URL for development
           let imageUrl = service.Image_URL;
@@ -993,13 +1002,13 @@ class AdminDashboard {
   <div class="product-image">
     ${imageUrl ?
               `<img src="${imageUrl}" alt="${service.Name}" 
-           crossorigin="anonymous"
-           loading="lazy"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-           onload="this.style.opacity='1'">` :
+             crossorigin="anonymous"
+             loading="lazy"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+             onload="this.style.opacity='1'">` :
               `<div class="product-image-placeholder">
-        <i class="fas fa-concierge-bell"></i>
-      </div>`
+            <i class="fas fa-concierge-bell"></i>
+        </div>`
             }
     <div class="product-status ${service.Is_Available ? 'available' : 'unavailable'}">
       ${service.Is_Available ? 'Available' : 'Unavailable'}
@@ -1014,13 +1023,19 @@ class AdminDashboard {
     <div class="product-meta">
       <span><i class="fas fa-clock"></i> Duration: ${service.Duration || 0} minutes</span>
       <span><i class="fas fa-tag"></i> ${service.Category || 'General'}</span>
+      <span class="availability-status ${service.Is_Available ? 'available' : 'unavailable'}">
+        <i class="fas fa-${service.Is_Available ? 'check' : 'times'}"></i>
+        ${service.Is_Available ? 'Available' : 'Unavailable'}
+      </span>
     </div>
   </div>
   <div class="product-actions">
     <button class="btn-icon" onclick="adminDashboard.editService(${service.ID})" title="Edit">
       <i class="fas fa-edit"></i>
     </button>
-    <button class="btn-icon toggle-availability" onclick="adminDashboard.toggleServiceAvailability(${service.ID}, ${!service.Is_Available})" title="${service.Is_Available ? 'Disable' : 'Enable'}">
+    <button class="btn-icon toggle-availability ${service.Is_Available ? 'make-unavailable' : 'make-available'}" 
+            onclick="adminDashboard.toggleServiceAvailability(${service.ID}, ${!service.Is_Available})" 
+            title="${service.Is_Available ? 'Disable Service' : 'Enable Service'}">
       <i class="fas fa-${service.Is_Available ? 'eye-slash' : 'eye'}"></i>
     </button>
     <button class="btn-icon delete" onclick="adminDashboard.deleteService(${service.ID})" title="Delete">
@@ -1028,17 +1043,18 @@ class AdminDashboard {
     </button>
   </div>
 </div>
-      `}).join('');
+                `;
+        }).join('');
       } else {
         grid.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-concierge-bell"></i>
-          <p>No services available</p>
-          <button class="btn btn-primary" onclick="openServiceModal()">
-            <i class="fas fa-plus"></i> Add Your First Service
-          </button>
-        </div>
-      `;
+            <div class="empty-state">
+                <i class="fas fa-concierge-bell"></i>
+                <p>No services available</p>
+                <button class="btn btn-primary" onclick="openServiceModal()">
+                    <i class="fas fa-plus"></i> Add Your First Service
+                </button>
+            </div>
+            `;
       }
     } catch (error) {
       console.error('Error loading services:', error);
@@ -1413,6 +1429,242 @@ class AdminDashboard {
     }
   }
 
+  // Gallery Management Functions
+  // In admin-dashboard.js - Fix the loadGallery method
+  async loadGallery() {
+    try {
+      console.log('🔄 Loading gallery...');
+      const container = document.getElementById('gallery-management');
+
+      if (!container) {
+        console.error('❌ Gallery management container not found');
+        return;
+      }
+
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading gallery...</p></div>';
+
+      const response = await this.api.getGalleryMedia();
+
+      if (response.success && response.media && response.media.length > 0) {
+        console.log(`📸 Loaded ${response.media.length} gallery items`);
+
+        container.innerHTML = `
+        <div class="gallery-management-grid">
+          ${response.media.map(item => `
+            <div class="gallery-item-admin" data-item-id="${item.id}">
+              <div class="gallery-item-preview">
+                ${item.media_type === 'image' ?
+            `<img src="${item.url}" alt="Gallery image" loading="lazy" 
+                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div class="fallback-placeholder" style="display:none;">
+                     <i class="fas fa-image"></i>
+                     <span>Image not available</span>
+                   </div>` :
+            `<video src="${item.url}" muted controls>
+                     <div class="fallback-placeholder">
+                       <i class="fas fa-video"></i>
+                       <span>Video not available</span>
+                     </div>
+                   </video>`
+          }
+              </div>
+              <div class="gallery-item-info">
+                <div class="gallery-item-meta">
+                  <span class="category-badge">${item.category}</span>
+                  <span class="media-type-badge ${item.media_type}">${item.media_type}</span>
+                </div>
+                <div class="gallery-item-actions">
+                  <button onclick="adminDashboard.deleteGalleryItem(${item.id})" class="btn-icon delete" title="Delete">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      } else {
+        container.innerHTML = `
+        <div class="gallery-empty-state">
+          <i class="fas fa-images"></i>
+          <p>No media uploaded yet</p>
+          <p class="empty-subtitle">Upload your first image or video to get started</p>
+        </div>
+      `;
+      }
+    } catch (error) {
+      console.error('❌ Error loading gallery:', error);
+      const container = document.getElementById('gallery-management');
+      if (container) {
+        container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-exclamation-triangle"></i>
+          <p>Failed to load gallery</p>
+          <p class="error-subtitle">${error.message || 'Please try again'}</p>
+          <button class="btn btn-secondary" onclick="adminDashboard.loadGallery()">
+            <i class="fas fa-redo"></i> Try Again
+          </button>
+        </div>
+      `;
+      }
+    }
+  }
+  async deleteGalleryItem(id) {
+    if (!confirm('Are you sure you want to delete this media item? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      console.log(`🗑️ Deleting gallery item: ${id}`);
+      const response = await this.api.deleteGalleryMedia(id);
+
+      if (response.success) {
+        this.showNotification('Media deleted successfully', 'success');
+        await this.loadGallery();
+      } else {
+        throw new Error(response.message || 'Delete failed');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting gallery item:', error);
+      this.showNotification(error.message || 'Error deleting media', 'error');
+    }
+  }
+
+  // Handle gallery upload form
+  setupGalleryUpload() {
+    const form = document.getElementById('gallery-upload-form');
+    const fileInput = document.getElementById('media-file');
+
+    if (!form || !fileInput) {
+      console.log('Gallery upload form not found on this page');
+      return;
+    }
+
+    // File input change handler for preview
+    fileInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Create or update preview
+      let previewContainer = document.getElementById('upload-preview');
+      if (!previewContainer) {
+        previewContainer = document.createElement('div');
+        previewContainer.id = 'upload-preview';
+        previewContainer.className = 'upload-preview';
+        form.insertBefore(previewContainer, form.querySelector('button[type="submit"]'));
+      }
+
+      const url = URL.createObjectURL(file);
+
+      if (file.type.startsWith('image/')) {
+        previewContainer.innerHTML = `
+          <div class="preview-image">
+            <img src="${url}" alt="Preview">
+            <span class="file-name">${file.name}</span>
+          </div>
+        `;
+      } else if (file.type.startsWith('video/')) {
+        previewContainer.innerHTML = `
+          <div class="preview-video">
+            <video src="${url}" controls></video>
+            <span class="file-name">${file.name}</span>
+          </div>
+        `;
+      } else {
+        previewContainer.innerHTML = `
+          <div class="preview-other">
+            <i class="fas fa-file"></i>
+            <span class="file-name">${file.name}</span>
+          </div>
+        `;
+      }
+    });
+
+    // Form submit handler
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const file = formData.get('media');
+
+      if (!file || file.size === 0) {
+        this.showNotification('Please select a file to upload', 'error');
+        return;
+      }
+
+      // Validate file size (50MB max)
+      if (file.size > 50 * 1024 * 1024) {
+        this.showNotification('File size must be less than 50MB', 'error');
+        return;
+      }
+
+      // Validate file type
+      const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const validVideoTypes = ['video/mp4', 'video/avi', 'video/mov'];
+
+      if (!validImageTypes.includes(file.type) && !validVideoTypes.includes(file.type)) {
+        this.showNotification('Please select a valid image or video file', 'error');
+        return;
+      }
+
+      try {
+        this.showLoading('Uploading media...');
+
+        const response = await this.api.uploadGalleryMedia(formData);
+
+        if (response.success) {
+          this.showNotification('Media uploaded successfully!', 'success');
+          form.reset();
+
+          // Clear preview
+          const previewContainer = document.getElementById('upload-preview');
+          if (previewContainer) {
+            previewContainer.innerHTML = '';
+          }
+
+          // Reload gallery
+          await this.loadGallery();
+        } else {
+          throw new Error(response.message || 'Upload failed');
+        }
+
+      } catch (error) {
+        console.error('❌ Upload error:', error);
+        this.showNotification(error.message || 'Error uploading media', 'error');
+      } finally {
+        this.hideLoading();
+      }
+    });
+  }
+
+  // Add gallery section to navigation
+  setupGalleryNavigation() {
+    // Add gallery tab to sidebar if it doesn't exist
+    const navList = document.querySelector('.sidebar-nav ul');
+    if (navList && !document.querySelector('[data-section="gallery"]')) {
+      const galleryNavItem = document.createElement('li');
+      galleryNavItem.setAttribute('role', 'presentation');
+      galleryNavItem.innerHTML = `
+        <a href="#gallery" class="nav-link" role="tab" aria-selected="false" 
+           aria-controls="gallery" id="gallery-tab" data-section="gallery">
+          <i class="fas fa-images"></i>
+          <span>Gallery</span>
+        </a>
+      `;
+      navList.appendChild(galleryNavItem);
+    }
+  }
+
+  // Initialize gallery when section is loaded
+  initGallerySection() {
+    const gallerySection = document.getElementById('gallery');
+    if (gallerySection && !gallerySection.hidden) {
+      console.log('🎨 Initializing gallery section...');
+      this.setupGalleryUpload();
+      this.loadGallery();
+    }
+  }
+
   setupAdminProfile() {
     try {
       console.log('Setting up admin profile manager');
@@ -1547,8 +1799,6 @@ class AdminDashboard {
       this.showNotification('Reminders sent successfully', 'success');
     }
   }
-
-
 
   manageBackups() {
     this.showNotification('Backup management would open here', 'info');
@@ -2404,7 +2654,8 @@ class AdminDashboard {
       'services': 'Service Management',
       'products': 'Product Management',
       'admin-management': 'Admin Management',
-      'admin-profile': 'Admin Profile'
+      'admin-profile': 'Admin Profile',
+      'gallery': 'Gallery Management'
     };
     return titles[section] || 'Dashboard';
   }
@@ -3172,6 +3423,10 @@ function previewServiceImage(event) {
     console.error('Error previewing service image:', error);
   }
 }
+
+// Make gallery methods globally available
+window.loadGallery = () => window.adminDashboard?.loadGallery();
+window.deleteGalleryItem = (id) => window.adminDashboard?.deleteGalleryItem(id);
 
 // Make the helper function globally available
 window.setFormValue = setFormValue;

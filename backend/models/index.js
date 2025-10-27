@@ -6,6 +6,7 @@ const Service = require('./service');
 const Product = require('./product');
 const Order = require('./order');
 const Payment = require('./payment');
+const Gallery = require('./gallery');
 const sequelize = require('../config'); // Import sequelize instance
 
 // Customer associations
@@ -49,5 +50,6 @@ module.exports = {
   Product,
   Order,
   Payment,
+  Gallery,
   sequelize
 };

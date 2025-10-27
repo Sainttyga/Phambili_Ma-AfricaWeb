@@ -1,10 +1,10 @@
-// authController.js - Complete and Fixed Version
+// authController.js - Fixed with proper error handling
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Customer, Admin } = require('../models');
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key';
 
 // Validation helper functions
 const validateFullName = (name) => /^[A-Za-z\s]{2,100}$/.test(name?.trim());
@@ -108,6 +108,8 @@ exports.login = async (req, res) => {
     const Email = req.body.Email?.toLowerCase().trim();
     const Password = req.body.Password;
 
+    console.log('🔐 Login attempt for:', Email);
+
     // Basic validation
     if (!Email || !Password) {
       return res.status(400).json({ 
@@ -138,11 +140,12 @@ exports.login = async (req, res) => {
       }
     }
 
-    // User not found
+    // Enhanced user not found handling
     if (!user) {
-      return res.status(401).json({ 
+      console.log('❌ User not found:', Email);
+      return res.status(404).json({ 
         success: false,
-        message: 'Invalid email or password.' 
+        message: 'User not found. Please check your email or register for a new account.' 
       });
     }
 
@@ -157,6 +160,7 @@ exports.login = async (req, res) => {
     // Verify password
     const validPassword = await bcrypt.compare(Password, user.Password);
     if (!validPassword) {
+      console.log('❌ Invalid password for:', Email);
       return res.status(401).json({ 
         success: false,
         message: 'Invalid email or password.' 
@@ -165,6 +169,7 @@ exports.login = async (req, res) => {
 
     // If admin requires password reset, return special response
     if (requiresPasswordReset) {
+      console.log('🔄 Password reset required for admin:', Email);
       return res.json({
         success: true,
         message: 'Password reset required for first login',
@@ -205,6 +210,8 @@ exports.login = async (req, res) => {
       Created_At: user.Created_At || user.createdAt
     };
 
+    console.log('✅ Login successful for:', Email, 'Role:', role);
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -214,7 +221,7 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ 
       success: false,
       message: 'Server error during login.' 
@@ -278,7 +285,7 @@ exports.changePassword = async (req, res) => {
       ...(userRole === 'admin' && { First_Login: false }) // If admin, mark first login as completed
     });
 
-    console.log(`Password changed successfully for ${userRole}: ${user.Email}`);
+    console.log(`✅ Password changed successfully for ${userRole}: ${user.Email}`);
 
     res.json({
       success: true,
@@ -286,7 +293,7 @@ exports.changePassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Password change error:', error);
+    console.error('❌ Password change error:', error);
     res.status(500).json({ 
       success: false,
       message: 'Failed to change password. Please try again.' 
@@ -344,7 +351,7 @@ exports.verifyToken = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Token verification error:', error);
+    console.error('❌ Token verification error:', error);
     res.status(500).json({
       success: false,
       message: 'Error verifying token.'
@@ -375,6 +382,7 @@ exports.forgotPassword = async (req, res) => {
 
     // Always return success to prevent email enumeration
     if (!user) {
+      console.log('📧 Forgot password request for non-existent email:', Email);
       return res.json({
         success: true,
         message: 'If an account with that email exists, a password reset link has been sent.'
@@ -387,31 +395,30 @@ exports.forgotPassword = async (req, res) => {
         id: user.ID, 
         email: user.Email, 
         type: userType,
-        purpose: 'password_reset' 
+        purpose: 'password_reset',
+        timestamp: Date.now()
       },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // In a real application, you would:
-    // 1. Save reset token to database
-    // 2. Send email with reset link
-    // 3. Implement rate limiting
+    console.log(`📧 Password reset token generated for ${user.Email}`);
 
-    console.log(`Password reset token for ${user.Email}: ${resetToken}`);
+    // TODO: Implement email sending in production
+    // await sendPasswordResetEmail(user.Email, resetToken, userType);
 
     res.json({
       success: true,
       message: 'If an account with that email exists, a password reset link has been sent.',
-      // In production, don't return the token
-      resetToken: resetToken // Remove this in production
+      // Remove this in production - only for development
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
     });
 
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('❌ Forgot password error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error processing password reset request.'
+      message: 'Error processing password reset request. Please try again later.'
     });
   }
 };
@@ -475,7 +482,7 @@ exports.resetPassword = async (req, res) => {
       Password: hashedPassword
     });
 
-    console.log(`Password reset successfully for ${user.Email}`);
+    console.log(`✅ Password reset successfully for ${user.Email}`);
 
     res.json({
       success: true,
@@ -483,7 +490,7 @@ exports.resetPassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('❌ Reset password error:', error);
     res.status(500).json({
       success: false,
       message: 'Error resetting password.'
@@ -564,7 +571,7 @@ exports.getProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error('❌ Get profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching user profile.'

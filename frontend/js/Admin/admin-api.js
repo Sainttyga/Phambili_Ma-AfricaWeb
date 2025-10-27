@@ -1,39 +1,114 @@
-// Enhanced Admin API Service with Request Throttling and Caching
+// Enhanced Admin API Service with Proper Rate Limiting Handling
 class AdminAPIService {
     constructor() {
-        this.baseURL = 'http://localhost:5000/api/admin';
+        this.baseURL = 'http://localhost:5000/api';
         this.retryCount = 0;
         this.maxRetries = 3;
         this.retryDelay = 1000;
 
         // Request throttling properties
         this.requestQueue = [];
-        this.maxConcurrentRequests = 3;
+        this.maxConcurrentRequests = 2; // Reduced from 3
         this.activeRequests = 0;
-        this.requestDelay = 300; // Minimum delay between requests
+        this.requestDelay = 1000; // Increased from 300ms
         this.isPaused = false;
 
         // Cache properties
         this.cache = new Map();
-        this.cacheTimeout = 30000; // 30 seconds cache for most data
-        this.longCacheTimeout = 120000; // 2 minutes for static data
+        this.cacheTimeout = 30000;
+        this.longCacheTimeout = 120000;
 
-        // Rate limit tracking
+        // Enhanced Rate limit tracking
         this.lastRequestTime = 0;
-        this.rateLimitRemaining = 60;
+        this.rateLimitRemaining = 10; // Conservative default
         this.rateLimitResetTime = 0;
+        this.rateLimitWindow = 60000; // 1 minute window
 
         // Performance metrics
         this.metrics = {
             totalRequests: 0,
             failedRequests: 0,
-            cachedResponses: 0
+            cachedResponses: 0,
+            rateLimitedRequests: 0
         };
 
-        console.log('🔄 AdminAPIService initialized with throttling and caching');
+        // Upload tracking to prevent duplicates
+        this.pendingUploads = new Map();
+        
+        console.log('🔄 AdminAPIService initialized with enhanced rate limiting');
     }
 
-    // ==================== REQUEST QUEUE MANAGEMENT ====================
+    // ==================== ENHANCED RATE LIMIT MANAGEMENT ====================
+
+    updateRateLimitInfo(headers) {
+        try {
+            // Handle various rate limit header formats
+            const remaining = headers['x-ratelimit-remaining'] || 
+                             headers['ratelimit-remaining'] ||
+                             headers['x-rate-limit-remaining'];
+            
+            const reset = headers['x-ratelimit-reset'] || 
+                          headers['ratelimit-reset'] ||
+                          headers['x-rate-limit-reset'] ||
+                          headers['retry-after'];
+
+            if (remaining !== undefined && remaining !== null) {
+                this.rateLimitRemaining = parseInt(remaining);
+                console.log(`📊 Rate limit remaining: ${this.rateLimitRemaining}`);
+            }
+            
+            if (reset) {
+                // Handle both timestamp (ms) and seconds formats
+                if (reset.length > 10) {
+                    // Assume timestamp in milliseconds
+                    this.rateLimitResetTime = parseInt(reset);
+                } else {
+                    // Assume seconds until reset
+                    this.rateLimitResetTime = Date.now() + (parseInt(reset) * 1000);
+                }
+                console.log(`🕒 Rate limit resets at: ${new Date(this.rateLimitResetTime).toLocaleTimeString()}`);
+            }
+
+            // Fallback: conservative decrement if no headers
+            if (this.rateLimitRemaining > 0 && !remaining) {
+                this.rateLimitRemaining--;
+            }
+
+        } catch (error) {
+            console.warn('Error updating rate limit info:', error);
+            // Conservative fallback
+            if (this.rateLimitRemaining > 0) {
+                this.rateLimitRemaining--;
+            }
+        }
+    }
+
+    shouldThrottleRequest() {
+        const now = Date.now();
+        
+        // Check if we've hit the rate limit
+        if (this.rateLimitRemaining <= 0) {
+            if (now < this.rateLimitResetTime) {
+                const waitTime = this.rateLimitResetTime - now;
+                console.log(`⏳ Rate limit exhausted. Waiting ${Math.round(waitTime/1000)}s`);
+                return waitTime;
+            } else {
+                // Reset period passed, reset counter conservatively
+                this.rateLimitRemaining = 5;
+                this.rateLimitResetTime = now + this.rateLimitWindow;
+            }
+        }
+
+        // Check minimum delay between requests
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        if (timeSinceLastRequest < this.requestDelay) {
+            return this.requestDelay - timeSinceLastRequest;
+        }
+
+        return 0; // No throttling needed
+    }
+
+    // ==================== ENHANCED REQUEST QUEUE MANAGEMENT ====================
 
     async enqueueRequest(method, endpoint, data = null, retry = true, useCache = false) {
         return new Promise((resolve, reject) => {
@@ -56,8 +131,11 @@ class AdminAPIService {
                 useCache,
                 resolve,
                 reject,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                id: Math.random().toString(36).substr(2, 9) // Unique ID for tracking
             });
+            
+            console.log(`📨 Queued request: ${method} ${endpoint} (Queue size: ${this.requestQueue.length})`);
             this.processQueue();
         });
     }
@@ -71,18 +149,15 @@ class AdminAPIService {
 
         const now = Date.now();
 
-        // Check rate limiting
-        if (this.rateLimitRemaining <= 1 && now < this.rateLimitResetTime) {
-            const waitTime = this.rateLimitResetTime - now;
-            console.log(`⏳ Rate limit nearly exhausted. Waiting ${waitTime}ms`);
-            setTimeout(() => this.processQueue(), waitTime + 1000);
-            return;
-        }
-
-        // Ensure minimum delay between requests
-        const timeSinceLastRequest = now - this.lastRequestTime;
-        if (timeSinceLastRequest < this.requestDelay) {
-            setTimeout(() => this.processQueue(), this.requestDelay - timeSinceLastRequest);
+        // Check if we should throttle this request
+        const throttleTime = this.shouldThrottleRequest();
+        if (throttleTime > 0) {
+            console.log(`⏸️ Throttling requests for ${Math.round(throttleTime)}ms`);
+            this.isPaused = true;
+            setTimeout(() => {
+                this.isPaused = false;
+                this.processQueue();
+            }, throttleTime + 100); // Small buffer
             return;
         }
 
@@ -99,6 +174,7 @@ class AdminAPIService {
         }
 
         try {
+            console.log(`🔄 Processing: ${request.method} ${request.endpoint}`);
             const result = await this.executeRequest(
                 request.method,
                 request.endpoint,
@@ -119,7 +195,7 @@ class AdminAPIService {
             this.activeRequests--;
             this.lastRequestTime = Date.now();
             // Process next request with a small delay
-            setTimeout(() => this.processQueue(), 50);
+            setTimeout(() => this.processQueue(), 100);
         }
     }
 
@@ -133,7 +209,7 @@ class AdminAPIService {
                 method,
                 url: `${this.baseURL}${endpoint}`,
                 headers: this.getAuthHeaders(),
-                timeout: 15000,
+                timeout: 30000, // Increased timeout
                 validateStatus: function (status) {
                     return status < 500; // Don't reject for 4xx errors
                 }
@@ -143,6 +219,8 @@ class AdminAPIService {
                 if (data instanceof FormData) {
                     delete config.headers['Content-Type'];
                     config.data = data;
+                    // Add timeout for uploads
+                    config.timeout = 60000;
                 } else {
                     config.data = data;
                 }
@@ -173,17 +251,113 @@ class AdminAPIService {
         return error;
     }
 
-    updateRateLimitInfo(headers) {
-        if (headers['x-ratelimit-remaining']) {
-            this.rateLimitRemaining = parseInt(headers['x-ratelimit-remaining']);
-        }
-        if (headers['x-ratelimit-reset']) {
-            this.rateLimitResetTime = parseInt(headers['x-ratelimit-reset']) * 1000;
+    // ==================== ENHANCED ERROR HANDLING ====================
+
+    async handleRequestError(error, method, endpoint, data, retry) {
+        console.error(`❌ API ${method} ${endpoint} failed:`, error);
+
+        // Update rate limit info from error response
+        if (error.response?.headers) {
+            this.updateRateLimitInfo(error.response.headers);
         }
 
-        // Fallback: decrement if no headers
-        if (this.rateLimitRemaining > 0) {
-            this.rateLimitRemaining--;
+        // Enhanced rate limiting handling
+        if (error.response?.status === 429) {
+            this.metrics.rateLimitedRequests++;
+            
+            const retryAfter = error.response.headers['retry-after'];
+            let delay = this.retryDelay;
+            
+            // Use server-suggested delay if available
+            if (retryAfter) {
+                delay = parseInt(retryAfter) * 1000; // Convert to milliseconds
+                console.log(`⏳ Server suggested retry after: ${retryAfter} seconds`);
+            } else {
+                // Exponential backoff with jitter
+                delay = this.retryDelay * Math.pow(2, this.retryCount) + Math.random() * 1000;
+            }
+            
+            if (retry && this.retryCount < this.maxRetries) {
+                this.retryCount++;
+                console.log(`⏳ Rate limited. Retrying in ${Math.round(delay/1000)}s... (Attempt ${this.retryCount}/${this.maxRetries})`);
+
+                // Pause the queue during retry delay
+                this.isPaused = true;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                this.isPaused = false;
+                
+                return this.executeRequest(method, endpoint, data, false);
+            } else {
+                const resetTime = this.rateLimitResetTime ? 
+                    new Date(this.rateLimitResetTime).toLocaleTimeString() : 'soon';
+                throw new Error(`Too many requests. Rate limit resets at ${resetTime}. Please try again later.`);
+            }
+        }
+
+        // Create proper error message
+        let errorMessage = `Error fetching ${this.getEndpointDescription(endpoint)}`;
+
+        if (error.response?.status === 500) {
+            errorMessage = `Server error while fetching ${this.getEndpointDescription(endpoint)}`;
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        const enhancedError = new Error(errorMessage);
+        enhancedError.status = error.response?.status;
+        enhancedError.originalError = error;
+
+        if (error.response?.status === 401) {
+            console.error('Authentication failed');
+            this.handleAuthError();
+            throw new Error('Authentication failed. Please log in again.');
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error('Access denied. Admin privileges required.');
+        }
+
+        // Network errors - retry with backoff
+        if (!error.response && retry && this.retryCount < this.maxRetries) {
+            this.retryCount++;
+            const delay = this.retryDelay * this.retryCount;
+            console.log(`🌐 Network error. Retrying in ${delay}ms... (Attempt ${this.retryCount}/${this.maxRetries})`);
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return this.executeRequest(method, endpoint, data, false);
+        }
+
+        this.retryCount = 0;
+        throw enhancedError;
+    }
+
+    // ==================== ENHANCED UPLOAD HANDLING ====================
+
+    async uploadGalleryMedia(formData) {
+        // Create a unique key for this upload to prevent duplicates
+        const file = formData.get('media');
+        if (!file) {
+            throw new Error('No file selected for upload');
+        }
+        
+        const uploadKey = `${file.name}-${file.size}-${file.lastModified}`;
+        
+        // Check if same file is already uploading
+        if (this.pendingUploads.has(uploadKey)) {
+            console.log('🔄 Skipping duplicate upload request');
+            return this.pendingUploads.get(uploadKey);
+        }
+
+        try {
+            const uploadPromise = this.makeRequest('POST', '/gallery/upload', formData, true, false, false);
+            this.pendingUploads.set(uploadKey, uploadPromise);
+            
+            const result = await uploadPromise;
+            return result;
+        } finally {
+            this.pendingUploads.delete(uploadKey);
         }
     }
 
@@ -244,73 +418,12 @@ class AdminAPIService {
 
     // ==================== ENHANCED REQUEST HANDLING ====================
 
-    async makeRequest(method, endpoint, data = null, retry = true, useCache = false) {
-        return this.enqueueRequest(method, endpoint, data, retry, useCache);
+    async makeRequest(method, endpoint, data = null, retry = true, useCache = false, isAdminRoute = true) {
+        // For gallery routes, don't use /api/admin prefix
+        const fullEndpoint = isAdminRoute ? `/admin${endpoint}` : endpoint;
+        return this.enqueueRequest(method, fullEndpoint, data, retry, useCache);
     }
 
-    // In AdminAPIService - FIX THE BUG
-    async handleRequestError(error, method, endpoint, data, retry) {
-        console.error(`❌ API ${method} ${endpoint} failed:`, error);
-
-        // Update rate limit info from error response
-        if (error.response?.headers) {
-            this.updateRateLimitInfo(error.response.headers);
-        }
-
-        // Create proper error message WITHOUT the undefined Quotation reference
-        let errorMessage = `Error fetching ${this.getEndpointDescription(endpoint)}`;
-
-        if (error.response?.status === 500) {
-            errorMessage = `Server error while fetching ${this.getEndpointDescription(endpoint)}`;
-        } else if (error.response?.data?.message) {
-            errorMessage = error.response.data.message;
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
-
-        const enhancedError = new Error(errorMessage);
-        enhancedError.status = error.response?.status;
-        enhancedError.originalError = error;
-
-        // Handle rate limiting (429)
-        if (error.response?.status === 429) {
-            if (retry && this.retryCount < this.maxRetries) {
-                this.retryCount++;
-                const delay = this.retryDelay * Math.pow(2, this.retryCount - 1);
-                console.log(`⏳ Rate limited. Retrying in ${delay}ms... (Attempt ${this.retryCount}/${this.maxRetries})`);
-
-                await new Promise(resolve => setTimeout(resolve, delay));
-                return this.executeRequest(method, endpoint, data, false);
-            } else {
-                throw new Error('Too many requests. Please try again later.');
-            }
-        }
-
-        if (error.response?.status === 401) {
-            console.error('Authentication failed');
-            this.handleAuthError();
-            throw new Error('Authentication failed. Please log in again.');
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error('Access denied. Admin privileges required.');
-        }
-
-        // Network errors - retry with backoff
-        if (!error.response && retry && this.retryCount < this.maxRetries) {
-            this.retryCount++;
-            const delay = this.retryDelay * this.retryCount;
-            console.log(`🌐 Network error. Retrying in ${delay}ms... (Attempt ${this.retryCount}/${this.maxRetries})`);
-
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return this.executeRequest(method, endpoint, data, false);
-        }
-
-        this.retryCount = 0;
-        throw enhancedError;
-    }
-
-    // Add helper method to get endpoint descriptions
     getEndpointDescription(endpoint) {
         const descriptions = {
             '/dashboard/stats': 'dashboard statistics',
@@ -318,7 +431,10 @@ class AdminAPIService {
             '/services': 'services data',
             '/products': 'products data',
             '/customers': 'customers data',
-            '/profile': 'admin profile'
+            '/profile': 'admin profile',
+            '/gallery/media': 'gallery media',
+            '/gallery/upload': 'gallery upload',
+            '/gallery/categories': 'gallery categories'
         };
 
         return descriptions[endpoint] || 'data';
@@ -340,6 +456,7 @@ class AdminAPIService {
     clearQueue() {
         const pending = this.requestQueue.length;
         this.requestQueue = [];
+        this.pendingUploads.clear();
         console.log(`🗑️ Cleared ${pending} pending requests`);
     }
 
@@ -348,7 +465,8 @@ class AdminAPIService {
             queued: this.requestQueue.length,
             active: this.activeRequests,
             paused: this.isPaused,
-            rateLimitRemaining: this.rateLimitRemaining
+            rateLimitRemaining: this.rateLimitRemaining,
+            rateLimitResetTime: this.rateLimitResetTime
         };
     }
 
@@ -357,7 +475,8 @@ class AdminAPIService {
             ...this.metrics,
             cacheSize: this.cache.size,
             cacheHitRate: this.metrics.totalRequests > 0 ?
-                (this.metrics.cachedResponses / this.metrics.totalRequests * 100).toFixed(1) + '%' : '0%'
+                (this.metrics.cachedResponses / this.metrics.totalRequests * 100).toFixed(1) + '%' : '0%',
+            queueSize: this.requestQueue.length
         };
     }
 
@@ -389,13 +508,23 @@ class AdminAPIService {
         }
     }
 
-    // ==================== API METHODS WITH OPTIMIZED CACHING ====================
+    // ==================== GALLERY API METHODS ====================
 
-    async testConnection() {
-        return this.makeRequest('GET', '/test', null, true, false);
+    async getGalleryMedia(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return this.makeRequest('GET', `/gallery/media?${queryString}`, null, true, false, false);
     }
 
-    // Profile APIs - no caching
+    async deleteGalleryMedia(id) {
+        return this.makeRequest('DELETE', `/gallery/media/${id}`, null, true, false, false);
+    }
+
+    async getGalleryCategories() {
+        return this.makeRequest('GET', '/gallery/categories', null, true, false, false);
+    }
+
+    // ==================== PROFILE APIs ====================
+
     async getAdminProfile() {
         return this.makeRequest('GET', '/profile', null, true, false);
     }
@@ -413,7 +542,8 @@ class AdminAPIService {
         return this.makeRequest('POST', '/reset-password', passwordData);
     }
 
-    // Dashboard APIs - cache for 30 seconds
+    // ==================== DASHBOARD APIs ====================
+
     async getDashboardStats() {
         return this.makeRequest('GET', '/dashboard/stats', null, true, true);
     }
@@ -422,7 +552,8 @@ class AdminAPIService {
         return this.makeRequest('GET', `/dashboard/analytics?period=${period}`, null, true, true);
     }
 
-    // Service Management - cache for 2 minutes
+    // ==================== SERVICE MANAGEMENT ====================
+
     async getServices() {
         return this.makeRequest('GET', '/services', null, true, true);
     }
@@ -451,7 +582,8 @@ class AdminAPIService {
         return this.makeRequest('PATCH', `/services/${id}/availability`, { isAvailable });
     }
 
-    // Product Management - cache for 2 minutes
+    // ==================== PRODUCT MANAGEMENT ====================
+
     async getProducts() {
         return this.makeRequest('GET', '/products', null, true, true);
     }
@@ -480,7 +612,8 @@ class AdminAPIService {
         return this.makeRequest('PATCH', `/products/${id}/availability`, { isAvailable });
     }
 
-    // Booking Management - no cache (frequently changing)
+    // ==================== BOOKING MANAGEMENT ====================
+
     async getBookings(params = {}) {
         const queryString = new URLSearchParams(params).toString();
         return this.makeRequest('GET', `/bookings?${queryString}`, null, true, false);
@@ -501,7 +634,8 @@ class AdminAPIService {
         return this.makeRequest('DELETE', `/bookings/${id}`);
     }
 
-    // Customer Management - no cache
+    // ==================== CUSTOMER MANAGEMENT ====================
+
     async getCustomers(params = {}) {
         const queryString = new URLSearchParams(params).toString();
         return this.makeRequest('GET', `/customers?${queryString}`, null, true, false);
@@ -516,7 +650,8 @@ class AdminAPIService {
         return this.makeRequest('PUT', `/customers/${id}`, customerData);
     }
 
-    // Admin Management - cache for 2 minutes
+    // ==================== ADMIN MANAGEMENT ====================
+
     async getAdmins() {
         return this.makeRequest('GET', '/admins', null, true, true);
     }
@@ -540,17 +675,30 @@ class AdminAPIService {
         return this.makeRequest('DELETE', `/admins/${id}`);
     }
 
-    // Order Management - cache for 30 seconds
+    // ==================== ORDER MANAGEMENT ====================
+
     async getOrders() {
         return this.makeRequest('GET', '/orders', null, true, true);
     }
 
-    // System APIs - no cache
+    // ==================== SYSTEM APIs ====================
+
     async getSystemHealth() {
         return this.makeRequest('GET', '/system/health', null, true, false);
+    }
+
+    // ==================== TEST CONNECTION ====================
+
+    async testConnection() {
+        return this.makeRequest('GET', '/test', null, true, false);
     }
 }
 
 // Initialize API service
 window.adminAPI = new AdminAPIService();
-console.log('✅ AdminAPI service initialized with throttling and caching');
+console.log('✅ AdminAPI service initialized with enhanced rate limiting');
+
+// Export for use in other modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = AdminAPIService;
+}

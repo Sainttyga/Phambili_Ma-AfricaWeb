@@ -5,15 +5,20 @@ const router = express.Router();
 const productController = require('../controllers/productController');
 const validate = require('../middleware/validate');
 const auth = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { upload } = require('../middleware/upload'); // FIXED: Destructure upload
+const { Product } = require('../models'); // Added missing Product import
 
 // ==================== PUBLIC ROUTES ====================
 router.get('/public/products', async (req, res) => {
   try {
+    console.log('📋 Fetching public products...');
+    
     const products = await Product.findAll({
       where: { Is_Available: true },
       order: [['created_at', 'DESC']]
     });
+    
+    console.log(`✅ Found ${products.length} available products`);
     
     // Convert image URLs to full URLs
     const productsWithFullUrls = products.map(product => {
@@ -29,10 +34,59 @@ router.get('/public/products', async (req, res) => {
       products: productsWithFullUrls
     });
   } catch (err) {
-    console.error('Public products error:', err);
+    console.error('❌ Public products error:', err);
     res.status(500).json({ 
       success: false,
       message: 'Error fetching products' 
+    });
+  }
+});
+
+// Get single product details (public)
+router.get('/public/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`📋 Fetching public product details for ID: ${id}`);
+
+    const product = await Product.findByPk(id, {
+      attributes: [
+        'ID',
+        'Name',
+        'Description',
+        'Price',
+        'Stock_Quantity',
+        'Category',
+        'Is_Available',
+        'Image_URL',
+        'created_at'
+      ]
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Convert image URL to full URL
+    const productData = product.toJSON();
+    if (productData.Image_URL) {
+      productData.Image_URL = `http://localhost:5000${productData.Image_URL}`;
+    }
+
+    console.log(`✅ Found product: ${productData.Name}`);
+    
+    res.json({
+      success: true,
+      product: productData
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching product details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product details'
     });
   }
 });
@@ -42,7 +96,7 @@ router.use(auth);
 
 router.post(
   '/',
-  upload.single('image'),
+  upload.single('image'), // This will now work with destructured upload
   [
     body('Name').notEmpty().withMessage('Product name is required'),
     body('Price').isDecimal({ min: 0 }).withMessage('Price must be a positive number'),
