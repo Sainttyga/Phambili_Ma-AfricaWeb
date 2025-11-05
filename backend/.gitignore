@@ -15,6 +15,7 @@ hash-passwords.js
 # uploaded-pictures through database
 products
 services
+gallery
 
 # Logs
 logs/

@@ -2,9 +2,9 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config');
 
 const Booking = sequelize.define('Booking', {
-  ID: { 
-    type: DataTypes.INTEGER, 
-    autoIncrement: true, 
+  ID: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
     primaryKey: true,
     field: 'ID'
   },
@@ -18,29 +18,29 @@ const Booking = sequelize.define('Booking', {
     allowNull: false,
     field: 'Service_ID'
   },
-  Date: { 
-    type: DataTypes.DATEONLY, 
+  Date: {
+    type: DataTypes.DATEONLY,
     allowNull: false,
     field: 'Date'
   },
-  Time: { 
+  Time: {
     type: DataTypes.TIME,
     field: 'Time'
   },
-  Status: { 
-    type: DataTypes.ENUM('requested', 'quoted', 'confirmed', 'completed', 'cancelled'),
+  Status: {
+    type: DataTypes.ENUM('requested', 'contacted', 'in_progress', 'quoted', 'confirmed', 'completed', 'cancelled'),
     defaultValue: 'requested',
     field: 'Status'
   },
-  Address: { 
+  Address: {
     type: DataTypes.TEXT,
     field: 'Address'
   },
-  Special_Instructions: { 
+  Special_Instructions: {
     type: DataTypes.TEXT,
     field: 'Special_Instructions'
   },
-  Quoted_Amount: { 
+  Quoted_Amount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
     field: 'Quoted_Amount'

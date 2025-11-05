@@ -7,6 +7,43 @@ const validate = require('../middleware/validate');
 
 // ==================== ADMIN ROUTES ====================
 
+// Get booking details (admin)
+router.get(
+  '/admin/:id',
+  auth,
+  bookingController.getAdminBookingById
+);
+
+// Update booking status (admin)
+router.put(
+  '/admin/:id/status',
+  auth,
+  [
+    body('Status').notEmpty().isString()
+  ],
+  validate,
+  bookingController.updateBookingStatus
+);
+
+// Update booking quote (admin)
+router.put(
+  '/admin/:id/quote',
+  auth,
+  [
+    body('quotedAmount').isDecimal({ min: 0 }),
+    body('status').optional().isString()
+  ],
+  validate,
+  bookingController.updateBookingQuote
+);
+
+// Get all bookings with advanced filtering (admin)
+router.get(
+  '/admin/all',
+  auth,
+  bookingController.getAllBookings
+);
+
 // Get booking statistics for admin dashboard
 router.get(
   '/admin/stats',
@@ -20,27 +57,17 @@ router.get(
   auth,
   bookingController.getBookingAnalytics
 );
-
-// Update booking status (admin)
+// Add this route to bookingRoutes.js
 router.put(
-  '/admin/:id/status',
+  '/admin/:id/consultation',
   auth,
   [
-    body('Status').notEmpty().isString()
+    body('Status').optional().isString(),
+    body('consultation_type').optional().isString(),
+    body('consultation_notes').optional().isString()
   ],
   validate,
-  bookingController.updateBookingStatus
-);
-router.get(
-  '/admin/:id',
-  auth,
-  bookingController.getAdminBookingById
-);
-// Get all bookings with advanced filtering (admin)
-router.get(
-  '/admin/all',
-  auth,
-  bookingController.getAllBookings
+  bookingController.updateBookingWithConsultation
 );
 
 // ==================== REGULAR ROUTES ====================

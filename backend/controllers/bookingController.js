@@ -378,7 +378,7 @@ exports.checkBookingAvailability = async (req, res) => {
 exports.getAdminBookingById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const booking = await Booking.findOne({
       where: { ID: id },
       include: [
@@ -387,7 +387,7 @@ exports.getAdminBookingById = async (req, res) => {
           attributes: ['ID', 'Full_Name', 'Email', 'Phone']
         },
         {
-          model: Service, 
+          model: Service,
           attributes: ['ID', 'Name', 'Category', 'Duration']
         }
       ]
@@ -494,6 +494,12 @@ exports.updateBooking = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    console.log('📝 UPDATE BOOKING REQUEST:', {
+      id,
+      updates,
+      timestamp: new Date().toISOString()
+    });
+
     const booking = await Booking.findByPk(id);
     if (!booking) {
       return res.status(404).json({
@@ -501,6 +507,11 @@ exports.updateBooking = async (req, res) => {
         message: 'Booking not found.'
       });
     }
+
+    // Add last_updated timestamp
+    updates.last_updated = new Date().toISOString();
+
+    console.log('🔄 UPDATING BOOKING WITH:', updates);
 
     await booking.update(updates);
 
@@ -519,11 +530,11 @@ exports.updateBooking = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Quotation request updated successfully',
+      message: 'Booking updated successfully',
       booking: updatedBooking
     });
   } catch (err) {
-    console.error('Update booking error:', err);
+    console.error('💥 UPDATE BOOKING ERROR:', err);
     res.status(500).json({
       success: false,
       message: err.message
@@ -674,7 +685,14 @@ exports.deleteBooking = async (req, res) => {
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Status } = req.body;
+    const { Status, contact_date, consultation_date, admin_notes } = req.body;
+
+    console.log('📝 ADMIN WORKFLOW - Update booking status:', {
+      id,
+      Status,
+      contact_date,
+      admin_notes: admin_notes ? 'provided' : 'not provided'
+    });
 
     if (!Status) {
       return res.status(400).json({
@@ -691,20 +709,260 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    await booking.update({ Status });
+    // Prepare update data
+    const updateData = {
+      Status,
+      last_updated: new Date().toISOString()
+    };
+
+    // Add timestamps based on status changes
+    if (Status === 'contacted') {
+      updateData.contact_date = contact_date || new Date().toISOString();
+      console.log('📞 Marking as contacted - customer call completed');
+    }
+
+    if (Status === 'in_progress' && consultation_date) {
+      updateData.consultation_date = consultation_date;
+      console.log('🔄 Moving to in progress - consultation scheduled');
+    }
+
+    if (Status === 'completed') {
+      updateData.completed_date = new Date().toISOString();
+      console.log('✅ Marking as completed - service done');
+    }
+
+    if (Status === 'cancelled') {
+      updateData.cancelled_date = new Date().toISOString();
+      console.log('❌ Marking as cancelled');
+    }
+
+    // Save admin notes if provided
+    if (admin_notes) {
+      updateData.admin_notes = admin_notes;
+      console.log('📝 Admin notes saved');
+    }
+
+    console.log('🔄 Updating booking with:', updateData);
+
+    await booking.update(updateData);
+
+    // Fetch updated booking with relationships
+    const updatedBooking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
+        },
+        {
+          model: Service,
+          attributes: ['ID', 'Name', 'Description', 'Duration']
+        }
+      ]
+    });
+
+    console.log('✅ Booking status updated successfully:', {
+      bookingId: id,
+      oldStatus: booking.Status,
+      newStatus: Status
+    });
 
     res.json({
       success: true,
-      message: 'Quotation status updated successfully',
-      booking
+      message: `Booking ${this.getStatusActionMessage(Status)}`,
+      booking: updatedBooking
     });
+
   } catch (err) {
-    console.error('Update booking status error:', err);
+    console.error('💥 UPDATE BOOKING STATUS ERROR:', {
+      message: err.message,
+      stack: err.stack,
+      params: req.params,
+      body: req.body
+    });
+
     res.status(500).json({
       success: false,
-      message: err.message
+      message: 'Error updating booking status: ' + err.message
     });
   }
+};
+
+exports.markAsContacted = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { call_notes, next_steps } = req.body;
+
+    console.log('📞 QUICK ACTION - Mark as contacted:', { id, call_notes: call_notes ? 'provided' : 'not provided' });
+
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found.'
+      });
+    }
+
+    const updateData = {
+      Status: 'contacted',
+      contact_date: new Date().toISOString(),
+      last_updated: new Date().toISOString()
+    };
+
+    // Save call notes if provided
+    if (call_notes) {
+      updateData.call_notes = call_notes;
+    }
+
+    if (next_steps) {
+      updateData.next_steps = next_steps;
+    }
+
+    await booking.update(updateData);
+
+    const updatedBooking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
+        }
+      ]
+    });
+
+    console.log('✅ Marked as contacted successfully:', id);
+
+    res.json({
+      success: true,
+      message: 'Booking marked as contacted. Customer call completed.',
+      booking: updatedBooking
+    });
+
+  } catch (error) {
+    console.error('❌ Mark as contacted error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error marking as contacted: ' + error.message
+    });
+  }
+};
+// Quick action - Move to in progress
+exports.moveToInProgress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { consultation_date, consultation_notes } = req.body;
+
+    console.log('🔄 QUICK ACTION - Move to in progress:', { id });
+
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found.'
+      });
+    }
+
+    const updateData = {
+      Status: 'in_progress',
+      last_updated: new Date().toISOString()
+    };
+
+    if (consultation_date) {
+      updateData.consultation_date = consultation_date;
+    }
+
+    if (consultation_notes) {
+      updateData.consultation_notes = consultation_notes;
+    }
+
+    await booking.update(updateData);
+
+    console.log('✅ Moved to in progress successfully:', id);
+
+    res.json({
+      success: true,
+      message: 'Booking moved to in progress.',
+      booking: await Booking.findByPk(id, {
+        include: [{ model: Customer }, { model: Service }]
+      })
+    });
+
+  } catch (error) {
+    console.error('❌ Move to in progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error moving to in progress: ' + error.message
+    });
+  }
+};
+
+// Provide quotation
+exports.provideQuotation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quoted_amount, quote_breakdown, quote_notes } = req.body;
+
+    console.log('💰 PROVIDING QUOTATION:', { id, quoted_amount });
+
+    if (!quoted_amount || quoted_amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid quoted amount is required.'
+      });
+    }
+
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found.'
+      });
+    }
+
+    const updateData = {
+      Status: 'quoted',
+      Quoted_Amount: parseFloat(quoted_amount),
+      last_updated: new Date().toISOString()
+    };
+
+    if (quote_breakdown) {
+      updateData.quote_breakdown = quote_breakdown;
+    }
+
+    if (quote_notes) {
+      updateData.quote_notes = quote_notes;
+    }
+
+    await booking.update(updateData);
+
+    console.log('✅ Quotation provided successfully:', { id, amount: quoted_amount });
+
+    res.json({
+      success: true,
+      message: `Quotation of R ${quoted_amount} provided successfully.`,
+      booking: await Booking.findByPk(id, {
+        include: [{ model: Customer }, { model: Service }]
+      })
+    });
+
+  } catch (error) {
+    console.error('❌ Provide quotation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error providing quotation: ' + error.message
+    });
+  }
+};
+// Helper method for status messages
+exports.getStatusActionMessage = (status) => {
+  const messages = {
+    'requested': 'quotation request received',
+    'contacted': 'marked as contacted - call completed',
+    'in_progress': 'moved to in progress',
+    'quoted': 'quotation provided',
+    'confirmed': 'confirmed by customer',
+    'completed': 'marked as completed',
+    'cancelled': 'cancelled'
+  };
+  return messages[status] || 'updated';
 };
 // Add this function to bookingController.js
 exports.getBookingAnalytics = async (req, res) => {
@@ -749,47 +1007,77 @@ exports.getBookingAnalytics = async (req, res) => {
   }
 };
 
-// Remove analytics and stats related to revenue since no payments
+// Get booking statistics for dashboard
 exports.getBookingStats = async (req, res) => {
   try {
-    console.log('📊 Getting quotation stats for admin dashboard...');
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     const [
       todayRequests,
-      pendingRequests,
-      totalRequests
+      pendingContact,
+      pendingQuotation,
+      upcomingBookings,
+      totalCompleted
     ] = await Promise.all([
       // Today's quotation requests
       Booking.count({
         where: {
-          Date: today.toISOString().split('T')[0]
+          created_at: { [Op.gte]: today }
         }
       }),
 
-      // Pending quotation requests
+      // Need contact (requested status)
       Booking.count({
         where: { Status: 'requested' }
       }),
 
-      // Total quotation requests
-      Booking.count()
+      // Need quotation (contacted but not quoted)
+      Booking.count({
+        where: {
+          Status: 'contacted',
+          Quoted_Amount: null
+        }
+      }),
+
+      // Upcoming confirmed bookings
+      Booking.count({
+        where: {
+          Status: 'confirmed',
+          Date: { [Op.gte]: today }
+        }
+      }),
+
+      // Total completed this week
+      Booking.count({
+        where: {
+          Status: 'completed',
+          Date: { [Op.gte]: oneWeekAgo }
+        }
+      })
     ]);
 
     res.json({
       success: true,
-      todayRequests: todayRequests || 0,
-      pendingRequests: pendingRequests || 0,
-      totalRequests: totalRequests || 0
+      stats: {
+        todayRequests,
+        pendingContact,
+        pendingQuotation,
+        upcomingBookings,
+        totalCompleted
+      }
     });
 
   } catch (error) {
-    console.error('❌ getBookingStats error:', error);
+    console.error('❌ Get booking stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching dashboard statistics'
+      message: 'Error fetching booking statistics'
     });
   }
 };
@@ -938,7 +1226,14 @@ exports.getBookingDetails = async (req, res) => {
 exports.updateBookingQuote = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quotedAmount, status } = req.body;
+    const { quotedAmount, status, quote_breakdown, quote_validity_days, quote_notes } = req.body;
+
+    console.log('💰 UPDATE BOOKING QUOTE REQUEST:', {
+      id,
+      quotedAmount,
+      status,
+      body: req.body
+    });
 
     const booking = await Booking.findByPk(id);
     if (!booking) {
@@ -948,20 +1243,156 @@ exports.updateBookingQuote = async (req, res) => {
       });
     }
 
-    await booking.update({
-      Quoted_Amount: quotedAmount,
-      Status: status || 'quoted'
+    const updateData = {
+      last_updated: new Date().toISOString()
+    };
+
+    if (quotedAmount !== undefined) {
+      updateData.Quoted_Amount = parseFloat(quotedAmount);
+    }
+
+    if (status) {
+      updateData.Status = status;
+    }
+
+    if (quote_breakdown !== undefined) {
+      updateData.quote_breakdown = quote_breakdown;
+    }
+
+    if (quote_validity_days !== undefined) {
+      updateData.quote_validity_days = quote_validity_days;
+    }
+
+    if (quote_notes !== undefined) {
+      updateData.quote_notes = quote_notes;
+    }
+
+    if (status === 'quoted') {
+      updateData.quoted_date = new Date().toISOString();
+    }
+
+    console.log('🔄 UPDATING BOOKING QUOTE WITH:', updateData);
+
+    await booking.update(updateData);
+
+    const updatedBooking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
+        },
+        {
+          model: Service,
+          attributes: ['ID', 'Name', 'Description', 'Duration']
+        }
+      ]
     });
 
     res.json({
       success: true,
-      message: 'Booking quote updated successfully'
+      message: 'Booking quote updated successfully',
+      booking: updatedBooking
     });
+
   } catch (error) {
-    console.error('Update booking quote error:', error);
+    console.error('❌ UPDATE BOOKING QUOTE ERROR:', error);
     res.status(500).json({
       success: false,
-      message: 'Error updating booking quote'
+      message: 'Error updating booking quote: ' + error.message
+    });
+  }
+};
+
+// Add this method to bookingController.js for updating booking with consultation details
+exports.updateBookingWithConsultation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      Status,
+      contact_date,
+      consultation_date,
+      consultation_type,
+      consultation_notes,
+      last_updated
+    } = req.body;
+
+    console.log('📞 UPDATE BOOKING CONSULTATION REQUEST:', {
+      id,
+      Status,
+      consultation_type,
+      body: req.body
+    });
+
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found.'
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      last_updated: last_updated || new Date().toISOString()
+    };
+
+    if (Status) {
+      updateData.Status = Status;
+    }
+
+    // Add timestamps based on status changes
+    if (Status === 'contacted' && contact_date) {
+      updateData.contact_date = contact_date;
+    }
+
+    if (Status === 'in_progress' && consultation_date) {
+      updateData.consultation_date = consultation_date;
+      updateData.consultation_type = consultation_type;
+      updateData.consultation_notes = consultation_notes;
+    }
+
+    if (Status === 'completed') {
+      updateData.completed_date = new Date().toISOString();
+    }
+
+    if (Status === 'cancelled') {
+      updateData.cancelled_date = new Date().toISOString();
+    }
+
+    console.log('🔄 UPDATING BOOKING CONSULTATION WITH:', updateData);
+
+    await booking.update(updateData);
+
+    // Fetch updated booking with relationships
+    const updatedBooking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
+        },
+        {
+          model: Service,
+          attributes: ['ID', 'Name', 'Description', 'Duration']
+        }
+      ]
+    });
+
+    console.log('✅ BOOKING CONSULTATION UPDATED SUCCESSFULLY:', {
+      bookingId: id,
+      newStatus: Status
+    });
+
+    res.json({
+      success: true,
+      message: `Booking updated to ${Status}`,
+      booking: updatedBooking
+    });
+
+  } catch (err) {
+    console.error('💥 UPDATE BOOKING CONSULTATION ERROR:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating booking: ' + err.message
     });
   }
 };

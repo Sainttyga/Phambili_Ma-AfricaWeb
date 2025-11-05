@@ -34,7 +34,7 @@ class AdminAPIService {
 
         // Upload tracking to prevent duplicates
         this.pendingUploads = new Map();
-        
+
         console.log('🔄 AdminAPIService initialized with enhanced rate limiting');
     }
 
@@ -43,20 +43,20 @@ class AdminAPIService {
     updateRateLimitInfo(headers) {
         try {
             // Handle various rate limit header formats
-            const remaining = headers['x-ratelimit-remaining'] || 
-                             headers['ratelimit-remaining'] ||
-                             headers['x-rate-limit-remaining'];
-            
-            const reset = headers['x-ratelimit-reset'] || 
-                          headers['ratelimit-reset'] ||
-                          headers['x-rate-limit-reset'] ||
-                          headers['retry-after'];
+            const remaining = headers['x-ratelimit-remaining'] ||
+                headers['ratelimit-remaining'] ||
+                headers['x-rate-limit-remaining'];
+
+            const reset = headers['x-ratelimit-reset'] ||
+                headers['ratelimit-reset'] ||
+                headers['x-rate-limit-reset'] ||
+                headers['retry-after'];
 
             if (remaining !== undefined && remaining !== null) {
                 this.rateLimitRemaining = parseInt(remaining);
                 console.log(`📊 Rate limit remaining: ${this.rateLimitRemaining}`);
             }
-            
+
             if (reset) {
                 // Handle both timestamp (ms) and seconds formats
                 if (reset.length > 10) {
@@ -85,12 +85,12 @@ class AdminAPIService {
 
     shouldThrottleRequest() {
         const now = Date.now();
-        
+
         // Check if we've hit the rate limit
         if (this.rateLimitRemaining <= 0) {
             if (now < this.rateLimitResetTime) {
                 const waitTime = this.rateLimitResetTime - now;
-                console.log(`⏳ Rate limit exhausted. Waiting ${Math.round(waitTime/1000)}s`);
+                console.log(`⏳ Rate limit exhausted. Waiting ${Math.round(waitTime / 1000)}s`);
                 return waitTime;
             } else {
                 // Reset period passed, reset counter conservatively
@@ -134,7 +134,7 @@ class AdminAPIService {
                 timestamp: Date.now(),
                 id: Math.random().toString(36).substr(2, 9) // Unique ID for tracking
             });
-            
+
             console.log(`📨 Queued request: ${method} ${endpoint} (Queue size: ${this.requestQueue.length})`);
             this.processQueue();
         });
@@ -264,10 +264,10 @@ class AdminAPIService {
         // Enhanced rate limiting handling
         if (error.response?.status === 429) {
             this.metrics.rateLimitedRequests++;
-            
+
             const retryAfter = error.response.headers['retry-after'];
             let delay = this.retryDelay;
-            
+
             // Use server-suggested delay if available
             if (retryAfter) {
                 delay = parseInt(retryAfter) * 1000; // Convert to milliseconds
@@ -276,19 +276,19 @@ class AdminAPIService {
                 // Exponential backoff with jitter
                 delay = this.retryDelay * Math.pow(2, this.retryCount) + Math.random() * 1000;
             }
-            
+
             if (retry && this.retryCount < this.maxRetries) {
                 this.retryCount++;
-                console.log(`⏳ Rate limited. Retrying in ${Math.round(delay/1000)}s... (Attempt ${this.retryCount}/${this.maxRetries})`);
+                console.log(`⏳ Rate limited. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${this.retryCount}/${this.maxRetries})`);
 
                 // Pause the queue during retry delay
                 this.isPaused = true;
                 await new Promise(resolve => setTimeout(resolve, delay));
                 this.isPaused = false;
-                
+
                 return this.executeRequest(method, endpoint, data, false);
             } else {
-                const resetTime = this.rateLimitResetTime ? 
+                const resetTime = this.rateLimitResetTime ?
                     new Date(this.rateLimitResetTime).toLocaleTimeString() : 'soon';
                 throw new Error(`Too many requests. Rate limit resets at ${resetTime}. Please try again later.`);
             }
@@ -341,9 +341,9 @@ class AdminAPIService {
         if (!file) {
             throw new Error('No file selected for upload');
         }
-        
+
         const uploadKey = `${file.name}-${file.size}-${file.lastModified}`;
-        
+
         // Check if same file is already uploading
         if (this.pendingUploads.has(uploadKey)) {
             console.log('🔄 Skipping duplicate upload request');
@@ -353,7 +353,7 @@ class AdminAPIService {
         try {
             const uploadPromise = this.makeRequest('POST', '/gallery/upload', formData, true, false, false);
             this.pendingUploads.set(uploadKey, uploadPromise);
-            
+
             const result = await uploadPromise;
             return result;
         } finally {
@@ -616,7 +616,8 @@ class AdminAPIService {
 
     async getBookings(params = {}) {
         const queryString = new URLSearchParams(params).toString();
-        return this.makeRequest('GET', `/bookings?${queryString}`, null, true, false);
+        // Use the correct endpoint - bookings are under /api/bookings, not /api/admin/bookings
+        return this.makeRequest('GET', `/bookings?${queryString}`, null, true, false, false);
     }
 
     async createBooking(bookingData) {
@@ -625,8 +626,8 @@ class AdminAPIService {
     }
 
     async updateBooking(id, bookingData) {
-        this.clearCache('bookings');
-        return this.makeRequest('PUT', `/bookings/${id}`, bookingData);
+        // Use the correct endpoint - remove the duplicate /api/admin
+        return this.makeRequest('PUT', `/bookings/admin/${id}`, bookingData, true, false, false);
     }
 
     async deleteBooking(id) {
@@ -692,6 +693,74 @@ class AdminAPIService {
     async testConnection() {
         return this.makeRequest('GET', '/test', null, true, false);
     }
+    async getBookingDetails(id) {
+        // Use the correct endpoint that matches your backend route
+        return this.makeRequest('GET', `/bookings/admin/${id}`, null, true, false, false);
+    }
+
+    async updateBookingStatus(id, statusData) {
+        // Use the correct endpoint that matches your backend route
+        return this.makeRequest('PUT', `/bookings/admin/${id}/status`, statusData, true, false, false);
+    }
+    async updateBookingQuote(id, quoteData) {
+        // Use the correct endpoint that matches your backend route
+        return this.makeRequest('PUT', `/bookings/admin/${id}/quote`, quoteData, true, false, false);
+    }
+
+    async getCustomerDetails(id) {
+        return this.makeRequest('GET', `/customers/${id}`, null, true, false);
+    }
+
+    async getAdminDetails(id) {
+        return this.makeRequest('GET', `/admins/${id}`, null, true, true);
+    }
+
+    // In your admin-api.js, add mock implementations for testing:
+    // async updateBookingStatus(id, statusData) {
+    //     try {
+    //         // Mock response for testing
+    //         console.log('Mock: Updating booking status', { id, statusData });
+
+    //         // Simulate API delay
+    //         await new Promise(resolve => setTimeout(resolve, 500));
+
+    //         return {
+    //             success: true,
+    //             message: 'Booking status updated successfully',
+    //             booking: {
+    //                 ...statusData,
+    //                 ID: id,
+    //                 last_updated: new Date().toISOString()
+    //             }
+    //         };
+    //     } catch (error) {
+    //         console.error('Error updating booking status:', error);
+    //         throw error;
+    //     }
+    // }
+
+    // async updateBooking(id, bookingData) {
+    //     try {
+    //         // Mock response for testing
+    //         console.log('Mock: Updating booking', { id, bookingData });
+
+    //         // Simulate API delay
+    //         await new Promise(resolve => setTimeout(resolve, 500));
+
+    //         return {
+    //             success: true,
+    //             message: 'Booking updated successfully',
+    //             booking: {
+    //                 ...bookingData,
+    //                 ID: id,
+    //                 last_updated: new Date().toISOString()
+    //             }
+    //         };
+    //     } catch (error) {
+    //         console.error('Error updating booking:', error);
+    //         throw error;
+    //     }
+    // }
 }
 
 // Initialize API service

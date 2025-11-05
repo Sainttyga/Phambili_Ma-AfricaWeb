@@ -672,7 +672,7 @@ body.overlay-active {
 
 /* ========================================== HERO SECTION START ========================================== */
 .hero {
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/frontend/images/PM-Logo.jpg');
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/frontend/images/Copilot_20251027_032028.png');
     background-size: cover;
     background-position: center;
     height: calc(113vh - var(--header-height));

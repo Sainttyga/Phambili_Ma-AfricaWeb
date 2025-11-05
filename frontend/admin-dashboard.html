@@ -43,7 +43,7 @@
                     <li role="presentation">
                         <a href="#bookings" class="nav-link" role="tab" aria-selected="false" aria-controls="bookings"
                             id="bookings-tab" data-section="bookings">
-                            <i class="fas fa-calendar-check"></i>
+                            <i class="fas fa-broom"></i>
                             <span>Bookings</span>
                         </a>
                     </li>
@@ -57,14 +57,14 @@
                     <li role="presentation">
                         <a href="#services" class="nav-link" role="tab" aria-selected="false" aria-controls="services"
                             id="services-tab" data-section="services">
-                            <i class="fas fa-concierge-bell"></i>
+                            <i class="fas fa-spray-can-sparkles"></i>
                             <span>Services</span>
                         </a>
                     </li>
                     <li role="presentation">
                         <a href="#products" class="nav-link" role="tab" aria-selected="false" aria-controls="products"
                             id="products-tab" data-section="products">
-                            <i class="fas fa-box"></i>
+                            <i class="fas fa-pump-soap"></i>
                             <span>Products</span>
                         </a>
                     </li>
@@ -133,7 +133,7 @@
                     <div class="stats-grid" id="statsGrid">
                         <div class="stat-card">
                             <div class="stat-icon revenue">
-                                <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
                             </div>
                             <div class="stat-info">
                                 <h3 id="totalRevenue">R 0.00</h3>
@@ -143,7 +143,7 @@
                         </div>
                         <div class="stat-card">
                             <div class="stat-icon bookings">
-                                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                                <i class="fas fa-broom" aria-hidden="true"></i>
                             </div>
                             <div class="stat-info">
                                 <h3 id="totalBookings">0</h3>
@@ -184,7 +184,7 @@
                                 <div class="card-body">
                                     <div id="recentBookings">
                                         <div class="empty-state">
-                                            <i class="fas fa-calendar-plus" aria-hidden="true"></i>
+                                            <i class="fas fa-broom" aria-hidden="true"></i>
                                             <p>No recent bookings</p>
                                         </div>
                                     </div>
@@ -197,18 +197,35 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="action-buttons">
+                                        <!-- Existing Actions -->
                                         <button class="action-btn" onclick="showSection('bookings')" role="button">
-                                            <i class="fas fa-plus-circle" aria-hidden="true"></i>
-                                            <span>New Booking</span>
+                                            <i class="fas fa-broom" aria-hidden="true"></i>
+                                            <span>Manage Bookings</span>
                                         </button>
                                         <button class="action-btn" onclick="showSection('services')" role="button">
-                                            <i class="fas fa-cog" aria-hidden="true"></i>
+                                            <i class="fas fa-spray-can-sparkles" aria-hidden="true"></i>
                                             <span>Manage Services</span>
                                         </button>
                                         <button class="action-btn" onclick="showSection('products')" role="button">
-                                            <i class="fas fa-cog" aria-hidden="true"></i>
+                                            <i class="fas fa-pump-soap" aria-hidden="true"></i>
                                             <span>Manage Products</span>
                                         </button>
+
+                                        <!-- New Quick Actions -->
+                                        <button class="action-btn" onclick="showSection('customers')" role="button">
+                                            <i class="fas fa-user-plus" aria-hidden="true"></i>
+                                            <span>Add Customer</span>
+                                        </button>
+                                        <button class="action-btn" onclick="showSection('gallery')" role="button">
+                                            <i class="fas fa-upload" aria-hidden="true"></i>
+                                            <span>Upload Media</span>
+                                        </button>
+                                        <button class="action-btn" onclick="showSection('admin-management')"
+                                            role="button">
+                                            <i class="fas fa-user-shield" aria-hidden="true"></i>
+                                            <span>Add Admin</span>
+                                        </button>
+
                                     </div>
                                 </div>
                             </div>
@@ -330,7 +347,7 @@
                     <!-- Card Grid Container -->
                     <div class="bookings-grid" id="bookingsGrid">
                         <div class="empty-state">
-                            <i class="fas fa-calendar-plus"></i>
+                            <i class="fas fa-broom"></i>
                             <p>No quotation requests found</p>
                             <p class="empty-subtitle">When customers request services, they'll appear here as quotation
                                 requests.</p>

@@ -82,6 +82,7 @@ class AdminDashboard {
     }
   }
 
+
   // Add method to load admin profile for permissions
   async loadAdminProfileForPermissions() {
     try {
@@ -637,13 +638,13 @@ class AdminDashboard {
           console.log('🔄 Service form submitted');
 
           const formData = new FormData(serviceForm);
-          const serviceId = formData.get('id');
+          const serviceId = document.getElementById('service-id').value;
 
           try {
             if (serviceId) {
-              await this.updateService(serviceId, formData);
+              await window.adminDashboard.updateService(serviceId, formData);
             } else {
-              await this.createService(formData);
+              await window.adminDashboard.createService(formData);
             }
           } catch (error) {
             console.error('Service form submission error:', error);
@@ -657,13 +658,13 @@ class AdminDashboard {
         productForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           const formData = new FormData(productForm);
-          const productId = formData.get('id');
+          const productId = document.getElementById('product-id').value;
 
           try {
             if (productId) {
-              await this.updateProduct(productId, formData);
+              await window.adminDashboard.updateProduct(productId, formData);
             } else {
-              await this.createProduct(formData);
+              await window.adminDashboard.createProduct(formData);
             }
           } catch (error) {
             console.error('Product form submission error:', error);
@@ -911,6 +912,7 @@ class AdminDashboard {
     }
   }
 
+  // In admin-dashboard.js - Update loadCustomers method
   async loadCustomers() {
     try {
       this.showLoading('Loading customers...');
@@ -930,35 +932,40 @@ class AdminDashboard {
       if (!tableBody) return;
 
       if (response.customers && response.customers.length > 0) {
-        tableBody.innerHTML = response.customers.map(customer => `
-          <tr>
-            <td>#${customer.ID}</td>
-            <td>${customer.Full_Name || 'Unknown'}</td>
-            <td>${customer.Email || 'No email'}</td>
-            <td>${customer.Phone || 'No phone'}</td>
-            <td>${customer.Address || 'No address'}</td>
-            <td>${new Date(customer.createdAt || Date.now()).toLocaleDateString()}</td>
-            <td>
-              <button class="btn-icon" onclick="adminDashboard.viewCustomer(${customer.ID})" title="View Details">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button class="btn-icon" onclick="adminDashboard.editCustomer(${customer.ID})" title="Edit">
-                <i class="fas fa-edit"></i>
-              </button>
-            </td>
-          </tr>
-        `).join('');
+        // Sort customers: oldest first (new ones will appear at bottom)
+        const sortedCustomers = response.customers.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.Created_At || Date.now());
+          const dateB = new Date(b.createdAt || b.Created_At || Date.now());
+          return dateA - dateB; // Oldest first
+        });
+
+        tableBody.innerHTML = sortedCustomers.map(customer => `
+        <tr>
+          <td>#${customer.ID}</td>
+          <td>${customer.Full_Name || 'Unknown'}</td>
+          <td>${customer.Email || 'No email'}</td>
+          <td>${customer.Phone || 'No phone'}</td>
+          <td>${customer.Address || 'No address'}</td>
+          <td>${new Date(customer.createdAt || customer.Created_At || Date.now()).toLocaleDateString()}</td>
+          <td>
+            <!-- Remove action buttons - keep only view if needed -->
+            <button class="btn-icon" onclick="adminDashboard.viewCustomer(${customer.ID})" title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
       } else {
         tableBody.innerHTML = `
-          <tr>
-            <td colspan="7" class="text-center">
-              <div class="empty-state">
-                <i class="fas fa-users-slash"></i>
-                <p>No customers found</p>
-              </div>
-            </td>
-          </tr>
-        `;
+        <tr>
+          <td colspan="7" class="text-center">
+            <div class="empty-state">
+              <i class="fas fa-users-slash"></i>
+              <p>No customers found</p>
+            </div>
+          </td>
+        </tr>
+      `;
       }
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -967,7 +974,6 @@ class AdminDashboard {
       this.hideLoading();
     }
   }
-
   async loadServices() {
     try {
       this.showLoading('Loading services...');
@@ -1145,11 +1151,39 @@ class AdminDashboard {
     try {
       this.showLoading('Updating service...');
 
+      // Create FormData properly
       const formData = new FormData();
-      Object.keys(serviceData).forEach(key => {
-        if (serviceData[key] !== null && serviceData[key] !== undefined) {
-          formData.append(key, serviceData[key]);
-        }
+
+      // Append all fields including the ID
+      formData.append('id', id);
+
+      // Get values from form or serviceData
+      const name = serviceData.get ? serviceData.get('Name') : serviceData.Name;
+      const description = serviceData.get ? serviceData.get('Description') : serviceData.Description;
+      const duration = serviceData.get ? serviceData.get('Duration') : serviceData.Duration;
+      const category = serviceData.get ? serviceData.get('Category') : serviceData.Category;
+      const isAvailable = serviceData.get ? serviceData.get('Is_Available') === 'on' : serviceData.Is_Available;
+      const imageFile = serviceData.get ? serviceData.get('image') : null;
+      const currentImage = serviceData.get ? serviceData.get('current_image') : serviceData.current_image;
+
+      // Append data
+      formData.append('Name', name);
+      formData.append('Description', description || '');
+      formData.append('Duration', duration);
+      formData.append('Category', category || '');
+      formData.append('Is_Available', isAvailable.toString());
+
+      if (currentImage) {
+        formData.append('current_image', currentImage);
+      }
+
+      // Append image file if exists
+      if (imageFile && imageFile.size > 0) {
+        formData.append('image', imageFile);
+      }
+
+      console.log('🔄 Updating service with data:', {
+        id, name, duration, hasImage: !!imageFile
       });
 
       const response = await this.api.updateService(id, formData);
@@ -1158,10 +1192,23 @@ class AdminDashboard {
         this.showNotification('Service updated successfully', 'success');
         this.closeServiceModal();
         await this.loadServices();
+      } else {
+        throw new Error(response.message || 'Update failed');
       }
     } catch (error) {
-      console.error('Update service error:', error);
-      this.showNotification(error.response?.data?.message || 'Failed to update service', 'error');
+      console.error('❌ Update service error:', error);
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.errors) {
+          const errorMessages = errorData.errors.map(err => err.msg || err.message).join(', ');
+          this.showNotification(`Validation failed: ${errorMessages}`, 'error');
+        } else {
+          this.showNotification(errorData.message || 'Failed to update service', 'error');
+        }
+      } else {
+        this.showNotification(error.message || 'Failed to update service', 'error');
+      }
     } finally {
       this.hideLoading();
     }
@@ -1361,11 +1408,33 @@ class AdminDashboard {
       this.showLoading('Updating product...');
 
       const formData = new FormData();
-      Object.keys(productData).forEach(key => {
-        if (productData[key] !== null && productData[key] !== undefined) {
-          formData.append(key, productData[key]);
-        }
-      });
+      formData.append('id', id);
+
+      const name = productData.get ? productData.get('Name') : productData.Name;
+      const description = productData.get ? productData.get('Description') : productData.Description;
+      const price = productData.get ? productData.get('Price') : productData.Price;
+      const stock = productData.get ? productData.get('Stock_Quantity') : productData.Stock_Quantity;
+      const category = productData.get ? productData.get('Category') : productData.Category;
+      const isAvailable = productData.get ? productData.get('Is_Available') === 'on' : productData.Is_Available;
+      const imageFile = productData.get ? productData.get('image') : null;
+      const currentImage = productData.get ? productData.get('current_image') : productData.current_image;
+
+      formData.append('Name', name);
+      formData.append('Description', description || '');
+      formData.append('Price', price);
+      formData.append('Stock_Quantity', stock);
+      formData.append('Category', category || '');
+      formData.append('Is_Available', isAvailable.toString());
+
+      if (currentImage) {
+        formData.append('current_image', currentImage);
+      }
+
+      if (imageFile && imageFile.size > 0) {
+        formData.append('image', imageFile);
+      }
+
+      console.log('🔄 Updating product with data:', { id, name, price });
 
       const response = await this.api.updateProduct(id, formData);
 
@@ -1375,7 +1444,7 @@ class AdminDashboard {
         await this.loadProducts();
       }
     } catch (error) {
-      console.error('Update product error:', error);
+      console.error('❌ Update product error:', error);
       this.showNotification(error.response?.data?.message || 'Failed to update product', 'error');
     } finally {
       this.hideLoading();
@@ -1764,24 +1833,128 @@ class AdminDashboard {
     }
   }
 
-  viewCustomer(id) {
-    this.showNotification(`View customer #${id} details would open here`, 'info');
+  async viewCustomer(id) {
+    try {
+      this.showLoading('Loading customer details...');
+
+      const response = await this.api.getCustomerDetails(id);
+
+      if (response.success) {
+        this.showCustomerModal(response.customer);
+      } else {
+        throw new Error('Failed to load customer details');
+      }
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+      this.showNotification('Failed to load customer details', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+  showCustomerModal(customer) {
+    const modal = document.getElementById('customerModal');
+    const content = document.getElementById('customerModalContent');
+    const loading = document.getElementById('customerModalLoading');
+
+    if (!modal || !content || !loading) return;
+
+    // Populate customer data
+    document.getElementById('customer-modal-name').textContent = customer.Full_Name || 'Not provided';
+    document.getElementById('customer-modal-email').textContent = customer.Email || 'Not provided';
+    document.getElementById('customer-modal-phone').textContent = customer.Phone || 'Not provided';
+    document.getElementById('customer-modal-address').textContent = customer.Address || 'Not provided';
+    document.getElementById('customer-modal-join-date').textContent = customer.createdAt ?
+      new Date(customer.createdAt).toLocaleDateString() : 'Unknown';
+    document.getElementById('customer-modal-last-login').textContent = customer.Last_Login ?
+      new Date(customer.Last_Login).toLocaleDateString() : 'Never';
+
+    // Show modal
+    loading.style.display = 'none';
+    content.style.display = 'block';
+    modal.style.display = 'flex';
   }
 
-  editCustomer(id) {
-    this.showNotification(`Edit customer #${id} functionality would open here`, 'info');
+  closeCustomerModal() {
+    const modal = document.getElementById('customerModal');
+    const content = document.getElementById('customerModalContent');
+    const loading = document.getElementById('customerModalLoading');
+
+    if (modal) modal.style.display = 'none';
+    if (content) content.style.display = 'none';
+    if (loading) loading.style.display = 'block';
   }
 
-  editAdmin(id) {
-    this.showNotification(`Edit admin #${id} functionality would open here`, 'info');
+  editCustomerFromModal() {
+    const customerId = document.getElementById('customer-modal-id')?.value;
+    if (customerId) {
+      this.editCustomer(parseInt(customerId));
+      this.closeCustomerModal();
+    }
   }
+  async editCustomer(id) {
+    try {
+      // Implementation for editing customer
+      const response = await this.api.getCustomerDetails(id);
 
-  deleteAdmin(id) {
-    if (confirm('Are you sure you want to delete this admin? This action cannot be undone.')) {
-      this.showNotification('Admin deleted successfully', 'success');
+      if (response.success) {
+        this.openCustomerEditModal(response.customer);
+      }
+    } catch (error) {
+      console.error('Error fetching customer for edit:', error);
+      this.showNotification('Failed to load customer for editing', 'error');
     }
   }
 
+  async editAdmin(id) {
+    try {
+      const response = await this.api.getAdminDetails(id);
+
+      if (response.success) {
+        this.openAdminEditModal(response.admin);
+      }
+    } catch (error) {
+      console.error('Error fetching admin for edit:', error);
+      this.showNotification('Failed to load admin for editing', 'error');
+    }
+  }
+
+  async deleteAdmin(id) {
+    if (!confirm('Are you sure you want to delete this admin? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      this.showLoading('Deleting admin...');
+      const response = await this.api.deleteAdmin(id);
+
+      if (response.success) {
+        this.showNotification('Admin deleted successfully', 'success');
+        await this.loadAdmins();
+      }
+    } catch (error) {
+      console.error('Delete admin error:', error);
+      this.showNotification(error.response?.data?.message || 'Failed to delete admin', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+
+  openAdminEditModal(admin) {
+    // Populate the admin modal with existing data for editing
+    document.getElementById('admin-name').value = admin.Name || '';
+    document.getElementById('admin-email').value = admin.Email || '';
+    document.getElementById('admin-phone').value = admin.Phone || '';
+    document.getElementById('admin-role').value = admin.Role || 'sub_admin';
+
+    // Show modal with edit title
+    document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Admin';
+
+    const modal = document.getElementById('adminModal');
+    if (modal) {
+      modal.style.display = 'flex';
+    }
+  }
   openBookingModal() {
     this.showNotification('New booking modal would open here', 'info');
   }
@@ -1816,7 +1989,118 @@ class AdminDashboard {
       console.error('Error showing password reset modal:', error);
     }
   }
+  // Add these methods to the AdminDashboard class
 
+  // Simple mark as called function
+  async markAsCalled(bookingId) {
+    try {
+      this.showLoading('Marking as contacted...');
+
+      const statusData = {
+        Status: 'quoted',
+        contact_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      };
+
+      console.log('📞 MARKING AS CALLED:', { bookingId, statusData });
+
+      const response = await this.api.updateBookingStatus(bookingId, statusData);
+
+      if (response.success) {
+        this.showNotification('Marked as contacted successfully', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      } else {
+        throw new Error(response.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('❌ Error marking as called:', error);
+      this.showNotification(
+        error.response?.data?.message ||
+        'Failed to mark as contacted',
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Update booking status to in-progress (after call/consultation)
+  async markAsInProgress(bookingId) {
+    try {
+      this.showLoading('Updating status...');
+
+      const statusData = {
+        Status: 'confirmed',
+        last_updated: new Date().toISOString()
+      };
+
+      const response = await this.api.updateBookingStatus(bookingId, statusData);
+
+      if (response.success) {
+        this.showNotification('Booking marked as in progress', 'success');
+        await this.loadBookings();
+      }
+    } catch (error) {
+      console.error('Error updating to in progress:', error);
+      this.showNotification('Failed to update status', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Save admin notes to localStorage
+  saveAdminNotes(bookingId) {
+    try {
+      const notesInput = document.getElementById('adminNotesInput');
+      if (!notesInput) return;
+
+      const notes = notesInput.value.trim();
+      const allNotes = JSON.parse(localStorage.getItem('bookingNotes') || '{}');
+
+      allNotes[bookingId] = {
+        notes: notes,
+        lastUpdated: new Date().toISOString(),
+        updatedBy: this.currentAdmin?.Name || 'Admin'
+      };
+
+      localStorage.setItem('bookingNotes', JSON.stringify(allNotes));
+      this.showNotification('Notes saved successfully', 'success');
+
+      // Update the notes display immediately
+      this.updateNotesDisplay(bookingId);
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      this.showNotification('Failed to save notes', 'error');
+    }
+  }
+
+  // Load admin notes from localStorage
+  loadAdminNotes(bookingId) {
+    try {
+      const allNotes = JSON.parse(localStorage.getItem('bookingNotes') || '{}');
+      return allNotes[bookingId]?.notes || '';
+    } catch (error) {
+      console.error('Error loading notes:', error);
+      return '';
+    }
+  }
+
+  // Update notes display in the modal
+  updateNotesDisplay(bookingId) {
+    const notesContent = document.querySelector('.admin-notes-content');
+    if (!notesContent) return;
+
+    const notes = this.loadAdminNotes(bookingId);
+    if (notes) {
+      notesContent.innerHTML = `
+      <p>${notes}</p>
+      <small class="notes-meta">Last updated: ${new Date().toLocaleString()}</small>
+    `;
+    } else {
+      notesContent.innerHTML = '<p class="no-notes">No notes yet. Add notes about the call or consultation.</p>';
+    }
+  }
   setupPasswordResetModal() {
     try {
       const form = document.getElementById('password-reset-form');
@@ -2107,120 +2391,504 @@ class AdminDashboard {
       console.error('Error hiding loading:', error);
     }
   }
+
   displayBookingCards(bookings) {
     const container = document.getElementById('bookingsGrid');
     if (!container) return;
 
     if (bookings && bookings.length > 0) {
       container.innerHTML = bookings.map(booking => {
-        console.log('📝 Rendering compact booking card:', booking);
+        const isPast = this.isPastBooking(booking.Date);
 
-        // Format the date and time
-        const bookingDate = booking.Date ? new Date(booking.Date).toLocaleDateString() : 'Not specified';
-        const bookingTime = booking.Time ? booking.Time.replace(/:00$/, '') : 'Flexible';
+        // Format date to show month name instead of number
+        const bookingDate = booking.Date ? new Date(booking.Date) : null;
+        const formattedDate = bookingDate ?
+          `${this.getMonthName(bookingDate.getMonth())} ${bookingDate.getDate()}, ${bookingDate.getFullYear()}` :
+          'Date not set';
 
-        // Short address for compact display
-        const shortAddress = booking.Address ?
-          (booking.Address.length > 20 ? booking.Address.substring(0, 20) + '...' : booking.Address) :
-          'Not specified';
+        // Format time properly (remove seconds if present)
+        const formattedTime = booking.Time ?
+          booking.Time.split(':').slice(0, 2).join(':') : '';
 
         return `
-      <div class="booking-card-compact" data-booking-id="${booking.ID}" data-status="${booking.Status}">
-        <!-- Header with service and status -->
-        <div class="card-header-compact">
-          <div class="service-badge">
-            <span class="service-name">${booking.Service?.Name || 'Unknown'}</span>
-            <span class="service-category">${booking.Service?.Category || 'General'}</span>
+        <div class="booking-card workflow-card ${isPast ? 'past-booking' : ''}" data-booking-id="${booking.ID}" data-status="${booking.Status}">
+          <!-- Header with service and date - matching screenshot layout -->
+          <div class="card-header-workflow">
+            <div class="service-info">
+              <h4>${booking.Service?.Name || 'Unknown Service'}</h4>
+              <span class="booking-date">
+                <i class="fas fa-calendar"></i>
+                ${formattedDate} at ${formattedTime}
+              </span>
+            </div>
+            <div class="booking-meta">
+              <span class="status-badge ${booking.Status}">${this.formatStatus(booking.Status)}</span>
+            </div>
           </div>
-          <span class="status-badge ${booking.Status}">${booking.Status}</span>
-        </div>
 
-        <!-- Customer info row -->
-        <div class="customer-row">
-          <div class="customer-avatar-small">
-            ${booking.Customer?.Full_Name?.charAt(0) || 'C'}
-          </div>
-          <div class="customer-details">
-            <strong>${booking.Customer?.Full_Name || 'Unknown Customer'}</strong>
-            <div class="customer-contact-small">
-              <span>${booking.Customer?.Phone || 'No phone'}</span>
+          <!-- Customer info - exact match to screenshot -->
+          <div class="customer-info-workflow">
+            <div class="customer-main-info">
+              <strong>${booking.Customer?.Full_Name || 'Unknown Customer'}</strong>
+              <div class="customer-contact">
+                <span><i class="fas fa-phone"></i> ${booking.Customer?.Phone || 'No phone'}</span>
+                <span><i class="fas fa-envelope"></i> ${booking.Customer?.Email || 'No email'}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Essential details in compact grid -->
-        <div class="details-grid-compact">
-          <div class="detail-item">
-            <i class="fas fa-calendar"></i>
-            <span>${bookingDate}</span>
-          </div>
-          <div class="detail-item">
-            <i class="fas fa-clock"></i>
-            <span>${bookingTime}</span>
-          </div>
-          <div class="detail-item">
-            <i class="fas fa-map-marker-alt"></i>
-            <span>${shortAddress}</span>
-          </div>
-          ${booking.Duration ? `
-            <div class="detail-item">
-              <i class="fas fa-hourglass-half"></i>
-              <span>${booking.Duration}m</span>
-            </div>
-          ` : ''}
-        </div>
-
-        <!-- Quote information -->
-        <div class="quote-info-compact">
-          ${booking.Quoted_Amount ? `
-            <div class="quote-amount-badge">
-              <i class="fas fa-dollar-sign"></i>
-              R ${parseFloat(booking.Quoted_Amount).toFixed(2)}
-            </div>
-          ` : `
-            <div class="quote-pending-badge">
-              <i class="fas fa-clock"></i>
-              Quote Pending
-            </div>
-          `}
-          
+          <!-- Special Instructions -->
           ${booking.Special_Instructions ? `
-            <div class="notes-indicator" title="Has special instructions">
-              <i class="fas fa-sticky-note"></i>
+            <div class="special-instructions">
+              <p><strong>Special Instructions:</strong> ${booking.Special_Instructions}</p>
             </div>
           ` : ''}
-        </div>
 
-        <!-- Action buttons -->
-        <div class="actions-compact">
-          <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails(${booking.ID})">
-            <i class="fas fa-eye"></i>
-            View Details
-          </button>
-          ${booking.Status === 'requested' ? `
-            <button class="btn-quote-small" onclick="adminDashboard.openQuoteModal(${booking.ID})" title="Provide Quote">
-              <i class="fas fa-dollar-sign"></i>
+          <!-- Action buttons based on status - enhanced with call functionality -->
+          <div class="workflow-actions">
+            ${this.renderActionButtons(booking.Status, booking.ID, isPast, booking.Customer?.Phone)}
+          </div>
+
+          <!-- Quick info footer - simplified -->
+          <div class="booking-quick-info">
+            ${booking.Quoted_Amount ? `
+              <div class="quote-info">
+                <i class="fas fa-dollar-sign"></i>
+                <strong>R ${parseFloat(booking.Quoted_Amount).toFixed(2)}</strong>
+              </div>
+            ` : ''}
+            
+            <!-- Single View Details button -->
+            <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails(${booking.ID})">
+              <i class="fas fa-eye"></i> View Details
             </button>
-          ` : ''}
+          </div>
         </div>
-      </div>
       `;
       }).join('');
     } else {
       container.innerHTML = `
-    <div class="empty-state">
-      <i class="fas fa-calendar-times"></i>
-      <p>No quotation requests found</p>
-    </div>
+      <div class="empty-state">
+        <i class="fas fa-calendar-times"></i>
+        <p>No quotation requests found</p>
+      </div>
     `;
     }
+  }
+  getMonthName(monthIndex) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[monthIndex] || 'Unknown';
+  }
+
+  // Helper methods for the workflow
+  getBookingStatusInfo(status) {
+    const statusMap = {
+      'requested': { label: 'Quotation Requested', class: 'status-pending', icon: 'clock', description: 'Awaiting admin review' },
+      'pending': { label: 'Pending Review', class: 'status-pending', icon: 'clock', description: 'Awaiting admin review' },
+      'contacted': { label: 'Contacted', class: 'status-contacted', icon: 'phone', description: 'Customer contacted' },
+      'in_progress': { label: 'In Progress', class: 'status-in-progress', icon: 'play-circle', description: 'Consultation in progress' },
+      'quoted': { label: 'Quoted', class: 'status-quoted', icon: 'file-invoice-dollar', description: 'Quotation provided' },
+      'approved': { label: 'Approved', class: 'status-approved', icon: 'check-circle', description: 'Booking approved' },
+      'confirmed': { label: 'Confirmed', class: 'status-confirmed', icon: 'check-double', description: 'Customer confirmed' },
+      'completed': { label: 'Completed', class: 'status-completed', icon: 'flag-checkered', description: 'Service completed' },
+      'cancelled': { label: 'Cancelled', class: 'status-cancelled', icon: 'times-circle', description: 'Booking cancelled' },
+      'declined': { label: 'Declined', class: 'status-declined', icon: 'ban', description: 'Booking declined' }
+    };
+
+    return statusMap[status] || {
+      label: this.formatStatus(status),
+      class: 'status-unknown',
+      icon: 'question-circle',
+      description: 'Unknown status'
+    };
+  }
+
+  // Update the workflow steps to remove "Request Received"
+  renderWorkflowSteps(currentStatus, contactDate) {
+    const steps = [
+      { status: 'pending', label: 'Pending Review', icon: 'clock' },
+      { status: 'contacted', label: 'Customer Called', icon: 'phone', date: contactDate },
+      { status: 'in_progress', label: 'In Progress', icon: 'play-circle' },
+      { status: 'quoted', label: 'Quoted', icon: 'file-invoice' },
+      { status: 'approved', label: 'Approved', icon: 'check-circle' },
+      { status: 'confirmed', label: 'Confirmed', icon: 'check-double' },
+      { status: 'completed', label: 'Completed', icon: 'flag-checkered' }
+    ];
+
+    const currentIndex = steps.findIndex(step => step.status === currentStatus);
+
+    return steps.map((step, index) => {
+      const isCompleted = index < currentIndex;
+      const isCurrent = index === currentIndex;
+      const isFuture = index > currentIndex;
+
+      return `
+    <div class="workflow-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isFuture ? 'future' : ''}">
+      <div class="step-icon">
+        <i class="fas fa-${step.icon}"></i>
+      </div>
+      <div class="step-content">
+        <div class="step-label">${step.label}</div>
+        ${step.date ? `<div class="step-date">${new Date(step.date).toLocaleDateString()}</div>` : ''}
+      </div>
+    </div>
+  `;
+    }).join('');
+  }
+
+  // Update the action buttons to include approve/decline options with proper styling
+  renderActionButtons(status, bookingId, isPast, phoneNumber) {
+    if (isPast) {
+      return `
+      <button class="btn btn-secondary btn-sm" onclick="adminDashboard.viewBookingDetails(${bookingId})">
+        <i class="fas fa-eye"></i> View Details
+      </button>
+    `;
+    }
+
+    // Call button that opens the call modal
+    const callButton = phoneNumber ? `
+    <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal(${bookingId})">
+      <i class="fas fa-phone"></i> Call
+    </button>
+  ` : '';
+
+    switch (status) {
+      case 'pending':
+      case 'requested':
+        return `
+        ${callButton}
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking(${bookingId})">
+          <i class="fas fa-check"></i> Approve
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="adminDashboard.declineBooking(${bookingId})">
+          <i class="fas fa-times"></i> Decline
+        </button>
+      `;
+
+      case 'contacted':
+        return `
+        ${callButton}
+        <button class="btn btn-warning btn-sm" onclick="adminDashboard.markAsInProgress(${bookingId})">
+          <i class="fas fa-play-circle"></i> In Progress
+        </button>
+        <button class="btn btn-info btn-sm" onclick="adminDashboard.openCallWithNotesModal(${bookingId})">
+          <i class="fas fa-edit"></i> Add Notes
+        </button>
+      `;
+
+      case 'in_progress':
+        return `
+        ${callButton}
+        <button class="btn btn-info btn-sm" onclick="adminDashboard.openCallWithNotesModal(${bookingId})">
+          <i class="fas fa-edit"></i> Add Notes
+        </button>
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking(${bookingId})">
+          <i class="fas fa-check"></i> Approve
+        </button>
+      `;
+
+      case 'quoted':
+        return `
+        ${callButton}
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking(${bookingId})">
+          <i class="fas fa-check"></i> Approve Booking
+        </button>
+        <button class="btn btn-info btn-sm" onclick="adminDashboard.updateBookingStatus(${bookingId}, 'confirmed')">
+          <i class="fas fa-check-double"></i> Confirm
+        </button>
+      `;
+
+      case 'confirmed':
+        return `
+        ${callButton}
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.updateBookingStatus(${bookingId}, 'completed')">
+          <i class="fas fa-flag-checkered"></i> Mark Complete
+        </button>
+      `;
+
+      default:
+        return `
+        ${callButton}
+        <button class="btn btn-secondary btn-sm" onclick="adminDashboard.viewBookingDetails(${bookingId})">
+          <i class="fas fa-eye"></i> View Details
+        </button>
+      `;
+    }
+  }
+
+  openCallWithNotesModal(bookingId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal call-notes-modal';
+    modal.style.display = 'flex';
+
+    // Load existing notes
+    const existingNotes = this.loadAdminNotes(bookingId);
+
+    modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fas fa-phone"></i> Customer Call Notes</h2>
+        <button class="modal-close" onclick="this.closest('.modal').remove()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="notes-section">
+          <label for="callNotesInput">Call Notes & Discussion Points</label>
+          <textarea 
+            id="callNotesInput" 
+            placeholder="Add notes from your call: customer requirements, pricing discussion, follow-up actions, special instructions, etc..."
+            rows="6"
+          >${existingNotes}</textarea>
+          <small class="help-text">These notes will help you track the conversation and next steps.</small>
+        </div>
+        
+        <div class="call-actions">
+          <div class="actions-buttons">
+            <button class="btn btn-success" onclick="adminDashboard.saveCallNotes(${bookingId})">
+              <i class="fas fa-save"></i> Save Notes
+            </button>
+            <button class="btn btn-primary" onclick="adminDashboard.markAsCalled(${bookingId})">
+              <i class="fas fa-check"></i> Mark as Contacted
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+  }
+  // Save call notes and mark as contacted
+  async saveCallNotes(bookingId) {
+    try {
+      const notesInput = document.getElementById('callNotesInput');
+      if (!notesInput) return;
+
+      const notes = notesInput.value.trim();
+
+      // Save notes to localStorage
+      this.saveAdminNotes(bookingId, notes);
+
+      // Mark as contacted
+      await this.markAsCalled(bookingId);
+
+      this.showNotification('Notes saved and marked as contacted', 'success');
+      this.closeAllModals();
+
+    } catch (error) {
+      console.error('Error saving call notes:', error);
+      this.showNotification('Failed to save notes', 'error');
+    }
+  }
+  // Save call notes only
+  saveCallNotes(bookingId) {
+    try {
+      const notesInput = document.getElementById('callNotesInput');
+      if (!notesInput) return;
+
+      const notes = notesInput.value.trim();
+
+      // Save notes to localStorage
+      this.saveAdminNotes(bookingId, notes);
+
+      this.showNotification('Call notes saved successfully', 'success');
+
+    } catch (error) {
+      console.error('Error saving call notes:', error);
+      this.showNotification('Failed to save notes', 'error');
+    }
+  }
+  async saveCallNotesAndMarkContacted(bookingId) {
+    try {
+      const notesInput = document.getElementById('callNotesInput');
+      if (!notesInput) return;
+
+      const notes = notesInput.value.trim();
+
+      // Save notes to localStorage
+      this.saveAdminNotes(bookingId, notes);
+
+      // Mark as contacted
+      await this.markAsCalled(bookingId);
+
+      this.showNotification('Notes saved and marked as contacted', 'success');
+      this.closeAllModals();
+
+    } catch (error) {
+      console.error('Error saving call notes and marking contacted:', error);
+      this.showNotification('Failed to save notes', 'error');
+    }
+  }
+  // Approve booking
+  async approveBooking(bookingId) {
+    try {
+      this.showLoading('Approving booking...');
+
+      const statusData = {
+        Status: 'confirmed', // Changed from 'approved' to 'confirmed'
+        approved_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      };
+
+      console.log('✅ APPROVING BOOKING:', { bookingId, statusData });
+
+      const response = await this.api.updateBookingStatus(bookingId, statusData);
+
+      if (response.success) {
+        this.showNotification('Booking approved successfully', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      } else {
+        throw new Error(response.message || 'Failed to approve booking');
+      }
+    } catch (error) {
+      console.error('❌ Error approving booking:', error);
+      this.showNotification(
+        error.response?.data?.message ||
+        'Failed to approve booking',
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Decline booking
+  async declineBooking(bookingId) {
+    try {
+      // Show decline reason modal
+      this.showDeclineModal(bookingId);
+    } catch (error) {
+      console.error('❌ Error declining booking:', error);
+      this.showNotification('Failed to decline booking', 'error');
+    }
+  }
+
+
+  // Show decline reason modal
+  showDeclineModal(bookingId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal decline-modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-times-circle"></i> Decline Booking</h2>
+      <button class="modal-close" onclick="this.closest('.modal').remove()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="declineForm">
+        <div class="form-group">
+          <label for="declineReason">Reason for Declining</label>
+          <select id="declineReason" required>
+            <option value="">Select a reason...</option>
+            <option value="customer_unavailable">Customer Unavailable</option>
+            <option value="service_not_available">Service Not Available</option>
+            <option value="location_out_of_area">Location Out of Service Area</option>
+            <option value="price_disagreement">Price Disagreement</option>
+            <option value="schedule_conflict">Schedule Conflict</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="declineNotes">Additional Notes</label>
+          <textarea id="declineNotes" 
+                    placeholder="Provide additional details for declining this booking..."
+                    rows="4"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+      <button class="btn btn-danger" onclick="adminDashboard.confirmDecline(${bookingId})">
+        <i class="fas fa-ban"></i> Decline Booking
+      </button>
+    </div>
+  </div>
+  `;
+
+    document.body.appendChild(modal);
+  }
+
+  // Confirm decline with reason
+  async confirmDecline(bookingId) {
+    try {
+      const reasonInput = document.getElementById('declineReason');
+      const notesInput = document.getElementById('declineNotes');
+
+      if (!reasonInput.value) {
+        this.showNotification('Please select a reason for declining', 'error');
+        return;
+      }
+
+      this.showLoading('Declining booking...');
+
+      const statusData = {
+        Status: 'cancelled', // Changed from 'declined' to 'cancelled'
+        decline_reason: reasonInput.value,
+        decline_notes: notesInput.value,
+        declined_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      };
+
+      console.log('❌ DECLINING BOOKING:', { bookingId, statusData });
+
+      const response = await this.api.updateBookingStatus(bookingId, statusData);
+
+      if (response.success) {
+        this.showNotification('Booking declined successfully', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      } else {
+        throw new Error(response.message || 'Failed to decline booking');
+      }
+    } catch (error) {
+      console.error('❌ Error declining booking:', error);
+      this.showNotification(
+        error.response?.data?.message ||
+        'Failed to decline booking',
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+  isPastBooking(bookingDate) {
+    if (!bookingDate) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return bookingDate < today;
+  }
+
+  // Enhanced status formatting
+  formatStatus(status) {
+    const statusMap = {
+      'requested': 'Quotation Requested',
+      'pending': 'Pending Review',
+      'contacted': 'Contacted',
+      'in_progress': 'In Progress',
+      'quoted': 'Quoted',
+      'approved': 'Approved',
+      'confirmed': 'Confirmed',
+      'completed': 'Completed',
+      'cancelled': 'Cancelled',
+      'declined': 'Declined'
+    };
+    return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
   }
 
   async viewBookingDetails(id) {
     try {
       this.showLoading('Loading booking details...');
 
-      const response = await this.api.makeRequest('GET', `/bookings/${id}`);
+      const response = await this.api.getBookingDetails(id);
 
       if (response.success) {
         this.showBookingDetailsModal(response.booking);
@@ -2235,274 +2903,607 @@ class AdminDashboard {
     }
   }
 
-  showBookingDetailsModal(booking) {
-    const modal = document.createElement('div');
-    modal.className = 'modal booking-details-modal';
-    modal.style.display = 'flex';
+  async provideQuote(bookingId, quotedAmount) {
+    try {
+      this.showLoading('Providing quotation...');
 
-    // Format dates and times
-    const bookingDate = booking.Date ? new Date(booking.Date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }) : 'Not specified';
+      const response = await this.api.updateBookingQuote(bookingId, {
+        quotedAmount: parseFloat(quotedAmount),
+        status: 'quoted'
+      });
 
-    const bookingTime = booking.Time || 'Flexible';
-    const createdAt = booking.created_at ? new Date(booking.created_at).toLocaleString() : 'Unknown';
-    const updatedAt = booking.updated_at ? new Date(booking.updated_at).toLocaleString() : 'Unknown';
-
-    modal.innerHTML = `
-  <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-    <div class="modal-header">
-      <h2>
-        <i class="fas fa-file-alt"></i>
-        Booking Details - #${booking.ID}
-      </h2>
-      <button class="modal-close" onclick="this.closest('.modal').remove()">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-    
-    <div class="modal-body">
-      <!-- Status Banner -->
-      <div class="status-banner ${booking.Status}">
-        <div class="status-content">
-          <i class="fas fa-${this.getStatusIcon(booking.Status)}"></i>
-          <div>
-            <h3>${this.formatStatus(booking.Status)}</h3>
-            <p>Current booking status</p>
-          </div>
-        </div>
-        <div class="booking-id">
-          <strong>Booking ID:</strong> #${booking.ID}
-        </div>
-      </div>
-
-      <!-- Main Content Grid -->
-      <div class="details-grid">
-        <!-- Customer Information -->
-        <div class="details-section">
-          <h3 class="section-title">
-            <i class="fas fa-user"></i>
-            Customer Information
-          </h3>
-          <div class="section-content">
-            <div class="detail-row">
-              <label>Full Name:</label>
-              <span>${booking.Customer?.Full_Name || 'Unknown Customer'}</span>
-            </div>
-            <div class="detail-row">
-              <label>Email:</label>
-              <span>${booking.Customer?.Email || 'Not provided'}</span>
-            </div>
-            <div class="detail-row">
-              <label>Phone:</label>
-              <span>${booking.Customer?.Phone || 'Not provided'}</span>
-            </div>
-            <div class="detail-row">
-              <label>Customer ID:</label>
-              <span>#${booking.Customer_ID}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Service Information -->
-        <div class="details-section">
-          <h3 class="section-title">
-            <i class="fas fa-concierge-bell"></i>
-            Service Details
-          </h3>
-          <div class="section-content">
-            <div class="detail-row">
-              <label>Service:</label>
-              <span>${booking.Service?.Name || 'Unknown Service'}</span>
-            </div>
-            <div class="detail-row">
-              <label>Category:</label>
-              <span class="category-tag">${booking.Service?.Category || 'General'}</span>
-            </div>
-            <div class="detail-row">
-              <label>Duration:</label>
-              <span>${booking.Duration || booking.Service?.Duration || 0} minutes</span>
-            </div>
-            <div class="detail-row">
-              <label>Service ID:</label>
-              <span>#${booking.Service_ID}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Booking Schedule -->
-        <div class="details-section">
-          <h3 class="section-title">
-            <i class="fas fa-calendar-alt"></i>
-            Schedule
-          </h3>
-          <div class="section-content">
-            <div class="detail-row">
-              <label>Booking Date:</label>
-              <span>${bookingDate}</span>
-            </div>
-            <div class="detail-row">
-              <label>Preferred Time:</label>
-              <span>${bookingTime}</span>
-            </div>
-            <div class="detail-row">
-              <label>Requested On:</label>
-              <span>${createdAt}</span>
-            </div>
-            ${booking.updated_at !== booking.created_at ? `
-              <div class="detail-row">
-                <label>Last Updated:</label>
-                <span>${updatedAt}</span>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-
-        <!-- Property Information -->
-        <div class="details-section">
-          <h3 class="section-title">
-            <i class="fas fa-home"></i>
-            Property Details
-          </h3>
-          <div class="section-content">
-            <div class="detail-row">
-              <label>Property Type:</label>
-              <span>${booking.Property_Type || 'Not specified'}</span>
-            </div>
-            ${booking.Property_Size ? `
-              <div class="detail-row">
-                <label>Property Size:</label>
-                <span>${booking.Property_Size}</span>
-              </div>
-            ` : ''}
-            <div class="detail-row">
-              <label>Cleaning Frequency:</label>
-              <span>${booking.Cleaning_Frequency || 'One-time'}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Address Information -->
-        <div class="details-section full-width">
-          <h3 class="section-title">
-            <i class="fas fa-map-marker-alt"></i>
-            Service Location
-          </h3>
-          <div class="section-content">
-            <div class="address-display">
-              <i class="fas fa-home"></i>
-              <div class="address-text">
-                <strong>Service Address:</strong>
-                <p>${booking.Address || 'Not specified'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Financial Information -->
-        <div class="details-section">
-          <h3 class="section-title">
-            <i class="fas fa-money-bill-wave"></i>
-            Quotation
-          </h3>
-          <div class="section-content">
-            <div class="detail-row ${booking.Quoted_Amount ? 'has-quote' : 'no-quote'}">
-              <label>Quoted Amount:</label>
-              <span class="quote-amount">
-                ${booking.Quoted_Amount ?
-        `R ${parseFloat(booking.Quoted_Amount).toFixed(2)}` :
-        '<em class="pending">Pending Quote</em>'
+      if (response.success) {
+        this.showNotification('Quotation provided successfully', 'success');
+        await this.loadBookings();
       }
-              </span>
-            </div>
-            ${booking.Quoted_Amount ? `
-              <div class="quote-status approved">
-                <i class="fas fa-check-circle"></i>
-                <span>Quote Provided</span>
-              </div>
-            ` : `
-              <div class="quote-status pending">
-                <i class="fas fa-clock"></i>
-                <span>Awaiting Quote</span>
-              </div>
-            `}
-          </div>
-        </div>
+    } catch (error) {
+      console.error('Error providing quote:', error);
+      this.showNotification('Failed to provide quotation', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+  async updateBookingStatus(bookingId, newStatus) {
+    try {
+      this.showLoading('Updating booking status...');
 
-        <!-- Special Instructions -->
-        ${booking.Special_Instructions ? `
-          <div class="details-section full-width">
-            <h3 class="section-title">
-              <i class="fas fa-sticky-note"></i>
-              Special Instructions & Requirements
-            </h3>
-            <div class="section-content">
-              <div class="instructions-content">
-                <p>${booking.Special_Instructions}</p>
-              </div>
-            </div>
-          </div>
-        ` : ''}
+      console.log('🔄 UPDATING BOOKING STATUS:', { bookingId, newStatus });
 
-        <!-- System Information -->
-        <div class="details-section">
-          <h3 class="section-title">
-            <i class="fas fa-info-circle"></i>
-            System Information
-          </h3>
-          <div class="section-content">
-            <div class="detail-row">
-              <label>Booking ID:</label>
-              <span>#${booking.ID}</span>
+      const statusData = {
+        Status: newStatus,
+        last_updated: new Date().toISOString()
+      };
+
+      // Add specific timestamps based on status
+      if (newStatus === 'contacted') {
+        statusData.contact_date = new Date().toISOString();
+      } else if (newStatus === 'completed') {
+        statusData.completed_date = new Date().toISOString();
+      } else if (newStatus === 'cancelled') {
+        statusData.cancelled_date = new Date().toISOString();
+      }
+
+      const response = await this.api.updateBookingStatus(bookingId, statusData);
+
+      if (response.success) {
+        this.showNotification(`Booking status updated to ${newStatus}`, 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+
+        // Refresh the booking details if modal is open
+        const bookingModal = document.querySelector('.booking-details-modal');
+        if (bookingModal) {
+          setTimeout(async () => {
+            await this.viewBookingDetails(bookingId);
+          }, 1000);
+        }
+      } else {
+        throw new Error(response.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('❌ Error updating booking status:', error);
+
+      // Enhanced error logging
+      if (error.response) {
+        console.error('📊 Backend Error:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+
+      this.showNotification(
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to update booking status',
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+  getStatusIcon(status) {
+    const iconMap = {
+      'requested': 'clock',
+      'pending': 'clock',
+      'contacted': 'phone',
+      'in_progress': 'play-circle',
+      'quoted': 'file-invoice-dollar',
+      'approved': 'check-circle',
+      'confirmed': 'check-double',
+      'completed': 'flag-checkered',
+      'cancelled': 'times-circle',
+      'declined': 'ban'
+    };
+    return iconMap[status] || 'question-circle';
+  }
+  showBookingDetailsModal(booking) {
+    try {
+      // Simple status formatting using helper methods
+      const statusInfo = {
+        label: this.formatStatus(booking.Status),
+        description: this.getStatusDescription(booking.Status),
+        color: this.getStatusColor(booking.Status),
+        icon: this.getStatusIcon(booking.Status)
+      };
+
+      const modal = document.createElement('div');
+      modal.className = 'modal booking-details-modal';
+      modal.style.display = 'flex';
+
+      modal.innerHTML = `
+<div class="modal-content enhanced-modal">
+    <!-- Enhanced Header -->
+    <div class="modal-header enhanced-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <i class="fas fa-file-alt"></i>
             </div>
-            <div class="detail-row">
-              <label>Created:</label>
-              <span>${createdAt}</span>
+            <div class="header-text">
+                <h2>Booking Details</h2>
+                <p class="booking-reference">Reference: #${booking.ID}</p>
             </div>
-            ${booking.updated_at !== booking.created_at ? `
-              <div class="detail-row">
-                <label>Last Updated:</label>
-                <span>${updatedAt}</span>
-              </div>
-            ` : ''}
-          </div>
         </div>
-      </div>
+        <button class="modal-close enhanced-close" onclick="this.closest('.modal').remove()">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
     
-    <div class="modal-footer">
-      <div class="footer-actions">
-        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
-          <i class="fas fa-times"></i>
-          Close
-        </button>
-        <div class="action-group">
-          ${booking.Status === 'requested' ? `
-            <button class="btn btn-primary" onclick="adminDashboard.openQuoteModal(${booking.ID})">
-              <i class="fas fa-dollar-sign"></i>
-              Provide Quote
-            </button>
-          ` : ''}
-          <button class="btn btn-outline" onclick="adminDashboard.editBooking(${booking.ID})">
-            <i class="fas fa-edit"></i>
-            Edit Booking
-          </button>
-          <button class="btn btn-danger" onclick="adminDashboard.deleteBooking(${booking.ID})">
-            <i class="fas fa-trash"></i>
-            Delete
-          </button>
+    <!-- Enhanced Body with Scrollable Content -->
+    <div class="modal-body enhanced-body">
+        <div class="scrollable-content">
+            <!-- Status Banner with Enhanced Design -->
+            <div class="status-banner-enhanced ${statusInfo.color}">
+                <div class="status-main">
+                    <div class="status-icon">
+                        <i class="fas fa-${statusInfo.icon}"></i>
+                    </div>
+                    <div class="status-info">
+                        <h3>${statusInfo.label}</h3>
+                        <p>${statusInfo.description}</p>
+                    </div>
+                </div>
+                <div class="status-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Created:</span>
+                        <span class="meta-value">${new Date(booking.created_at || booking.Created_At || Date.now()).toLocaleString()}</span>
+                    </div>
+                    ${booking.last_updated ? `
+                    <div class="meta-item">
+                        <span class="meta-label">Updated:</span>
+                        <span class="meta-value">${new Date(booking.last_updated).toLocaleString()}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <!-- Enhanced Grid Layout -->
+            <div class="enhanced-grid">
+                <!-- Customer Information Card -->
+                <div class="info-card customer-card">
+                    <div class="card-header">
+                        <i class="fas fa-user"></i>
+                        <h3>Customer Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-item">
+                            <label>Full Name</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-user-circle"></i>
+                                <span class="value">${booking.Customer?.Full_Name || 'Unknown Customer'}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Email</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-envelope"></i>
+                                <span class="value">
+                                    ${booking.Customer?.Email ?
+          `<a href="mailto:${booking.Customer.Email}" class="contact-link">${booking.Customer.Email}</a>` :
+          'Not provided'
+        }
+                                </span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Phone</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-phone"></i>
+                                <span class="value">
+                                    ${booking.Customer?.Phone ?
+          `<a href="tel:${booking.Customer.Phone}" class="contact-link call-link" onclick="event.stopPropagation(); adminDashboard.openCallWithNotesModal(${booking.ID})">
+                                            ${booking.Customer.Phone}
+                                            <i class="fas fa-phone-alt call-icon"></i>
+                                         </a>` :
+          'Not provided'
+        }
+                                </span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Customer ID</label>
+                            <span class="badge value">#${booking.Customer_ID || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Information Card -->
+                <div class="info-card service-card">
+                    <div class="card-header">
+                        <i class="fas fa-concierge-bell"></i>
+                        <h3>Service Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-item">
+                            <label>Service</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-tools"></i>
+                                <span class="value">${booking.Service?.Name || 'Unknown Service'}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Category</label>
+                            <span class="category-badge">${booking.Service?.Category || 'General'}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Duration</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-clock"></i>
+                                <span class="value">${booking.Duration || booking.Service?.Duration || 0} minutes</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Service ID</label>
+                            <span class="badge value">#${booking.Service_ID || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule Information Card -->
+                <div class="info-card schedule-card">
+                    <div class="card-header">
+                        <i class="fas fa-calendar-alt"></i>
+                        <h3>Schedule</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-item">
+                            <label>Booking Date</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-calendar-day"></i>
+                                <span class="value">
+                                    ${booking.Date ?
+          `${this.getMonthName(new Date(booking.Date).getMonth())} ${new Date(booking.Date).getDate()}, ${new Date(booking.Date).getFullYear()}` :
+          'Not specified'
+        }
+                                </span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Preferred Time</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-clock"></i>
+                                <span class="value">${booking.Time ? booking.Time.split(':').slice(0, 2).join(':') : 'Flexible'}</span>
+                            </div>
+                        </div>
+                        ${booking.Cleaning_Frequency ? `
+                        <div class="info-item">
+                            <label>Cleaning Frequency</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-sync-alt"></i>
+                                <span class="value">${booking.Cleaning_Frequency}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <!-- Contact Details Card -->
+                <div class="info-card contact-card">
+                    <div class="card-header">
+                        <i class="fas fa-phone"></i>
+                        <h3>Contact Details</h3>
+                    </div>
+                    <div class="card-body">
+                        ${booking.contact_date ? `
+                        <div class="info-item">
+                            <label>Last Contact Date</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-phone-volume"></i>
+                                <span class="value">${new Date(booking.contact_date).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        ` : `
+                        <div class="info-item">
+                            <label>Contact Status</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-phone-slash"></i>
+                                <span class="value pending">Not Contacted Yet</span>
+                            </div>
+                        </div>
+                        `}
+                        ${booking.Customer?.Phone ? `
+                        <div class="contact-actions">
+                            <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                                <i class="fas fa-phone"></i> Call Customer
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <!-- Property Information Card -->
+                ${booking.Property_Type || booking.Property_Size || booking.Address ? `
+                <div class="info-card property-card">
+                    <div class="card-header">
+                        <i class="fas fa-home"></i>
+                        <h3>Property Details</h3>
+                    </div>
+                    <div class="card-body">
+                        ${booking.Property_Type ? `
+                        <div class="info-item">
+                            <label>Property Type</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-building"></i>
+                                <span class="value">${booking.Property_Type}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${booking.Property_Size ? `
+                        <div class="info-item">
+                            <label>Property Size</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-expand"></i>
+                                <span class="value">${booking.Property_Size}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${booking.Address ? `
+                        <div class="info-item full-width">
+                            <label>Service Address</label>
+                            <div class="value-with-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span class="value">${booking.Address}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Quotation Information Card -->
+                <div class="info-card quote-card">
+                    <div class="card-header">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <h3>Quotation</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="quote-amount-display ${booking.Quoted_Amount ? 'has-quote' : 'no-quote'}">
+                            <div class="amount-main">
+                                <span class="amount-label">Quoted Amount</span>
+                                <div class="amount-value">
+                                    ${booking.Quoted_Amount ?
+          `<span class="currency">R</span>
+                                         <span class="amount">${parseFloat(booking.Quoted_Amount).toFixed(2)}</span>` :
+          '<span class="pending-text">Pending Assessment</span>'
+        }
+                                </div>
+                            </div>
+                            <div class="quote-status ${booking.Quoted_Amount ? 'approved' : 'pending'}">
+                                <i class="fas fa-${booking.Quoted_Amount ? 'check-circle' : 'clock'}"></i>
+                                <span>${booking.Quoted_Amount ? 'Quote Provided' : 'Awaiting Assessment'}</span>
+                            </div>
+                        </div>
+                        
+                        ${booking.quote_breakdown ? `
+                        <div class="info-item full-width">
+                            <label>Quote Breakdown</label>
+                            <div class="notes-content">
+                                <p>${booking.quote_breakdown}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <!-- Special Instructions Card -->
+                ${booking.Special_Instructions ? `
+                <div class="info-card instructions-card full-width">
+                    <div class="card-header">
+                        <i class="fas fa-sticky-note"></i>
+                        <h3>Special Instructions & Requirements</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="instructions-content">
+                            <div class="instructions-text">
+                                <p>${booking.Special_Instructions}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Admin Notes Section -->
+                <div class="info-card notes-card full-width">
+                    <div class="card-header">
+                        <i class="fas fa-edit"></i>
+                        <h3>Admin Notes & Call Logs</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="admin-notes-section">
+                            <div class="existing-notes">
+                                <div class="admin-notes-content">
+                                    ${this.loadAdminNotes(booking.ID) ?
+          `<div class="notes-display">
+                                            <p>${this.loadAdminNotes(booking.ID)}</p>
+                                            <small class="notes-meta">Last updated: ${new Date().toLocaleString()}</small>
+                                         </div>` :
+          '<p class="no-notes">No call notes yet. Add notes about customer discussions and requirements.</p>'
+        }
+                                </div>
+                            </div>
+                            <div class="add-notes-section">
+                                <textarea 
+                                    id="adminNotesInput" 
+                                    placeholder="Add call notes: customer preferences, pricing discussion, special requirements, follow-up actions..."
+                                    rows="4"
+                                >${this.loadAdminNotes(booking.ID) || ''}</textarea>
+                                <div class="notes-actions">
+                                    <button class="btn btn-primary btn-sm" onclick="adminDashboard.saveAdminNotes(${booking.ID})">
+                                        <i class="fas fa-save"></i> Save Notes
+                                    </button>
+                                    ${booking.Customer?.Phone ? `
+                                        <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                                            <i class="fas fa-phone"></i> Call & Add Notes
+                                        </button>
+                                        <button class="btn btn-info btn-sm" onclick="adminDashboard.markAsCalled(${booking.ID})">
+                                            <i class="fas fa-check"></i> Mark Contacted
+                                        </button>
+                                    ` : ''}
+                                </div>
+                                <small class="help-text">Notes are saved in your browser and only visible to admins.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-  `;
+    
+    <!-- Enhanced Footer with Dynamic Actions -->
+    <div class="modal-footer enhanced-footer">
+        <div class="footer-main">
+            <button class="btn btn-secondary btn-close" onclick="this.closest('.modal').remove()">
+                <i class="fas fa-times"></i>
+                Close
+            </button>
+            
+            <div class="action-buttons">
+                <!-- Dynamic Status Actions -->
+                ${booking.Status === 'pending' || booking.Status === 'requested' ? `
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="adminDashboard.approveBooking(${booking.ID})">
+                        <i class="fas fa-check"></i>
+                        Approve
+                    </button>
+                    <button class="btn btn-danger" onclick="adminDashboard.declineBooking(${booking.ID})">
+                        <i class="fas fa-times"></i>
+                        Decline
+                    </button>
+                    ${booking.Customer?.Phone ? `
+                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                        <i class="fas fa-phone"></i>
+                        Call Customer
+                    </button>
+                    ` : ''}
+                </div>
+                ` : ''}
+                
+                ${booking.Status === 'contacted' ? `
+                <div class="btn-group">
+                    <button class="btn btn-warning" onclick="adminDashboard.markAsInProgress(${booking.ID})">
+                        <i class="fas fa-play-circle"></i>
+                        Move to In Progress
+                    </button>
+                    ${booking.Customer?.Phone ? `
+                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                        <i class="fas fa-phone"></i>
+                        Call Again
+                    </button>
+                    ` : ''}
+                </div>
+                ` : ''}
+                
+                ${booking.Status === 'in_progress' ? `
+                <div class="btn-group">
+                    ${booking.Customer?.Phone ? `
+                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                        <i class="fas fa-phone"></i>
+                        Call Customer
+                    </button>
+                    ` : ''}
+                    <button class="btn btn-success" onclick="adminDashboard.approveBooking(${booking.ID})">
+                        <i class="fas fa-check"></i>
+                        Approve
+                    </button>
+                </div>
+                ` : ''}
+                
+                ${booking.Status === 'quoted' ? `
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="adminDashboard.approveBooking(${booking.ID})">
+                        <i class="fas fa-check"></i>
+                        Approve Booking
+                    </button>
+                    <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'confirmed')">
+                        <i class="fas fa-check-double"></i>
+                        Confirm
+                    </button>
+                </div>
+                ` : ''}
+                
+                ${booking.Status === 'approved' ? `
+                <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'confirmed')">
+                    <i class="fas fa-check-double"></i>
+                    Mark Confirmed
+                </button>
+                ` : ''}
+                
+                ${booking.Status === 'confirmed' ? `
+                <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'completed')">
+                    <i class="fas fa-flag-checkered"></i>
+                    Mark Complete
+                </button>
+                ` : ''}
 
-    document.body.appendChild(modal);
+                <!-- Show View Details only for completed/cancelled bookings -->
+                ${['completed', 'cancelled', 'declined'].includes(booking.Status) ? `
+                <button class="btn btn-secondary" onclick="adminDashboard.viewBookingDetails(${booking.ID})">
+                    <i class="fas fa-eye"></i>
+                    View Details
+                </button>
+                ` : ''}
 
-    // Add escape key listener
+                <!-- Quick Status Actions -->
+                <div class="quick-actions">
+                    ${!['cancelled', 'completed', 'declined'].includes(booking.Status) ? `
+                    <button class="btn btn-danger" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'cancelled')">
+                        <i class="fas fa-times"></i>
+                        Cancel Booking
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer Meta -->
+        <div class="footer-meta">
+            <span class="meta-info">
+                <i class="fas fa-info-circle"></i>
+                Booking ID: #${booking.ID} • 
+                Created: ${new Date(booking.created_at || booking.Created_At || Date.now()).toLocaleDateString()}
+            </span>
+        </div>
+    </div>
+</div>
+`;
+
+      document.body.appendChild(modal);
+      this.addEnhancedModalStyles();
+
+      // Add escape key and click outside handlers
+      this.setupModalHandlers(modal);
+    } catch (error) {
+      console.error('Error showing booking details modal:', error);
+      this.showNotification('Failed to load booking details', 'error');
+    }
+  }
+  markAsInProgress(bookingId) {
+    this.updateBookingStatus(bookingId, 'in_progress');
+  }
+
+  // Helper method to get booking from cache (you'll need to implement based on your data structure)
+  getBookingFromCache(bookingId) {
+    // This is a simplified version - you'll need to implement based on how you store bookings
+    const bookingsGrid = document.getElementById('bookingsGrid');
+    if (bookingsGrid) {
+      const bookingCard = bookingsGrid.querySelector(`[data-booking-id="${bookingId}"]`);
+      if (bookingCard) {
+        // Extract data from the card or use your existing data structure
+        return {
+          Customer: {
+            Phone: bookingCard.querySelector('.customer-contact span')?.textContent.replace('📞 ', ''),
+            Email: bookingCard.querySelector('.customer-contact span:nth-child(2)')?.textContent.replace('✉️ ', ''),
+            Full_Name: bookingCard.querySelector('.customer-main-info strong')?.textContent
+          }
+        };
+      }
+    }
+    return null;
+  }
+  // Setup modal handlers
+  setupModalHandlers(modal) {
+    // Escape key handler
     const escapeHandler = (e) => {
       if (e.key === 'Escape') {
         modal.remove();
@@ -2510,29 +3511,940 @@ class AdminDashboard {
       }
     };
     document.addEventListener('keydown', escapeHandler);
+
+    // Click outside handler
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    });
+
+    // Store reference for cleanup
+    modal._escapeHandler = escapeHandler;
   }
 
-  // Helper methods for the modal
-  getStatusIcon(status) {
-    const icons = {
-      'requested': 'clock',
-      'confirmed': 'check-circle',
-      'completed': 'check-double',
-      'cancelled': 'times-circle',
-      'quoted': 'dollar-sign'
-    };
-    return icons[status] || 'info-circle';
+  // Save quick admin notes
+  async saveQuickNotes(bookingId) {
+    try {
+      const notesInput = document.getElementById('quickAdminNotes');
+      const notes = notesInput.value.trim();
+
+      if (!notes) {
+        this.showNotification('Please enter some notes', 'error');
+        return;
+      }
+
+      this.showLoading('Saving notes...');
+
+      const response = await this.api.updateBooking(bookingId, {
+        admin_notes: notes,
+        last_updated: new Date().toISOString()
+      });
+
+      if (response.success) {
+        this.showNotification('Notes saved successfully', 'success');
+        notesInput.value = '';
+      }
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      this.showNotification('Failed to save notes', 'error');
+    } finally {
+      this.hideLoading();
+    }
   }
 
-  formatStatus(status) {
-    const statusMap = {
-      'requested': 'Quotation Requested',
-      'confirmed': 'Confirmed',
-      'completed': 'Completed',
-      'cancelled': 'Cancelled',
-      'quoted': 'Quoted'
+  async markAsContacted(bookingId) {
+    try {
+      this.showLoading('Marking as contacted...');
+
+      const contactData = {
+        Status: 'contacted',
+        contact_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      };
+
+      console.log('📞 MARKING AS CONTACTED:', { bookingId, contactData });
+
+      const response = await this.api.updateBookingStatus(bookingId, contactData);
+
+      if (response.success) {
+        this.showNotification('Booking marked as contacted successfully', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      } else {
+        throw new Error(response.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('❌ Error marking as contacted:', error);
+      this.showNotification(
+        error.response?.data?.message ||
+        'Failed to mark as contacted',
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  async scheduleConsultation(bookingId) {
+    try {
+      // Simple consultation scheduling - mark as consultation_scheduled
+      this.showLoading('Scheduling consultation...');
+
+      const consultationData = {
+        Status: 'consultation_scheduled',
+        consultation_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      };
+
+      const response = await this.api.updateBookingStatus(bookingId, consultationData);
+
+      if (response.success) {
+        this.showNotification('Consultation scheduled successfully', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      }
+    } catch (error) {
+      console.error('Error scheduling consultation:', error);
+      this.showNotification('Failed to schedule consultation', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Enhanced consultation scheduling with notes
+  async scheduleConsultation(bookingId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal consultation-modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-calendar-plus"></i> Schedule Consultation</h2>
+            <button class="modal-close" onclick="this.closest('.modal').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="consultationForm">
+                <div class="form-group">
+                    <label for="consultationType">Consultation Type *</label>
+                    <select id="consultationType" required>
+                        <option value="">Select consultation type...</option>
+                        <option value="virtual">Virtual Consultation (Video Call)</option>
+                        <option value="on_site">On-Site Visit</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="consultationDate">Date & Time *</label>
+                    <input type="datetime-local" id="consultationDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="consultationDuration">Estimated Duration</label>
+                    <select id="consultationDuration">
+                        <option value="30">30 minutes</option>
+                        <option value="45">45 minutes</option>
+                        <option value="60" selected>1 hour</option>
+                        <option value="90">1.5 hours</option>
+                        <option value="120">2 hours</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="consultationNotes">Consultation Notes</label>
+                    <textarea id="consultationNotes" 
+                              placeholder="Add details about the consultation: meeting link, address, specific areas to focus on, customer preferences, special requirements, etc..."
+                              rows="4"></textarea>
+                    <small class="help-text">These notes will help you remember important details during the consultation.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerPreferences">Customer Preferences & Concerns</label>
+                    <textarea id="customerPreferences" 
+                              placeholder="Note any specific preferences, budget concerns, or special requests mentioned by the customer..."
+                              rows="3"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+            <button class="btn btn-primary" onclick="adminDashboard.confirmConsultation(${bookingId})">
+                <i class="fas fa-save"></i> Save Consultation Details
+            </button>
+        </div>
+    </div>
+    `;
+
+    // Set minimum date to today
+    const dateInput = document.getElementById('consultationDate');
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    dateInput.min = localDateTime;
+
+    document.body.appendChild(modal);
+  }
+
+  // Enhanced confirm consultation with better data handling
+  async confirmConsultation(bookingId) {
+    try {
+      const typeInput = document.getElementById('consultationType');
+      const dateInput = document.getElementById('consultationDate');
+      const durationInput = document.getElementById('consultationDuration');
+      const notesInput = document.getElementById('consultationNotes');
+      const preferencesInput = document.getElementById('customerPreferences');
+
+      if (!typeInput.value || !dateInput.value) {
+        this.showNotification('Please select consultation type and date', 'error');
+        return;
+      }
+
+      this.showLoading('Saving consultation details...');
+
+      const consultationData = {
+        Status: 'consultation_scheduled',
+        consultation_type: typeInput.value,
+        consultation_date: dateInput.value,
+        consultation_duration: durationInput.value,
+        consultation_notes: notesInput.value,
+        customer_preferences: preferencesInput.value,
+        last_updated: new Date().toISOString()
+      };
+
+      // Use the correct API endpoint
+      const response = await this.api.updateBooking(bookingId, consultationData);
+
+      if (response.success) {
+        this.showNotification('Consultation scheduled successfully! Notes saved.', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      } else {
+        throw new Error(response.message || 'Failed to schedule consultation');
+      }
+    } catch (error) {
+      console.error('Error scheduling consultation:', error);
+      this.showNotification(error.message || 'Failed to schedule consultation', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Simple mark as contacted with notes option
+  async markAsContacted(bookingId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal contact-notes-modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-phone"></i> Customer Contacted</h2>
+            <button class="modal-close" onclick="this.closest('.modal').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="contactNotesForm">
+                <div class="form-group">
+                    <label for="contactNotes">Contact Notes (Optional)</label>
+                    <textarea id="contactNotes" 
+                              placeholder="Add notes from your call: customer availability, preferred consultation type, initial concerns, etc..."
+                              rows="4"></textarea>
+                    <small class="help-text">These notes will help you remember important details for the consultation.</small>
+                </div>
+                
+                <div class="contact-summary">
+                    <div class="summary-item">
+                        <label>
+                            <input type="checkbox" id="prefersVirtual">
+                            Customer prefers virtual consultation
+                        </label>
+                    </div>
+                    <div class="summary-item">
+                        <label>
+                            <input type="checkbox" id="prefersOnSite">
+                            Customer prefers on-site visit
+                        </label>
+                    </div>
+                    <div class="summary-item">
+                        <label>
+                            <input type="checkbox" id="urgentRequest">
+                            Mark as urgent request
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+            <button class="btn btn-primary" onclick="adminDashboard.confirmContacted(${bookingId})">
+                <i class="fas fa-check"></i> Mark as Contacted
+            </button>
+        </div>
+    </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  // Confirm contacted status
+  async confirmContacted(bookingId) {
+    try {
+      const notesInput = document.getElementById('contactNotes');
+      const prefersVirtual = document.getElementById('prefersVirtual')?.checked || false;
+      const prefersOnSite = document.getElementById('prefersOnSite')?.checked || false;
+      const urgentRequest = document.getElementById('urgentRequest')?.checked || false;
+
+      this.showLoading('Updating status...');
+
+      const contactData = {
+        Status: 'contacted',
+        contact_date: new Date().toISOString(),
+        contact_notes: notesInput.value,
+        customer_prefers_virtual: prefersVirtual,
+        customer_prefers_onsite: prefersOnSite,
+        is_urgent: urgentRequest,
+        last_updated: new Date().toISOString()
+      };
+
+      const response = await this.api.updateBookingStatus(bookingId, contactData);
+
+      if (response.success) {
+        this.showNotification('Booking marked as contacted with notes saved', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      }
+    } catch (error) {
+      console.error('Error marking as contacted:', error);
+      this.showNotification('Failed to update status', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Enhanced quote modal
+  openQuoteModal(bookingId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal quote-modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>
+                <i class="fas fa-calculator"></i>
+                Create Quotation
+            </h2>
+            <button class="modal-close" onclick="this.closest('.modal').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="quoteForm">
+                <div class="form-group">
+                    <label for="quotedAmount">Quoted Amount (R)</label>
+                    <input type="number" id="quotedAmount" step="0.01" min="0" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label for="quoteBreakdown">Breakdown (Optional)</label>
+                    <textarea id="quoteBreakdown" placeholder="Breakdown of costs, materials, labor, etc..." rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="quoteValidity">Quote Validity (Days)</label>
+                    <input type="number" id="quoteValidity" value="30" min="1" max="90">
+                </div>
+                <div class="form-group">
+                    <label for="quoteNotes">Additional Notes</label>
+                    <textarea id="quoteNotes" placeholder="Any special terms or conditions..." rows="3"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+            <button class="btn btn-primary" onclick="adminDashboard.submitQuotation(${bookingId})">
+                <i class="fas fa-paper-plane"></i>
+                Send Quotation
+            </button>
+        </div>
+    </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  // Submit quotation
+  async submitQuotation(bookingId) {
+    try {
+      const amountInput = document.getElementById('quotedAmount');
+      const breakdownInput = document.getElementById('quoteBreakdown');
+      const validityInput = document.getElementById('quoteValidity');
+      const notesInput = document.getElementById('quoteNotes');
+
+      if (!amountInput.value || parseFloat(amountInput.value) <= 0) {
+        this.showNotification('Please enter a valid amount', 'error');
+        return;
+      }
+
+      this.showLoading('Submitting quotation...');
+
+      const quoteData = {
+        quotedAmount: parseFloat(amountInput.value),
+        status: 'quoted',
+        quote_breakdown: breakdownInput.value,
+        quote_validity_days: parseInt(validityInput.value) || 30,
+        quote_notes: notesInput.value,
+        last_updated: new Date().toISOString()
+      };
+
+      console.log('💰 SUBMITTING QUOTATION:', { bookingId, quoteData });
+
+      const response = await this.api.updateBookingQuote(bookingId, quoteData);
+
+      if (response.success) {
+        this.showNotification('Quotation sent successfully', 'success');
+        this.closeAllModals();
+        await this.loadBookings();
+      } else {
+        throw new Error(response.message || 'Failed to submit quotation');
+      }
+    } catch (error) {
+      console.error('❌ Error submitting quotation:', error);
+      this.showNotification(
+        error.response?.data?.message ||
+        'Failed to submit quotation',
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Add enhanced CSS styles with proper scrolling
+  addEnhancedModalStyles() {
+    if (document.getElementById('enhanced-modal-styles')) return;
+
+    const styles = `
+    <style id="enhanced-modal-styles">
+    .modal.booking-details-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .enhanced-modal {
+        width: 100%;
+        max-width: 1000px;
+        max-height: 90vh;
+        height: auto;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        border: 1px solid #e1e5e9;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: white;
+    }
+
+    .enhanced-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        border-bottom: none;
+        flex-shrink: 0;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .header-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+
+    .header-text h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .booking-reference {
+        margin: 0.25rem 0 0 0;
+        opacity: 0.8;
+        font-size: 0.9rem;
+    }
+
+    .enhanced-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: absolute;
+        right: 1.5rem;
+        top: 1.5rem;
+    }
+
+    .enhanced-close:hover {
+        background: rgba(255,255,255,0.3);
+        transform: rotate(90deg);
+    }
+
+    .enhanced-body {
+        flex: 1;
+        padding: 0;
+        background: #f8f9fa;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0;
+    }
+
+    /* Scrollbar Styling */
+    .scrollable-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .scrollable-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .scrollable-content::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .scrollable-content::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .status-banner-enhanced {
+        padding: 1.5rem 2rem;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        flex-shrink: 0;
+    }
+
+    .status-banner-enhanced.success { background: linear-gradient(135deg, #4CAF50, #45a049); }
+    .status-banner-enhanced.warning { background: linear-gradient(135deg, #ff9800, #f57c00); }
+    .status-banner-enhanced.danger { background: linear-gradient(135deg, #f44336, #d32f2f); }
+    .status-banner-enhanced.info { background: linear-gradient(135deg, #2196F3, #1976D2); }
+    .status-banner-enhanced.primary { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .status-banner-enhanced.secondary { background: linear-gradient(135deg, #6c757d, #545b62); }
+
+    .status-main {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .status-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+
+    .status-info h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .status-info p {
+        margin: 0.25rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .status-meta {
+        display: flex;
+        gap: 1.5rem;
+    }
+
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .meta-label {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+
+    .meta-value {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .enhanced-grid {
+        padding: 2rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e1e5e9;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+
+    .info-card.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e1e5e9;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .card-header i {
+        color: #667eea;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .info-item {
+        margin-bottom: 1rem;
+    }
+
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .info-item label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .value-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .value-with-icon i {
+        color: #667eea;
+        width: 16px;
+    }
+
+    .value {
+        font-weight: 500;
+        color: #2c3e50;
+    }
+
+    .badge.value {
+        background: #e9ecef;
+        color: #495057;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+
+    .category-badge {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .address-display-enhanced {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .address-icon {
+        font-size: 1.5rem;
+        color: #667eea;
+        margin-top: 0.25rem;
+    }
+
+    .address-details h4 {
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .address-text {
+        margin: 0;
+        color: #495057;
+        line-height: 1.5;
+    }
+
+    .customer-address {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .customer-address small {
+        color: #6c757d;
+    }
+
+    .quote-amount-display {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+
+    .quote-amount-display.has-quote {
+        background: #e8f5e8;
+        border: 1px solid #4caf50;
+    }
+
+    .quote-amount-display.no-quote {
+        background: #fff3e0;
+        border: 1px solid #ff9800;
+    }
+
+    .amount-main {
+        margin-bottom: 1rem;
+    }
+
+    .amount-label {
+        display: block;
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .amount-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .currency {
+        color: #4caf50;
+        margin-right: 0.25rem;
+    }
+
+    .pending-text {
+        color: #ff9800;
+        font-style: italic;
+    }
+
+    .quote-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .quote-status.approved {
+        background: #4caf50;
+        color: white;
+    }
+
+    .quote-status.pending {
+        background: #ff9800;
+        color: white;
+    }
+
+    .instructions-content {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+    }
+
+    .instructions-text p {
+        margin: 0;
+        color: #495057;
+        line-height: 1.6;
+    }
+
+    .enhanced-footer {
+        padding: 1.5rem 2rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e1e5e9;
+        flex-shrink: 0;
+    }
+
+    .footer-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-icon {
+        background: white;
+        border: 1px solid #dee2e6;
+        color: #6c757d;
+        padding: 0.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-icon:hover {
+        background: #f8f9fa;
+        color: #495057;
+    }
+
+    .footer-meta {
+        text-align: center;
+    }
+
+    .meta-info {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+        .modal.booking-details-modal {
+            padding: 10px;
+        }
+        
+        .enhanced-modal {
+            max-height: 95vh;
+        }
+        
+        .enhanced-grid {
+            grid-template-columns: 1fr;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        
+        .footer-main {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .btn-group, .quick-actions {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .status-banner-enhanced {
+            padding: 1rem;
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .status-meta {
+            justify-content: center;
+        }
+    }
+    </style>
+    `;
+
+    document.head.insertAdjacentHTML('beforeend', styles);
+  }
+
+  // Update helper methods
+  getStatusDescription(status) {
+    const descriptions = {
+      'requested': 'Quotation request received and awaiting review',
+      'pending': 'Booking is pending admin review and approval',
+      'contacted': 'Initial contact made with customer',
+      'in_progress': 'Consultation and quotation in progress',
+      'quoted': 'Quotation has been provided to customer',
+      'approved': 'Booking has been approved by admin',
+      'confirmed': 'Customer has confirmed the booking',
+      'completed': 'Service has been completed',
+      'cancelled': 'Booking has been cancelled',
+      'declined': 'Booking has been declined by admin'
     };
-    return statusMap[status] || status;
+    return descriptions[status] || 'Unknown status';
+  }
+
+  getStatusColor(status) {
+    const colors = {
+      'requested': 'warning',
+      'pending': 'warning',
+      'contacted': 'primary',
+      'in_progress': 'info',
+      'quoted': 'success',
+      'approved': 'success',
+      'confirmed': 'success',
+      'completed': 'success',
+      'cancelled': 'danger',
+      'declined': 'danger'
+    };
+    return colors[status] || 'secondary';
   }
   getMockBookingCards() {
     return [
@@ -3423,7 +5335,26 @@ function previewServiceImage(event) {
     console.error('Error previewing service image:', error);
   }
 }
+// Store notes in browser localStorage
+const saveAdminNotes = (bookingId, notes) => {
+  const allNotes = JSON.parse(localStorage.getItem('bookingNotes') || '{}');
+  allNotes[bookingId] = {
+    notes,
+    lastUpdated: new Date().toISOString()
+  };
+  localStorage.setItem('bookingNotes', JSON.stringify(allNotes));
+};
 
+const statusInfo = {
+  label: this.formatStatus(booking.Status),
+  description: this.getStatusDescription(booking.Status),
+  color: this.getStatusColor(booking.Status),
+  icon: this.getStatusIcon(booking.Status)
+};
+const getAdminNotes = (bookingId) => {
+  const allNotes = JSON.parse(localStorage.getItem('bookingNotes') || '{}');
+  return allNotes[bookingId]?.notes || '';
+};
 // Make gallery methods globally available
 window.loadGallery = () => window.adminDashboard?.loadGallery();
 window.deleteGalleryItem = (id) => window.adminDashboard?.deleteGalleryItem(id);

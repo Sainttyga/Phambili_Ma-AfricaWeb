@@ -306,6 +306,7 @@ exports.generateTemporaryPassword = () => {
   return password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 // In adminController.js - Fix the getAllAdmins method
+// In adminController.js - Update getAllAdmins method
 exports.getAllAdmins = async (req, res) => {
   try {
     console.log('Getting all admins for user:', req.user.id);
@@ -325,8 +326,8 @@ exports.getAllAdmins = async (req, res) => {
       attributes: {
         exclude: ['Password', 'login_attempts', 'locked_until']
       },
-      // FIX: Use the correct database column names
-      order: [['Role', 'DESC'], ['created_at', 'DESC']] // main_admins first
+      // Show oldest first (new ones will appear at bottom)
+      order: [['created_at', 'ASC']]
     });
 
     console.log(`Found ${admins.length} admins`);
@@ -1669,6 +1670,218 @@ exports.checkAdminPermissions = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: 'Error checking admin permissions'
+    });
+  }
+};
+// In adminController.js - Add this method
+exports.getAllBookingsForAdmin = async (req, res) => {
+  try {
+    const { limit = 10, page = 1, status, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    console.log('📋 Fetching bookings for admin workflow:', { status, search });
+
+    const whereClause = {};
+    if (status && status !== 'all') {
+      whereClause.Status = status;
+    }
+
+    if (search) {
+      whereClause[Op.or] = [
+        { '$Customer.Full_Name$': { [Op.like]: `%${search}%` } },
+        { '$Service.Name$': { [Op.like]: `%${search}%` } },
+        { Address: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const { count, rows: bookings } = await Booking.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: Customer,
+          attributes: ['ID', 'Full_Name', 'Email', 'Phone'],
+          required: false
+        },
+        {
+          model: Service,
+          attributes: ['ID', 'Name', 'Category', 'Duration'],
+          required: false
+        }
+      ],
+      order: [['Date', 'ASC'], ['Time', 'ASC']], // Show upcoming bookings first
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // Auto-update past bookings to 'completed'
+    await this.autoUpdatePastBookings();
+
+    res.json({
+      success: true,
+      bookings: bookings.map(booking => ({
+        ID: booking.ID,
+        Customer_ID: booking.Customer_ID,
+        Service_ID: booking.Service_ID,
+        Date: booking.Date,
+        Time: booking.Time,
+        Duration: booking.Duration,
+        Address: booking.Address,
+        Special_Instructions: booking.Special_Instructions,
+        Status: booking.Status,
+        Quoted_Amount: booking.Quoted_Amount,
+        contact_date: booking.contact_date,
+        consultation_date: booking.consultation_date,
+        completed_date: booking.completed_date,
+        created_at: booking.created_at,
+        updated_at: booking.updated_at,
+        Customer: booking.Customer ? {
+          ID: booking.Customer.ID,
+          Full_Name: booking.Customer.Full_Name,
+          Email: booking.Customer.Email,
+          Phone: booking.Customer.Phone
+        } : null,
+        Service: booking.Service ? {
+          ID: booking.Service.ID,
+          Name: booking.Service.Name,
+          Category: booking.Service.Category,
+          Duration: booking.Service.Duration
+        } : null
+      })),
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+      totalBookings: count
+    });
+
+  } catch (error) {
+    console.error('❌ Get bookings for admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching bookings: ' + error.message
+    });
+  }
+};
+// Auto-update past bookings to completed
+// Enhanced auto-update for past bookings
+exports.autoUpdatePastBookings = async () => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Update past approved/confirmed bookings to completed
+    const result = await Booking.update(
+      { 
+        Status: 'completed',
+        completed_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      },
+      {
+        where: {
+          Date: { [Op.lt]: today },
+          Status: { [Op.in]: ['approved', 'confirmed'] }
+        }
+      }
+    );
+
+    // Auto-decline very old pending bookings (older than 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const autoDeclineResult = await Booking.update(
+      {
+        Status: 'declined',
+        decline_reason: 'auto_expired',
+        decline_notes: 'Automatically declined due to inactivity',
+        declined_date: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      },
+      {
+        where: {
+          created_at: { [Op.lt]: sevenDaysAgo },
+          Status: 'pending'
+        }
+      }
+    );
+
+    if (result[0] > 0) {
+      console.log(`✅ Auto-updated ${result[0]} past bookings to completed`);
+    }
+    
+    if (autoDeclineResult[0] > 0) {
+      console.log(`🕒 Auto-declined ${autoDeclineResult[0]} expired pending bookings`);
+    }
+  } catch (error) {
+    console.error('Error auto-updating past bookings:', error);
+  }
+};
+// In adminController.js - Add this method
+exports.getBookingDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`📋 Fetching booking details for ID: ${id}`);
+
+    const booking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          attributes: ['ID', 'Full_Name', 'Email', 'Phone', 'Address']
+        },
+        {
+          model: Service,
+          attributes: ['ID', 'Name', 'Description', 'Duration', 'Category', 'Image_URL']
+        }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    console.log(`✅ Found booking details for ID: ${id}`);
+
+    res.json({
+      success: true,
+      booking: {
+        ID: booking.ID,
+        Customer_ID: booking.Customer_ID,
+        Service_ID: booking.Service_ID,
+        Date: booking.Date,
+        Time: booking.Time,
+        Duration: booking.Duration,
+        Address: booking.Address,
+        Special_Instructions: booking.Special_Instructions,
+        Status: booking.Status,
+        Quoted_Amount: booking.Quoted_Amount,
+        Property_Type: booking.Property_Type,
+        Property_Size: booking.Property_Size,
+        Cleaning_Frequency: booking.Cleaning_Frequency,
+        created_at: booking.created_at,
+        updated_at: booking.updated_at,
+        Customer: booking.Customer ? {
+          ID: booking.Customer.ID,
+          Full_Name: booking.Customer.Full_Name,
+          Email: booking.Customer.Email,
+          Phone: booking.Customer.Phone,
+          Address: booking.Customer.Address
+        } : null,
+        Service: booking.Service ? {
+          ID: booking.Service.ID,
+          Name: booking.Service.Name,
+          Description: booking.Service.Description,
+          Duration: booking.Service.Duration,
+          Category: booking.Service.Category,
+          Image_URL: booking.Service.Image_URL
+        } : null
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get booking details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching booking details: ' + error.message
     });
   }
 };

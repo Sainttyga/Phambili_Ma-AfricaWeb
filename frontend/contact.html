@@ -62,13 +62,24 @@
             <li class="nav-item"><a href="services.html" class="nav-link">Services</a></li>
             <li class="nav-item"><a href="products.html" class="nav-link">Products</a></li>
             <li class="nav-item"><a href="gallery.html" class="nav-link">Gallery</a></li>
-            <li class="nav-item"><a href="login.html" class="nav-link">Log In</a></li>
+
+            <!-- Dynamic login/logout -->
+            <li class="nav-item" id="auth-nav-item">
+                <a href="login.html" class="nav-link">Log In</a>
+            </li>
+
+            <!-- Admin link (only shows for admins) -->
+            <li class="nav-item admin-only">
+                <a href="admin-dashboard.html" class="nav-link">Admin</a>
+            </li>
+
             <li class="nav-item">
-                <a href="booking.html" class="nav-link book-now-btn">
+                <a href="booking.html" class="nav-link book-now-btn ">
                     Book Now
                     <svg viewBox="0 0 24 24" width="20" height="20" style="margin-left: 8px;">
                         <path fill="currentColor" d="M4 12v1h13v-1H4zm13 5v-1H4v1h13zm0-9V7H4v1h13z" />
                     </svg>
+
                 </a>
             </li>
         </ul>
