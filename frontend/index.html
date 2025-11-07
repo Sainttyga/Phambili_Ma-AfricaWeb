@@ -261,6 +261,7 @@
             </div>
         </div>
     </section>
+
     <!-- Index Quote Request Section -->
     <section id="index-quote" class="index-quote-section">
         <div class="index-quote-header">
@@ -269,9 +270,26 @@
             </p>
         </div>
 
-        <div class="index-quote-container">
+         <div class="index-quote-container">
             <div class="index-quote-form-wrapper">
-                <form id="index-quoteForm" class="index-quote-form">
+                <!-- Loading State -->
+                <div id="quote-loading" class="loading-state" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Loading form data...</p>
+                </div>
+                
+                <!-- Error State -->
+                <div id="quote-error" class="error-state" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Unable to Load Form</h3>
+                    <p>We're having trouble loading the form. Please try again.</p>
+                    <button class="index-quote-btn" onclick="QuoteForm.loadFormData()">
+                        <i class="fas fa-refresh"></i> Try Again
+                    </button>
+                </div>
+                
+                <!-- Main Form -->
+                <form id="index-quoteForm" class="index-quote-form" style="display: none;">
                     <div class="index-form-group">
                         <label for="index-quoteName" class="index-form-label">Full Name</label>
                         <input type="text" id="index-quoteName" class="index-form-control" required>
@@ -293,47 +311,14 @@
                         <label for="index-quoteType" class="index-form-label">Property Type</label>
                         <select id="index-quoteType" class="index-form-control" required>
                             <option value="">-- Select property type --</option>
-                            <option value="residential">Residential</option>
-                            <option value="commercial">Commercial</option>
-                            <option value="industrial">Industrial</option>
+                            <!-- Property types will be populated from database -->
                         </select>
                     </div>
 
                     <div class="index-form-group">
                         <label class="index-form-label">Services Required</label>
-                        <div class="index-checkbox-group">
-                            <div class="index-checkbox-item">
-                                <input type="checkbox" id="index-service-standard" name="index-services"
-                                    value="standard" class="index-checkbox-input">
-                                <label for="index-service-standard" class="index-checkbox-label">Standard
-                                    Cleaning</label>
-                            </div>
-                            <div class="index-checkbox-item">
-                                <input type="checkbox" id="index-service-deep" name="index-services" value="deep"
-                                    class="index-checkbox-input">
-                                <label for="index-service-deep" class="index-checkbox-label">Deep Cleaning</label>
-                            </div>
-                            <div class="index-checkbox-item">
-                                <input type="checkbox" id="index-service-window" name="index-services" value="window"
-                                    class="index-checkbox-input">
-                                <label for="index-service-window" class="index-checkbox-label">Window Cleaning</label>
-                            </div>
-                            <div class="index-checkbox-item">
-                                <input type="checkbox" id="index-service-carpet" name="index-services" value="carpet"
-                                    class="index-checkbox-input">
-                                <label for="index-service-carpet" class="index-checkbox-label">Carpet Cleaning</label>
-                            </div>
-                            <div class="index-checkbox-item">
-                                <input type="checkbox" id="index-service-upholstery" name="index-services"
-                                    value="upholstery" class="index-checkbox-input">
-                                <label for="index-service-upholstery" class="index-checkbox-label">Upholstery
-                                    Cleaning</label>
-                            </div>
-                            <div class="index-checkbox-item">
-                                <input type="checkbox" id="index-service-other" name="index-services" value="other"
-                                    class="index-checkbox-input">
-                                <label for="index-service-other" class="index-checkbox-label">Other</label>
-                            </div>
+                        <div class="index-checkbox-group" id="services-checkbox-group">
+                            <!-- Services will be populated from database -->
                         </div>
                     </div>
 
@@ -345,10 +330,8 @@
                     <div class="index-form-submit">
                         <button type="submit" class="index-quote-btn">
                             <span>Request Quote</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                                viewBox="0 0 16 16">
-                                <path fill-rule="evenodd"
-                                    d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
                             </svg>
                         </button>
                     </div>

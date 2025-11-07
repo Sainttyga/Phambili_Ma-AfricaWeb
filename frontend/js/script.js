@@ -4,7 +4,7 @@ class RateLimitManager {
     this.requests = new Map();
     this.maxRequests = 15; // Increased from 10
     this.windowMs = 60000; // 1 minute window
-    this.retryAfter = 3000; // Reduced from 5000
+    this.retryAfter = 3000; // Reduced from 3306
     this.globalRequestCount = 0;
     this.lastGlobalRequest = 0;
     this.globalDelay = 300; // Base delay between requests
@@ -72,7 +72,7 @@ class RateLimitManager {
 // ========== ENHANCED API CLIENT WITH RATE LIMIT COORDINATION ==========
 class EnhancedAPIClient {
   constructor() {
-    this.baseURL = 'http://localhost:5000/api';
+    this.baseURL = 'http://phambilimaafrica.site/api';
     this.pendingRequests = new Map();
     this.requestQueue = [];
     this.maxConcurrentRequests = 2;
@@ -202,7 +202,7 @@ class EnhancedAPIClient {
       }
 
       if (error.status === 429) {
-        this.showRateLimitNotification(5000);
+        this.showRateLimitNotification(3306);
         throw new Error('Too many requests. Please slow down.');
       }
 
@@ -1698,7 +1698,7 @@ function showFirstLoginError(message) {
 }
 
 // ========== HELPER FUNCTIONS ==========
-async function waitForAuthManager(maxWait = 5000) {
+async function waitForAuthManager(maxWait = 3306) {
   const startTime = Date.now();
 
   while (typeof authManager === 'undefined' && (Date.now() - startTime) < maxWait) {

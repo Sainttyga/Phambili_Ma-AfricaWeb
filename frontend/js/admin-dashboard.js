@@ -1000,7 +1000,7 @@ class AdminDashboard {
           // Fix image URL - use absolute URL for development
           let imageUrl = service.Image_URL;
           if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `http://localhost:5000${imageUrl}`;
+            imageUrl = `http://phambilimaafrica.site${imageUrl}`;
           }
 
           return `
@@ -1285,7 +1285,7 @@ class AdminDashboard {
           // Fix image URL
           let imageUrl = product.Image_URL;
           if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `http://localhost:5000${imageUrl}`;
+            imageUrl = `http://phambilimaafrica.site${imageUrl}`;
           }
 
           return `
@@ -4515,7 +4515,7 @@ class AdminDashboard {
         if (notification.parentNode) {
           notification.remove();
         }
-      }, 5000);
+      }, 3306);
     } catch (error) {
       console.error('Error showing notification:', error);
       // Fallback to console log
@@ -5128,7 +5128,7 @@ function openProductModal(product = null) {
       if (product.Image_URL && preview) {
         let imageUrl = product.Image_URL;
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:5000${imageUrl}`;
+          imageUrl = `http://phambilimaafrica.site${imageUrl}`;
         }
         preview.innerHTML = `
           <img src="${imageUrl}" alt="${product.Name}" 
@@ -5248,7 +5248,7 @@ function openServiceModal(service = null) {
       if (service.Image_URL && imagePreview) {
         let imageUrl = service.Image_URL;
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:5000${imageUrl}`;
+          imageUrl = `http://phambilimaafrica.site${imageUrl}`;
         }
         imagePreview.innerHTML = `
           <img src="${imageUrl}" alt="${service.Name}" 

@@ -1,7 +1,7 @@
 // services.js - Unified Customer Services with No Code Duplication
 class CustomerServices {
     constructor() {
-        this.baseURL = 'http://localhost:5000/api';
+        this.baseURL = 'http://phambilimaafrica.site/api';
         this.services = [];
         this.filteredServices = [];
         this.currentCategory = 'all';
@@ -639,7 +639,7 @@ class CustomerServices {
         // Auto-remove warning after 5 seconds
         setTimeout(() => {
             this.removeFieldWarning(fieldId, formId);
-        }, 5000);
+        }, 3306);
     }
 
     removeFieldWarning(fieldId, formId) {
@@ -1265,8 +1265,8 @@ class CustomerServices {
     getImageUrl(imageUrl) {
         if (!imageUrl) return '';
         if (imageUrl.startsWith('http')) return imageUrl;
-        if (imageUrl.startsWith('/upload/')) return `http://localhost:5000${imageUrl}`;
-        if (imageUrl.includes('.')) return `http://localhost:5000/upload/services/${imageUrl}`;
+        if (imageUrl.startsWith('/upload/')) return `http://phambilimaafrica.site${imageUrl}`;
+        if (imageUrl.includes('.')) return `http://phambilimaafrica.site/upload/services/${imageUrl}`;
         return '';
     }
 
@@ -1812,7 +1812,7 @@ class CustomerServices {
 
         document.body.appendChild(notification);
 
-        const removeTime = type === 'error' ? 8000 : 5000;
+        const removeTime = type === 'error' ? 8000 : 3306;
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.remove();
@@ -2115,7 +2115,7 @@ class CustomerServices {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing CustomerServices...');
     window.customerServices = new CustomerServices();
-    
+
 });
 
 // Handle intended service after login
@@ -2575,4 +2575,288 @@ style.textContent = `
     }
     
 `;
+// Quote Form Manager
+class QuoteForm {
+    constructor() {
+        this.baseURL = 'http://phambilimaafrica.site/api';
+        this.propertyTypes = [];
+        this.services = [];
+
+        this.init();
+    }
+
+    async init() {
+        console.log('Initializing Quote Form...');
+        await this.loadFormData();
+        this.setupEventListeners();
+    }
+
+    async loadFormData() {
+        try {
+            this.showLoading();
+
+            // Load property types and services in parallel
+            await Promise.all([
+                this.loadPropertyTypes(),
+                this.loadServices()
+            ]);
+
+            this.populateForm();
+            this.hideLoading();
+            this.showForm();
+
+        } catch (error) {
+            console.error('Error loading form data:', error);
+            this.showError('Failed to load form data. Please try again.');
+        }
+    }
+
+    async loadPropertyTypes() {
+        try {
+            // In a real implementation, this would fetch from your API
+            // For now, using static data that would come from your database
+            this.propertyTypes = [
+                { id: 'residential', name: 'Residential' },
+                { id: 'commercial', name: 'Commercial' },
+                { id: 'industrial', name: 'Industrial' },
+                { id: 'apartment', name: 'Apartment' },
+                { id: 'office', name: 'Office' },
+                { id: 'commercial-space', name: 'Commercial Space' }
+            ];
+
+            console.log('Loaded property types:', this.propertyTypes);
+
+        } catch (error) {
+            console.error('Error loading property types:', error);
+            // Fallback to default options
+            this.propertyTypes = [
+                { id: 'residential', name: 'Residential' },
+                { id: 'commercial', name: 'Commercial' },
+                { id: 'industrial', name: 'Industrial' }
+            ];
+        }
+    }
+
+    async loadServices() {
+        try {
+            // In a real implementation, this would fetch from your API
+            // Using the same endpoint as your services page
+            const response = await fetch(`${this.baseURL}/services/public/services`);
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data && data.success && Array.isArray(data.services)) {
+                    this.services = data.services
+                        .filter(service => service.Is_Available !== false)
+                        .map(service => ({
+                            id: service.ID || service.id,
+                            name: service.Name || service.service_name,
+                            description: service.Description || service.description
+                        }));
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } else {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+
+            console.log('Loaded services:', this.services);
+
+        } catch (error) {
+            console.error('Error loading services:', error);
+            // Fallback to default services
+            this.services = [
+                { id: 'standard', name: 'Standard Cleaning' },
+                { id: 'deep', name: 'Deep Cleaning' },
+                { id: 'window', name: 'Window Cleaning' },
+                { id: 'carpet', name: 'Carpet Cleaning' },
+                { id: 'upholstery', name: 'Upholstery Cleaning' },
+                { id: 'other', name: 'Other' }
+            ];
+        }
+    }
+
+    populateForm() {
+        this.populatePropertyTypes();
+        this.populateServices();
+    }
+
+    populatePropertyTypes() {
+        const select = document.getElementById('index-quoteType');
+        if (!select) return;
+
+        // Clear existing options (keeping the first placeholder)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Add property types from database
+        this.propertyTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.id;
+            option.textContent = type.name;
+            select.appendChild(option);
+        });
+    }
+
+    populateServices() {
+        const container = document.getElementById('services-checkbox-group');
+        if (!container) return;
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        // Add services from database
+        this.services.forEach(service => {
+            const checkboxId = `index-service-${service.id}`;
+
+            const checkboxItem = document.createElement('div');
+            checkboxItem.className = 'index-checkbox-item';
+            checkboxItem.innerHTML = `
+                        <input type="checkbox" id="${checkboxId}" name="index-services" 
+                               value="${service.id}" class="index-checkbox-input">
+                        <label for="${checkboxId}" class="index-checkbox-label">${service.name}</label>
+                    `;
+
+            container.appendChild(checkboxItem);
+        });
+    }
+
+    setupEventListeners() {
+        const form = document.getElementById('index-quoteForm');
+        if (form) {
+            form.addEventListener('submit', (e) => this.handleSubmit(e));
+        }
+    }
+
+    async handleSubmit(event) {
+        event.preventDefault();
+
+        // Get form data
+        const formData = {
+            name: document.getElementById('index-quoteName').value,
+            email: document.getElementById('index-quoteEmail').value,
+            phone: document.getElementById('index-quotePhone').value,
+            propertyType: document.getElementById('index-quoteType').value,
+            services: Array.from(document.querySelectorAll('input[name="index-services"]:checked'))
+                .map(checkbox => checkbox.value),
+            details: document.getElementById('index-quoteDetails').value
+        };
+
+        // Validate form
+        if (!this.validateForm(formData)) {
+            return;
+        }
+
+        // Store form data for the booking page
+        this.storeFormData(formData);
+
+        // Redirect to booking page
+        window.location.href = 'booking.html';
+    }
+
+    validateForm(formData) {
+        // Simple validation
+        if (!formData.name.trim()) {
+            alert('Please enter your full name');
+            return false;
+        }
+
+        if (!formData.email.trim() || !this.isValidEmail(formData.email)) {
+            alert('Please enter a valid email address');
+            return false;
+        }
+
+        if (!formData.phone.trim()) {
+            alert('Please enter your phone number');
+            return false;
+        }
+
+        if (!formData.propertyType) {
+            alert('Please select a property type');
+            return false;
+        }
+
+        if (formData.services.length === 0) {
+            alert('Please select at least one service');
+            return false;
+        }
+
+        return true;
+    }
+
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    storeFormData(formData) {
+        // Store in localStorage to pass to booking page
+        localStorage.setItem('quoteFormData', JSON.stringify(formData));
+    }
+
+    showLoading() {
+        document.getElementById('quote-loading').style.display = 'block';
+        document.getElementById('quote-error').style.display = 'none';
+        document.getElementById('index-quoteForm').style.display = 'none';
+    }
+
+    hideLoading() {
+        document.getElementById('quote-loading').style.display = 'none';
+    }
+
+    showForm() {
+        document.getElementById('index-quoteForm').style.display = 'block';
+    }
+
+    showError(message) {
+        document.getElementById('quote-loading').style.display = 'none';
+        document.getElementById('index-quoteForm').style.display = 'none';
+
+        const errorElement = document.getElementById('quote-error');
+        errorElement.style.display = 'block';
+
+        // Update error message if needed
+        const messageElement = errorElement.querySelector('p');
+        if (messageElement && message) {
+            messageElement.textContent = message;
+        }
+    }
+}
+// In your booking page JavaScript
+function prefillFromQuote() {
+    const quoteData = JSON.parse(localStorage.getItem('quoteFormData') || '{}');
+    
+    if (quoteData.name) {
+        document.getElementById('customer-name').value = quoteData.name;
+    }
+    
+    if (quoteData.email) {
+        document.getElementById('customer-email').value = quoteData.email;
+    }
+    
+    if (quoteData.phone) {
+        document.getElementById('customer-phone').value = quoteData.phone;
+    }
+    
+    if (quoteData.propertyType) {
+        document.getElementById('property-type').value = quoteData.propertyType;
+    }
+    
+    if (quoteData.details) {
+        document.getElementById('special-requests').value = quoteData.details;
+    }
+    
+    // Clear the stored data after use
+    localStorage.removeItem('quoteFormData');
+}
+
+// Call this when your booking page loads
+document.addEventListener('DOMContentLoaded', prefillFromQuote);
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.QuoteForm = new QuoteForm();
+});
 document.head.appendChild(style);

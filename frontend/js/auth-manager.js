@@ -592,7 +592,7 @@ class AuthManager {
         }
 
         try {
-            const response = await axios.get('http://localhost:5000/api/customer/profile', {
+            const response = await axios.get('http://lphambilimaafrica.site/api/customer/profile', {
                 headers: this.getAuthHeaders()
             });
 
@@ -693,7 +693,7 @@ class AuthManager {
         if (!this.token) return false;
 
         try {
-            const response = await axios.get('http://localhost:5000/api/auth/verify', {
+            const response = await axios.get('http://phambilimaafrica.site/api/auth/verify', {
                 headers: this.getAuthHeaders()
             });
             return response.data.valid;
@@ -720,7 +720,7 @@ class AuthManager {
 // In your login.js or auth script
 async function handleLogin(email, password) {
     try {
-        const response = await axios.post('http://localhost:5000/api/auth/login', {
+        const response = await axios.post('http://phambilimaafrica.site/api/auth/login', {
             Email: email,
             Password: password
         });

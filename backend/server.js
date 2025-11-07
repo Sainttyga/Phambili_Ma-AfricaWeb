@@ -33,11 +33,12 @@ app.use(helmet({
 // CORS configuration - MORE PERMISSIVE
 app.use(cors({
   origin: [
-    'http://localhost:3000',
+    'http://phambilimaafrica.site:3000',
+    'http://phambilimaafrica.site',
     'http://127.0.0.1:5500',
-    'http://localhost:5000',
+    'http://phambilimaafrica.site:3306',
     'http://127.0.0.1:3000',
-    'http://localhost:8000'
+    'http://phambilimaafrica.site:8000'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -225,7 +226,7 @@ app.use((error, req, res, next) => {
 swagger(app);
 
 // Sync database and start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3306;
 
 async function startServer() {
   try {
@@ -241,10 +242,10 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`🚀 Server started on port ${PORT}`);
       console.log(`📁 Upload directory: ${path.join(__dirname, 'public/upload')}`);
-      console.log(`🌐 CORS enabled for: localhost:3000, 127.0.0.1:5500, localhost:5000`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🔗 Auth test: http://localhost:${PORT}/api/test-auth`);
-      console.log(`🔗 Login endpoint: http://localhost:${PORT}/api/auth/login`);
+      console.log(`🌐 CORS enabled for: phambilimaafrica.site, 127.0.0.1:5500, phambilimaafrica.site`);
+      console.log(`🔗 Health check: http://phambilimaafrica.site:${PORT}/api/health`);
+      console.log(`🔗 Auth test: http://phambilimaafrica.site:${PORT}/api/test-auth`);
+      console.log(`🔗 Login endpoint: http://phambilimaafrica.site:${PORT}/api/auth/login`);
     });
   } catch (error) {
     console.error('❌ Unable to start server:', error);

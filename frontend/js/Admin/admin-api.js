@@ -1,7 +1,7 @@
 // Enhanced Admin API Service with Proper Rate Limiting Handling
 class AdminAPIService {
     constructor() {
-        this.baseURL = 'http://localhost:5000/api';
+        this.baseURL = 'http://phambilimaafrica.site/api';
         this.retryCount = 0;
         this.maxRetries = 3;
         this.retryDelay = 1000;

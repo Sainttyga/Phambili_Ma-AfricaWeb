@@ -57,7 +57,7 @@ exports.getProducts = async (req, res) => {
       const productData = product.toJSON();
       if (productData.Image_URL) {
         // Convert relative path to full URL
-        productData.Image_URL = `http://localhost:5000${productData.Image_URL}`;
+        productData.Image_URL = `http://phambilimaafrica.site${productData.Image_URL}`;
       }
       return productData;
     });
