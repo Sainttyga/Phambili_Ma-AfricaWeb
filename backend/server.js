@@ -33,12 +33,11 @@ app.use(helmet({
 // CORS configuration - MORE PERMISSIVE
 app.use(cors({
   origin: [
-    'http://phambilimaafrica.site:3000',
     'http://phambilimaafrica.site',
-    'http://127.0.0.1:5500',
-    'http://phambilimaafrica.site:3306',
-    'http://127.0.0.1:3000',
-    'http://phambilimaafrica.site:8000'
+    'https://phambilimaafrica.site',
+    'http://72.61.104.51:3000',
+    'http://localhost:3000',
+    'http://127.0.0.1:5500'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
