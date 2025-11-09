@@ -1,6 +1,6 @@
 // backend/controllers/customerController.js - Fixed version
 const { Customer } = require('../models');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 exports.getProfile = async (req, res) => {
   try {

@@ -24,7 +24,7 @@ router.get('/public/products', async (req, res) => {
     const productsWithFullUrls = products.map(product => {
       const productData = product.toJSON();
       if (productData.Image_URL) {
-        productData.Image_URL = `http://phambilimaafrica.site${productData.Image_URL}`;
+        productData.Image_URL = `http://localhost:3000${productData.Image_URL}`;
       }
       return productData;
     });
@@ -72,7 +72,7 @@ router.get('/public/products/:id', async (req, res) => {
     // Convert image URL to full URL
     const productData = product.toJSON();
     if (productData.Image_URL) {
-      productData.Image_URL = `http://phambilimaafrica.site${productData.Image_URL}`;
+      productData.Image_URL = `http://localhost:3000${productData.Image_URL}`;
     }
 
     console.log(`✅ Found product: ${productData.Name}`);

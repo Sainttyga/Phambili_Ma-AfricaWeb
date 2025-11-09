@@ -1,8 +1,9 @@
-// authController.js - Fixed with proper error handling
+// controllers/authController.js - FIXED VERSION
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Customer, Admin } = require('../models');
+const Customer = require('../models/Customer');
+const Admin = require('../models/Admin');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key';
 
@@ -12,64 +13,61 @@ const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email?.trim()
 const validatePassword = (password) => password && password.length >= 6;
 
 // Customer Registration
-exports.register = async (req, res) => {
+const register = async (req, res) => {
   try {
     const { Full_Name, Email, Password } = req.body;
 
     // Basic validation
     if (!Full_Name || !Email || !Password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Full name, email, and password are required.' 
+        message: 'Full name, email, and password are required.'
       });
     }
 
     if (!validateFullName(Full_Name)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Please provide a valid full name (letters and spaces only, 2-100 characters).' 
+        message: 'Please provide a valid full name (letters and spaces only, 2-100 characters).'
       });
     }
 
     if (!validateEmail(Email)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Please provide a valid email address.' 
+        message: 'Please provide a valid email address.'
       });
     }
 
     if (!validatePassword(Password)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long.' 
+        message: 'Password must be at least 6 characters long.'
       });
     }
 
     // Check if email already exists
-    const existingCustomer = await Customer.findOne({ where: { Email: Email.toLowerCase().trim() } });
+    const existingCustomer = await Customer.findByEmail(Email.toLowerCase().trim());
     if (existingCustomer) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         success: false,
-        message: 'Email already registered.' 
+        message: 'Email already registered.'
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(Password, 10);
-
-    // Create customer
+    // Create customer using Firebase model
     const customer = await Customer.create({
-      Full_Name: Full_Name.trim(),
-      Email: Email.toLowerCase().trim(),
-      Password: hashedPassword
+      full_name: Full_Name.trim(),
+      email: Email.toLowerCase().trim(),
+      password: Password
     });
 
     // Generate token
     const token = jwt.sign(
-      { 
-        id: customer.ID, 
-        email: customer.Email, 
-        role: 'customer' 
+      {
+        id: customer.id,
+        email: customer.email,
+        role: 'customer'
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -77,12 +75,12 @@ exports.register = async (req, res) => {
 
     // Return customer data (without password)
     const customerData = {
-      ID: customer.ID,
-      Full_Name: customer.Full_Name,
-      Email: customer.Email,
-      Phone: customer.Phone || null,
-      Address: customer.Address || null,
-      Created_At: customer.Created_At || customer.createdAt
+      id: customer.id,
+      full_name: customer.full_name,
+      email: customer.email,
+      phone: customer.phone || null,
+      address: customer.address || null,
+      created_at: customer.created_at
     };
 
     res.status(201).json({
@@ -95,15 +93,15 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Server error during registration.' 
+      message: 'Server error during registration.'
     });
   }
 };
 
 // Login for both Customers and Admins
-exports.login = async (req, res) => {
+const login = async (req, res) => {
   try {
     const Email = req.body.Email?.toLowerCase().trim();
     const Password = req.body.Password;
@@ -112,30 +110,30 @@ exports.login = async (req, res) => {
 
     // Basic validation
     if (!Email || !Password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Email and password are required.' 
+        message: 'Email and password are required.'
       });
     }
 
     if (!validateEmail(Email)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Please provide a valid email address.' 
+        message: 'Please provide a valid email address.'
       });
     }
 
-    let user = await Customer.scope('withPassword').findOne({ where: { Email } });
+    let user = await Customer.findByEmail(Email);
     let role = 'customer';
     let requiresPasswordReset = false;
 
     // If not a customer, check if it's an admin
     if (!user) {
-      user = await Admin.scope('withPassword').findOne({ where: { Email } });
+      user = await Admin.findByEmail(Email);
       role = 'admin';
-      
+
       // Check if admin requires password reset (first login)
-      if (user && user.First_Login) {
+      if (user && user.first_login) {
         requiresPasswordReset = true;
       }
     }
@@ -143,27 +141,19 @@ exports.login = async (req, res) => {
     // Enhanced user not found handling
     if (!user) {
       console.log('❌ User not found:', Email);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'User not found. Please check your email or register for a new account.' 
+        message: 'User not found. Please check your email or register for a new account.'
       });
     }
 
-    // Check if user has a password set
-    if (!user.Password) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Account not properly set up. Please contact administrator.' 
-      });
-    }
-
-    // Verify password
-    const validPassword = await bcrypt.compare(Password, user.Password);
+    // Verify password using the model method
+    const validPassword = await Customer.validatePassword(Password, user.password);
     if (!validPassword) {
       console.log('❌ Invalid password for:', Email);
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.' 
+        message: 'Invalid email or password.'
       });
     }
 
@@ -176,18 +166,18 @@ exports.login = async (req, res) => {
         requiresPasswordReset: true,
         role: 'admin',
         user: {
-          Email: user.Email,
-          Name: user.Name
+          email: user.email,
+          name: user.name
         }
       });
     }
 
     // Generate token for successful login
     const token = jwt.sign(
-      { 
-        id: user.ID, 
-        email: user.Email, 
-        role: role 
+      {
+        id: user.id,
+        email: user.email,
+        role: role
       },
       JWT_SECRET,
       { expiresIn: role === 'admin' ? '8h' : '7d' }
@@ -195,19 +185,19 @@ exports.login = async (req, res) => {
 
     // Prepare user data based on role
     const userData = role === 'admin' ? {
-      ID: user.ID,
-      Name: user.Name,
-      Email: user.Email,
-      Phone: user.Phone || null,
-      Role: user.Role,
-      First_Login: user.First_Login || false
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || null,
+      role: user.role,
+      first_login: user.first_login || false
     } : {
-      ID: user.ID,
-      Full_Name: user.Full_Name,
-      Email: user.Email,
-      Phone: user.Phone || null,
-      Address: user.Address || null,
-      Created_At: user.Created_At || user.createdAt
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      phone: user.phone || null,
+      address: user.address || null,
+      created_at: user.created_at
     };
 
     console.log('✅ Login successful for:', Email, 'Role:', role);
@@ -222,15 +212,15 @@ exports.login = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Login error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Server error during login.' 
+      message: 'Server error during login.'
     });
   }
 };
 
 // Change Password (for authenticated users)
-exports.changePassword = async (req, res) => {
+const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
@@ -238,54 +228,52 @@ exports.changePassword = async (req, res) => {
 
     // Validation
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Current password and new password are required.' 
+        message: 'Current password and new password are required.'
       });
     }
 
     if (!validatePassword(newPassword)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'New password must be at least 6 characters long.' 
+        message: 'New password must be at least 6 characters long.'
       });
     }
 
     let user;
-    
+
     // Find user based on role
     if (userRole === 'admin') {
-      user = await Admin.scope('withPassword').findByPk(userId);
+      user = await Admin.findById(userId);
     } else {
-      user = await Customer.scope('withPassword').findByPk(userId);
+      user = await Customer.findById(userId);
     }
 
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'User not found.' 
+        message: 'User not found.'
       });
     }
 
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.Password);
+    // Verify current password using bcryptjs
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Current password is incorrect.' 
+        message: 'Current password is incorrect.'
       });
     }
 
-    // Hash new password
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    // Update password - this will be hashed by the model
+    if (userRole === 'admin') {
+      await Admin.updatePassword(userId, newPassword);
+    } else {
+      await Customer.updatePassword(userId, newPassword);
+    }
 
-    // Update password
-    await user.update({
-      Password: hashedNewPassword,
-      ...(userRole === 'admin' && { First_Login: false }) // If admin, mark first login as completed
-    });
-
-    console.log(`✅ Password changed successfully for ${userRole}: ${user.Email}`);
+    console.log(`✅ Password changed successfully for ${userRole}: ${user.email}`);
 
     res.json({
       success: true,
@@ -294,45 +282,41 @@ exports.changePassword = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Password change error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Failed to change password. Please try again.' 
+      message: 'Failed to change password. Please try again.'
     });
   }
 };
 
 // Verify Token (for checking if token is still valid)
-exports.verifyToken = async (req, res) => {
+const verifyToken = async (req, res) => {
   try {
     const user = req.user; // From auth middleware
 
     let userData;
     if (user.role === 'admin') {
-      const admin = await Admin.findByPk(user.id, {
-        attributes: { exclude: ['Password'] }
-      });
+      const admin = await Admin.findById(user.id);
       if (admin) {
         userData = {
-          ID: admin.ID,
-          Name: admin.Name,
-          Email: admin.Email,
-          Phone: admin.Phone,
-          Role: admin.Role,
-          First_Login: admin.First_Login
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+          phone: admin.phone || null,
+          role: admin.role,
+          first_login: admin.first_login || false
         };
       }
     } else {
-      const customer = await Customer.findByPk(user.id, {
-        attributes: { exclude: ['Password'] }
-      });
+      const customer = await Customer.findById(user.id);
       if (customer) {
         userData = {
-          ID: customer.ID,
-          Full_Name: customer.Full_Name,
-          Email: customer.Email,
-          Phone: customer.Phone,
-          Address: customer.Address,
-          Created_At: customer.Created_At
+          id: customer.id,
+          full_name: customer.full_name,
+          email: customer.email,
+          phone: customer.phone || null,
+          address: customer.address || null,
+          created_at: customer.created_at
         };
       }
     }
@@ -360,7 +344,7 @@ exports.verifyToken = async (req, res) => {
 };
 
 // Forgot Password - Initiate reset
-exports.forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res) => {
   try {
     const { Email } = req.body;
 
@@ -372,11 +356,11 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Check if user exists (customer or admin)
-    let user = await Customer.findOne({ where: { Email } });
+    let user = await Customer.findByEmail(Email);
     let userType = 'customer';
 
     if (!user) {
-      user = await Admin.findOne({ where: { Email } });
+      user = await Admin.findByEmail(Email);
       userType = 'admin';
     }
 
@@ -391,9 +375,9 @@ exports.forgotPassword = async (req, res) => {
 
     // Generate reset token (simple implementation)
     const resetToken = jwt.sign(
-      { 
-        id: user.ID, 
-        email: user.Email, 
+      {
+        id: user.id,
+        email: user.email,
         type: userType,
         purpose: 'password_reset',
         timestamp: Date.now()
@@ -402,10 +386,10 @@ exports.forgotPassword = async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    console.log(`📧 Password reset token generated for ${user.Email}`);
+    console.log(`📧 Password reset token generated for ${user.email}`);
 
     // TODO: Implement email sending in production
-    // await sendPasswordResetEmail(user.Email, resetToken, userType);
+    // await sendPasswordResetEmail(user.email, resetToken, userType);
 
     res.json({
       success: true,
@@ -424,7 +408,7 @@ exports.forgotPassword = async (req, res) => {
 };
 
 // Reset Password with token
-exports.resetPassword = async (req, res) => {
+const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
@@ -461,13 +445,18 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
     let user;
 
     if (decoded.type === 'admin') {
-      user = await Admin.findByPk(decoded.id);
+      user = await Admin.findById(decoded.id);
+      if (user) {
+        await Admin.updatePassword(user.id, newPassword);
+      }
     } else {
-      user = await Customer.findByPk(decoded.id);
+      user = await Customer.findById(decoded.id);
+      if (user) {
+        await Customer.updatePassword(user.id, newPassword);
+      }
     }
 
     if (!user) {
@@ -477,12 +466,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Update password
-    await user.update({
-      Password: hashedPassword
-    });
-
-    console.log(`✅ Password reset successfully for ${user.Email}`);
+    console.log(`✅ Password reset successfully for ${user.email}`);
 
     res.json({
       success: true,
@@ -499,7 +483,7 @@ exports.resetPassword = async (req, res) => {
 };
 
 // Logout (client-side token removal)
-exports.logout = async (req, res) => {
+const logout = async (req, res) => {
   try {
     // In a stateless JWT system, logout is handled client-side
     // by removing the token from storage
@@ -517,7 +501,7 @@ exports.logout = async (req, res) => {
 };
 
 // Get current user profile
-exports.getProfile = async (req, res) => {
+const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
@@ -525,34 +509,30 @@ exports.getProfile = async (req, res) => {
     let userData;
 
     if (userRole === 'admin') {
-      const admin = await Admin.findByPk(userId, {
-        attributes: { exclude: ['Password'] }
-      });
+      const admin = await Admin.findById(userId);
       if (admin) {
         userData = {
-          ID: admin.ID,
-          Name: admin.Name,
-          Email: admin.Email,
-          Phone: admin.Phone,
-          Role: admin.Role,
-          First_Login: admin.First_Login,
-          Created_At: admin.createdAt,
-          Updated_At: admin.updatedAt
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+          phone: admin.phone || null,
+          role: admin.role,
+          first_login: admin.first_login || false,
+          created_at: admin.created_at,
+          updated_at: admin.updated_at
         };
       }
     } else {
-      const customer = await Customer.findByPk(userId, {
-        attributes: { exclude: ['Password'] }
-      });
+      const customer = await Customer.findById(userId);
       if (customer) {
         userData = {
-          ID: customer.ID,
-          Full_Name: customer.Full_Name,
-          Email: customer.Email,
-          Phone: customer.Phone,
-          Address: customer.Address,
-          Created_At: customer.Created_At || customer.createdAt,
-          Updated_At: customer.Updated_At || customer.updatedAt
+          id: customer.id,
+          full_name: customer.full_name,
+          email: customer.email,
+          phone: customer.phone || null,
+          address: customer.address || null,
+          created_at: customer.created_at,
+          updated_at: customer.updated_at
         };
       }
     }
@@ -577,4 +557,16 @@ exports.getProfile = async (req, res) => {
       message: 'Error fetching user profile.'
     });
   }
+};
+
+// SINGLE EXPORT AT THE BOTTOM - NO DUPLICATES
+module.exports = {
+  register,
+  login,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  verifyToken,
+  getProfile,
+  logout
 };

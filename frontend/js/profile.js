@@ -60,7 +60,7 @@ class ProfileManager {
         try {
             this.showLoading('Loading profile...');
 
-            const response = await axios.get('http://phambilimaafrica.site/api/customer/profile', {
+            const response = await axios.get('http://localhost:3000/api/customer/profile', {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -375,7 +375,7 @@ class ProfileManager {
     async updateUserProfile(updatedData) {
         try {
             const response = await axios.put(
-                'http://phambilimaafrica.site/api/customer/profile',
+                'http://localhost:3000/api/customer/profile',
                 updatedData,
                 {
                     headers: authManager.getAuthHeaders()
@@ -419,7 +419,7 @@ class ProfileManager {
             this.showLoading('Loading your bookings...');
 
             // Use the customer-specific bookings endpoint
-            const response = await axios.get(`http://phambilimaafrica.site/api/bookings/customer/${this.user.ID}`, {
+            const response = await axios.get(`http://localhost:3000/api/bookings/customer/${this.user.ID}`, {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -454,7 +454,7 @@ class ProfileManager {
         try {
             console.log('Trying fallback method to load user bookings...');
 
-            const response = await axios.get('http://phambilimaafrica.site/api/bookings', {
+            const response = await axios.get('http://localhost:3000/api/bookings', {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -674,7 +674,7 @@ class ProfileManager {
             this.showLoading('Cancelling booking...');
 
             const response = await axios.put(
-                `http://phambilimaafrica.site/api/bookings/${bookingId}`,
+                `http://localhost:3000/api/bookings/${bookingId}`,
                 { Status: 'cancelled' },
                 {
                     headers: authManager.getAuthHeaders()
@@ -807,7 +807,7 @@ class ProfileManager {
             this.showLoading('Changing password...');
 
             const response = await axios.put(
-                'http://lphambilimaafrica.site/api/customer/change-password',
+                'http://localhost:3000/api/customer/change-password',
                 {
                     currentPassword,
                     newPassword

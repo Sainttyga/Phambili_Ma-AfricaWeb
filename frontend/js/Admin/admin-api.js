@@ -1,7 +1,7 @@
 // Enhanced Admin API Service with Proper Rate Limiting Handling
 class AdminAPIService {
     constructor() {
-        this.baseURL = 'http://phambilimaafrica.site/api';
+        this.baseURL = 'http://localhost:3000/api';
         this.retryCount = 0;
         this.maxRetries = 3;
         this.retryDelay = 1000;
@@ -535,7 +535,12 @@ class AdminAPIService {
     }
 
     async checkPasswordStatus() {
-        return this.makeRequest('GET', '/password-status', null, true, false);
+        try {
+            return await this.makeRequest('GET', '/password-status', null, true, false);
+        } catch (error) {
+            console.warn('Password status check failed, continuing without it:', error);
+            return { requiresPasswordReset: false }; // Default response
+        }
     }
 
     async changePassword(passwordData) {
@@ -578,6 +583,10 @@ class AdminAPIService {
     }
 
     async toggleServiceAvailability(id, isAvailable) {
+        if (!id || id === 'undefined') {
+            throw new Error('Service ID is required');
+        }
+
         this.clearCache('services');
         return this.makeRequest('PATCH', `/services/${id}/availability`, { isAvailable });
     }

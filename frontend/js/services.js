@@ -1,7 +1,7 @@
 // services.js - Unified Customer Services with No Code Duplication
 class CustomerServices {
     constructor() {
-        this.baseURL = 'http://phambilimaafrica.site/api';
+        this.baseURL = 'http://localhost:3000/api';
         this.services = [];
         this.filteredServices = [];
         this.currentCategory = 'all';
@@ -1265,8 +1265,8 @@ class CustomerServices {
     getImageUrl(imageUrl) {
         if (!imageUrl) return '';
         if (imageUrl.startsWith('http')) return imageUrl;
-        if (imageUrl.startsWith('/upload/')) return `http://phambilimaafrica.site${imageUrl}`;
-        if (imageUrl.includes('.')) return `http://phambilimaafrica.site/upload/services/${imageUrl}`;
+        if (imageUrl.startsWith('/upload/')) return `http://localhost:3000${imageUrl}`;
+        if (imageUrl.includes('.')) return `http://localhost:3000/upload/services/${imageUrl}`;
         return '';
     }
 
@@ -2578,7 +2578,7 @@ style.textContent = `
 // Quote Form Manager
 class QuoteForm {
     constructor() {
-        this.baseURL = 'http://phambilimaafrica.site/api';
+        this.baseURL = 'http://localhost:3000/api';
         this.propertyTypes = [];
         this.services = [];
 

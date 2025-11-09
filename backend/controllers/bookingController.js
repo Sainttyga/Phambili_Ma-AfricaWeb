@@ -1,244 +1,77 @@
 const { Booking, Customer, Service } = require('../models');
-const { Op } = require('sequelize');
+const bcrypt = require('bcryptjs');
 
 exports.createBooking = async (req, res) => {
   try {
-    console.log('📥 CREATE BOOKING REQUEST RECEIVED:', {
-      body: req.body,
-      user: req.user,
-      timestamp: new Date().toISOString()
-    });
-
     const {
-      Customer_ID,
-      Service_ID,
-      Date: requestedDate,
-      Time,
-      Special_Instructions,
-      Duration,
-      Status = 'requested',
-      Address_Street,
-      Address_City,
-      Address_State,
-      Address_Postal_Code,
-      Property_Type,
-      Property_Size,
-      Cleaning_Frequency
+      customer_id,
+      service_id,
+      date,
+      time,
+      address,
+      special_instructions,
+      duration,
+      property_type,
+      property_size,
+      cleaning_frequency
     } = req.body;
 
-    // ==================== VALIDATION CHECKS ====================
-    console.log('🔍 VALIDATING BOOKING DATA...');
+    console.log('📥 CREATE BOOKING REQUEST:', req.body);
 
-    // 1. Authentication check
-    if (!Customer_ID) {
-      console.log('❌ UNAUTHENTICATED ACCESS ATTEMPT');
-      return res.status(401).json({
-        success: false,
-        message: 'Please log in to request a quotation.'
-      });
-    }
-
-    // 2. Required fields check
-    if (!Service_ID || !requestedDate) {
-      console.log('❌ MISSING REQUIRED FIELDS:', { Service_ID, Date: requestedDate });
+    // Basic validation
+    if (!customer_id || !service_id || !date || !address) {
       return res.status(400).json({
         success: false,
-        message: 'Service and Date are required fields.'
+        message: 'Customer ID, Service ID, Date, and Address are required.'
       });
     }
 
-    // 3. Address validation
-    if (!Address_Street?.trim() || !Address_City?.trim() || !Address_State?.trim() || !Address_Postal_Code?.trim()) {
-      console.log('❌ INCOMPLETE ADDRESS PROVIDED');
-      return res.status(400).json({
-        success: false,
-        message: 'Complete address is required including Street, City, State and Postal Code.'
-      });
-    }
-
-    // ==================== DATE VALIDATION ====================
-    console.log('📅 VALIDATING DATE...');
-
-    const requestedDateObj = new Date(requestedDate);
-    if (isNaN(requestedDateObj.getTime())) {
-      console.log('❌ INVALID DATE FORMAT:', requestedDate);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid date format. Please use YYYY-MM-DD format.'
-      });
-    }
-
-    const normalizedRequestedDate = requestedDateObj.toISOString().split('T')[0];
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-
-    console.log('📅 DATE VALIDATION:', {
-      requestedDate: normalizedRequestedDate,
-      today: today,
-      isPastDate: normalizedRequestedDate < today
-    });
-
-    // Prevent past dates
-    if (normalizedRequestedDate < today) {
-      console.log('❌ PAST DATE REJECTED:', normalizedRequestedDate);
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot request quotations for past dates. Please select today or a future date.'
-      });
-    }
-
-    // ==================== DATABASE VALIDATION ====================
-    console.log('🔍 VALIDATING CUSTOMER AND SERVICE...');
-
-    // 4. Validate customer exists
-    const customer = await Customer.findByPk(Customer_ID);
+    // Validate customer exists
+    const customer = await Customer.findById(customer_id);
     if (!customer) {
-      console.log('❌ CUSTOMER NOT FOUND:', Customer_ID);
       return res.status(404).json({
         success: false,
-        message: 'Customer account not found. Please contact support.'
+        message: 'Customer not found.'
       });
     }
-    console.log('✅ CUSTOMER VALIDATED:', customer.Full_Name);
 
-    // 5. Validate service exists
-    const service = await Service.findByPk(Service_ID);
+    // Validate service exists
+    const service = await Service.findById(service_id);
     if (!service) {
-      console.log('❌ SERVICE NOT FOUND:', Service_ID);
       return res.status(404).json({
         success: false,
-        message: 'Service not found. Please refresh the page and try again.'
+        message: 'Service not found.'
       });
     }
 
-    if (service.Is_Available !== true) {
-      console.log('❌ SERVICE UNAVAILABLE:', service.Name);
-      return res.status(400).json({
-        success: false,
-        message: 'This service is currently unavailable. Please choose another service or check back later.'
-      });
-    }
-    console.log('✅ SERVICE VALIDATED:', service.Name);
-
-    // 6. Check for duplicate bookings
-    const existingBooking = await Booking.findOne({
-      where: {
-        Customer_ID,
-        Service_ID,
-        Date: normalizedRequestedDate,
-        Status: {
-          [Op.notIn]: ['cancelled', 'rejected']
-        }
-      }
+    // Create booking
+    const booking = await Booking.create({
+      customer_id,
+      service_id,
+      date,
+      time: time || '09:00',
+      address,
+      special_instructions,
+      duration: duration || service.duration,
+      property_type,
+      property_size,
+      cleaning_frequency,
+      status: 'requested'
     });
 
-    if (existingBooking) {
-      console.log('❌ DUPLICATE BOOKING ATTEMPT');
-      return res.status(409).json({
-        success: false,
-        message: 'You have already requested a quotation for this service on the selected date. Please choose a different date or service.'
-      });
-    }
-    console.log('✅ NO DUPLICATE BOOKINGS FOUND');
+    console.log('✅ Booking created successfully:', booking.id);
 
-    // ==================== CREATE BOOKING ====================
-    console.log('💾 CREATING BOOKING IN DATABASE...');
-
-    // Build formatted address
-    const formattedAddress = `${Address_Street.trim()}, ${Address_City.trim()}, ${Address_State.trim()}, ${Address_Postal_Code.trim()}`;
-
-    // Prepare booking data
-    const bookingData = {
-      Customer_ID: parseInt(Customer_ID),
-      Service_ID: parseInt(Service_ID),
-      Date: normalizedRequestedDate,
-      Time: Time && Time.trim() ? Time.trim() : '09:00',
-      Address: formattedAddress,
-      Special_Instructions: Special_Instructions?.trim() || null,
-      Total_Amount: null,
-      Duration: Duration ? parseInt(Duration) : service.Duration,
-      Status: Status,
-      Property_Type: Property_Type?.trim() || null,
-      Property_Size: Property_Size?.trim() || null,
-      Cleaning_Frequency: Cleaning_Frequency?.trim() || null
-    };
-
-    console.log('📝 BOOKING DATA TO CREATE:', bookingData);
-
-    // Create the booking
-    const booking = await Booking.create(bookingData);
-    console.log('✅ BOOKING CREATED SUCCESSFULLY - ID:', booking.ID);
-
-    // Fetch the complete booking with relationships
-    const newBooking = await Booking.findByPk(booking.ID, {
-      include: [
-        {
-          model: Customer,
-          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
-        },
-        {
-          model: Service,
-          attributes: ['ID', 'Name', 'Description', 'Duration', 'Category']
-        }
-      ]
-    });
-
-    console.log('🎉 BOOKING COMPLETED SUCCESSFULLY:', {
-      bookingId: newBooking.ID,
-      customer: newBooking.Customer.Full_Name,
-      service: newBooking.Service.Name,
-      date: newBooking.Date,
-      status: newBooking.Status
-    });
-
-    // Success response
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
-      message: 'Quotation request submitted successfully! We will contact you within 24 hours.',
-      booking: newBooking,
-      nextSteps: [
-        'Our team will review your request',
-        'You will receive a quotation via email',
-        'We may contact you for additional details'
-      ]
+      message: 'Quotation request submitted successfully!',
+      booking
     });
 
-  } catch (err) {
-    console.error('💥 CREATE BOOKING ERROR:', {
-      message: err.message,
-      stack: err.stack,
-      body: req.body,
-      timestamp: new Date().toISOString()
-    });
-
-    // Handle specific database errors
-    if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({
-        success: false,
-        message: 'A booking with these details already exists.'
-      });
-    }
-
-    if (err.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid customer or service reference.'
-      });
-    }
-
-    if (err.name === 'SequelizeValidationError') {
-      const validationErrors = err.errors.map(error => error.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: validationErrors
-      });
-    }
-
-    // Generic error response
-    return res.status(500).json({
+  } catch (error) {
+    console.error('💥 CREATE BOOKING ERROR:', error);
+    res.status(500).json({
       success: false,
-      message: 'Unable to process your quotation request at this time. Please try again later.'
+      message: 'Unable to process your quotation request.'
     });
   }
 };
@@ -545,72 +378,102 @@ exports.updateBooking = async (req, res) => {
 // Get all bookings with pagination and filtering
 exports.getAllBookings = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      search,
-      customerId,
-      serviceId
+    console.log('📖 Getting all bookings...', req.query);
+    
+    const { 
+      limit = 10, 
+      status, 
+      customer_id, 
+      page = 1
     } = req.query;
-
-    const offset = (page - 1) * limit;
-    const whereClause = {};
-
-    // Status filter
+    
+    // Get all bookings from Firestore
+    let bookings = await Booking.findAll();
+    
+    // Apply filters
     if (status && status !== 'all') {
-      whereClause.Status = status;
+      bookings = bookings.filter(booking => 
+        booking.Status === status || booking.status === status
+      );
     }
-
-    // Customer filter
-    if (customerId) {
-      whereClause.Customer_ID = customerId;
+    
+    if (customer_id) {
+      bookings = bookings.filter(booking => 
+        booking.Customer_ID === customer_id || booking.customer_id === customer_id
+      );
     }
-
-    // Service filter
-    if (serviceId) {
-      whereClause.Service_ID = serviceId;
-    }
-
-    // Search filter
-    if (search) {
-      whereClause[Op.or] = [
-        { '$Customer.Full_Name$': { [Op.like]: `%${search}%` } },
-        { '$Service.Name$': { [Op.like]: `%${search}%` } },
-        { Address: { [Op.like]: `%${search}%` } }
-      ];
-    }
-
-    const { count, rows: bookings } = await Booking.findAndCountAll({
-      where: whereClause,
-      include: [
-        {
-          model: Customer,
-          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
-        },
-        {
-          model: Service,
-          attributes: ['ID', 'Name', 'Description', 'Duration']
-        }
-      ],
-      order: [['Date', 'DESC'], ['Time', 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      distinct: true
+    
+    // Sort by date (newest first)
+    bookings.sort((a, b) => {
+      const dateA = new Date(a.Date || a.date || a.created_at);
+      const dateB = new Date(b.Date || b.date || b.created_at);
+      return dateB - dateA;
     });
-
+    
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedBookings = bookings.slice(startIndex, endIndex);
+    
+    // Enrich with customer and service details
+    const enrichedBookings = await Promise.all(
+      paginatedBookings.map(async (booking) => {
+        let customer = null;
+        let service = null;
+        
+        if (booking.Customer_ID) {
+          try {
+            customer = await Customer.findById(booking.Customer_ID);
+          } catch (error) {
+            console.error(`Error fetching customer ${booking.Customer_ID}:`, error);
+          }
+        }
+        
+        if (booking.Service_ID) {
+          try {
+            service = await Service.findById(booking.Service_ID);
+          } catch (error) {
+            console.error(`Error fetching service ${booking.Service_ID}:`, error);
+          }
+        }
+        
+        return {
+          ...booking,
+          Customer: customer ? {
+            ID: customer.id,
+            Full_Name: customer.Full_Name || customer.name,
+            Email: customer.Email || customer.email,
+            Phone: customer.Phone || customer.phone
+          } : null,
+          Service: service ? {
+            ID: service.id,
+            Name: service.Name || service.name,
+            Description: service.Description || service.description,
+            Duration: service.Duration || service.duration
+          } : null
+        };
+      })
+    );
+    
+    console.log(`✅ Found ${bookings.length} bookings`);
+    
     res.json({
       success: true,
-      bookings,
-      totalPages: Math.ceil(count / limit),
-      currentPage: parseInt(page),
-      totalBookings: count
+      data: enrichedBookings,
+      count: enrichedBookings.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: bookings.length
+      }
     });
-  } catch (err) {
-    console.error('Get bookings error:', err);
+    
+  } catch (error) {
+    console.error('❌ Get bookings error:', error);
     res.status(500).json({
       success: false,
-      message: err.message
+      message: 'Failed to fetch bookings',
+      error: error.message
     });
   }
 };
@@ -900,54 +763,59 @@ exports.provideQuotation = async (req, res) => {
     const { id } = req.params;
     const { quoted_amount, quote_breakdown, quote_notes } = req.body;
 
-    console.log('💰 PROVIDING QUOTATION:', { id, quoted_amount });
+    console.log(`🔄 Providing quote for booking ${id}`);
 
-    if (!quoted_amount || quoted_amount <= 0) {
+    if (!id || id === 'undefined') {
       return res.status(400).json({
         success: false,
-        message: 'Valid quoted amount is required.'
+        message: 'Booking ID is required'
       });
     }
 
-    const booking = await Booking.findByPk(id);
-    if (!booking) {
+    if (!quoted_amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quoted amount is required'
+      });
+    }
+
+    const bookingRef = db.collection('bookings').doc(id);
+    const bookingDoc = await bookingRef.get();
+
+    if (!bookingDoc.exists) {
       return res.status(404).json({
         success: false,
-        message: 'Booking not found.'
+        message: 'Booking not found'
       });
     }
 
     const updateData = {
       Status: 'quoted',
-      Quoted_Amount: parseFloat(quoted_amount),
+      quoted_amount: parseFloat(quoted_amount),
+      quote_date: new Date().toISOString(),
       last_updated: new Date().toISOString()
     };
 
-    if (quote_breakdown) {
-      updateData.quote_breakdown = quote_breakdown;
-    }
+    if (quote_breakdown) updateData.quote_breakdown = quote_breakdown;
+    if (quote_notes) updateData.quote_notes = quote_notes;
 
-    if (quote_notes) {
-      updateData.quote_notes = quote_notes;
-    }
-
-    await booking.update(updateData);
-
-    console.log('✅ Quotation provided successfully:', { id, amount: quoted_amount });
+    await bookingRef.update(updateData);
+    const updatedBooking = await bookingRef.get();
 
     res.json({
       success: true,
-      message: `Quotation of R ${quoted_amount} provided successfully.`,
-      booking: await Booking.findByPk(id, {
-        include: [{ model: Customer }, { model: Service }]
-      })
+      message: 'Quote provided successfully',
+      booking: {
+        id: updatedBooking.id,
+        ...updatedBooking.data()
+      }
     });
-
   } catch (error) {
-    console.error('❌ Provide quotation error:', error);
+    console.error('Error providing quote:', error);
     res.status(500).json({
       success: false,
-      message: 'Error providing quotation: ' + error.message
+      message: 'Failed to provide quote',
+      error: error.message
     });
   }
 };
@@ -1159,66 +1027,69 @@ exports.getBookingsAsCards = async (req, res) => {
 exports.getBookingDetails = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const booking = await Booking.findByPk(id, {
-      include: [
-        {
-          model: Customer,
-          attributes: ['ID', 'Full_Name', 'Email', 'Phone', 'Address']
-        },
-        {
-          model: Service,
-          attributes: ['ID', 'Name', 'Description', 'Duration', 'Category', 'Image_URL']
-        }
-      ]
-    });
-
+    console.log(`📖 Getting booking details for: ${id}`);
+    
+    const booking = await Booking.findById(id);
+    
     if (!booking) {
       return res.status(404).json({
         success: false,
         message: 'Booking not found'
       });
     }
-
-    const bookingDetails = {
-      id: booking.ID,
-      customer: {
-        id: booking.Customer.ID,
-        name: booking.Customer.Full_Name,
-        email: booking.Customer.Email,
-        phone: booking.Customer.Phone,
-        address: booking.Customer.Address
-      },
-      service: {
-        id: booking.Service.ID,
-        name: booking.Service.Name,
-        description: booking.Service.Description,
-        duration: booking.Service.Duration,
-        category: booking.Service.Category,
-        image: booking.Service.Image_URL
-      },
-      date: booking.Date,
-      time: booking.Time,
-      address: booking.Address,
-      specialInstructions: booking.Special_Instructions,
-      status: booking.Status,
-      quotedAmount: booking.Quoted_Amount,
-      propertyType: booking.Property_Type,
-      propertySize: booking.Property_Size,
-      cleaningFrequency: booking.Cleaning_Frequency,
-      createdAt: booking.created_at,
-      updatedAt: booking.updated_at
+    
+    // Fetch related data
+    let customer = null;
+    let service = null;
+    
+    if (booking.Customer_ID) {
+      try {
+        customer = await Customer.findById(booking.Customer_ID);
+      } catch (error) {
+        console.error(`Error fetching customer ${booking.Customer_ID}:`, error);
+      }
+    }
+    
+    if (booking.Service_ID) {
+      try {
+        service = await Service.findById(booking.Service_ID);
+      } catch (error) {
+        console.error(`Error fetching service ${booking.Service_ID}:`, error);
+      }
+    }
+    
+    const bookingWithDetails = {
+      ...booking,
+      Customer: customer ? {
+        ID: customer.id,
+        Full_Name: customer.Full_Name || customer.name,
+        Email: customer.Email || customer.email,
+        Phone: customer.Phone || customer.phone,
+        Address: customer.Address || customer.address
+      } : null,
+      Service: service ? {
+        ID: service.id,
+        Name: service.Name || service.name,
+        Description: service.Description || service.description,
+        Duration: service.Duration || service.duration,
+        Category: service.Category || service.category,
+        Image_URL: service.Image_URL || service.image_url
+      } : null
     };
-
+    
+    console.log(`✅ Found booking: ${id}`);
+    
     res.json({
       success: true,
-      booking: bookingDetails
+      data: bookingWithDetails
     });
+    
   } catch (error) {
-    console.error('Get booking details error:', error);
+    console.error('❌ Get booking details error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching booking details'
+      message: 'Failed to fetch booking details',
+      error: error.message
     });
   }
 };

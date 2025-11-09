@@ -1,0 +1,28 @@
+[build]
+  command = "echo 'No build command for backend'"
+  publish = "."  # Netlify needs this but we'll use functions
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Since you have an Express backend, we need to use serverless functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# For static files (uploads)
+[[redirects]]
+  from = "/upload/*"
+  to = "/.netlify/functions/api/upload/:splat"
+  status = 200
+
+# For health check
+[[redirects]]
+  from = "/health"
+  to = "/.netlify/functions/api/health"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
