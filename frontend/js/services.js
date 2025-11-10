@@ -1,7 +1,7 @@
 // services.js - Unified Customer Services with No Code Duplication
 class CustomerServices {
     constructor() {
-        this.baseURL = 'http://localhost:3000/api';
+        this.baseURL = 'http://localhost:5000/api';
         this.services = [];
         this.filteredServices = [];
         this.currentCategory = 'all';
@@ -22,12 +22,31 @@ class CustomerServices {
         this.retryAttempts = 3;
         this.retryDelay = 2000;
 
-        // Cache for services
+        // Cache for services - INITIALIZE THIS PROPERLY
         this.servicesCache = {
             data: null,
             timestamp: 0,
-            ttl: 300000
+            ttl: 60000, // 1 minute cache
+            lastSync: 0,
+            syncInterval: 30000,
+            isSyncing: false
         };
+
+        // Background sync - REMOVE DUPLICATE
+        this.backgroundSync = {
+            enabled: true,
+            interval: 30000, // 30 seconds
+            lastSync: 0,
+            isRunning: false
+        };
+
+        // Request queue for batching
+        this.requestQueue = [];
+        this.isProcessingQueue = false;
+
+        // Offline support
+        this.offlineMode = false;
+        this.pendingSync = [];
 
         // Bind methods
         this.init = this.init.bind(this);
@@ -58,29 +77,346 @@ class CustomerServices {
             return 'other';
         }
     }
+    // SMART CACHING WITH BACKGROUND SYNC
+    async loadServicesWithSmartCache() {
+        const now = Date.now();
+
+        // 1. Check if we have fresh cache (less than 1 minute old)
+        if (this.servicesCache.data &&
+            (now - this.servicesCache.timestamp) < this.servicesCache.ttl) {
+            console.log('📦 Using fresh cached services');
+            this.services = this.servicesCache.data;
+            this.filteredServices = [...this.services];
+            this.renderServices();
+            this.updateCategoryFilters();
+
+            // Start background sync if not already running
+            this.startBackgroundSync();
+            return;
+        }
+
+        // 2. Check if we're currently syncing
+        if (this.servicesCache.isSyncing) {
+            console.log('🔄 Sync in progress, using existing cache');
+            if (this.servicesCache.data) {
+                this.services = this.servicesCache.data;
+                this.filteredServices = [...this.services];
+                this.renderServices();
+                this.updateCategoryFilters();
+            }
+            return;
+        }
+
+        // 3. Try to load from API with enhanced error handling
+        try {
+            this.servicesCache.isSyncing = true;
+            await this.loadServicesFromAPI();
+        } catch (error) {
+            this.handleCacheError(error);
+        } finally {
+            this.servicesCache.isSyncing = false;
+            this.servicesCache.lastSync = Date.now();
+        }
+    }
+    async loadServicesFromAPI() {
+        try {
+            this.showLoading('Loading services...');
+            console.log('🔄 Fetching fresh services from API...');
+
+            const data = await this.fetchRequest('GET', '/services/public/services');
+
+            if (data && data.success && Array.isArray(data.services)) {
+                const processedServices = this.processServiceData(data.services);
+
+                // Update cache with new data
+                this.servicesCache = {
+                    data: processedServices,
+                    timestamp: Date.now(),
+                    ttl: 60000, // 1 minute
+                    lastSync: Date.now(),
+                    syncInterval: 30000,
+                    isSyncing: false
+                };
+
+                this.services = processedServices;
+                this.filteredServices = [...this.services];
+
+                console.log(`✅ Successfully loaded ${this.services.length} services`);
+
+                // Update UI
+                this.renderServices();
+                this.updateCategoryFilters();
+
+                // Show last updated time
+                this.showLastUpdatedTime();
+
+            } else {
+                throw new Error('Invalid response format from services API');
+            }
+
+        } catch (error) {
+            console.error('❌ Error loading services from API:', error);
+            throw error; // Re-throw to handle in calling function
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    showSyncNotification(message, type = 'info') {
+        // Only show sync notifications if user is on services page
+        if (this.getCurrentPage() !== 'services') return;
+
+        const notification = document.createElement('div');
+        notification.className = `sync-notification notification-${type}`;
+        notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas ${type === 'success' ? 'fa-sync-alt' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+
+    // MANUAL SYNC TRIGGER
+    async manualSync() {
+        try {
+            this.showLoading('Syncing services...');
+            await this.loadServicesFromAPI();
+            this.showSuccess('Services synced successfully!');
+        } catch (error) {
+            this.showError('Sync failed. Using cached data.');
+        }
+    }
+    // UI ENHANCEMENTS
+    showLastUpdatedTime() {
+        const lastUpdated = document.getElementById('last-updated-time');
+        if (lastUpdated) {
+            const now = new Date();
+            lastUpdated.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+            lastUpdated.style.display = 'block';
+        }
+    }
+
+    // BACKGROUND SYNC SYSTEM
+    startBackgroundSync() {
+        if (this.backgroundSync.isRunning || !this.backgroundSync.enabled) {
+            return;
+        }
+
+        this.backgroundSync.isRunning = true;
+        console.log('🔄 Starting background sync service...');
+
+        // Sync immediately if cache is stale
+        const now = Date.now();
+        if (now - this.servicesCache.lastSync > this.servicesCache.syncInterval) {
+            this.backgroundSyncData();
+        }
+
+        // Set up periodic sync
+        this.backgroundSync.intervalId = setInterval(() => {
+            this.backgroundSyncData();
+        }, this.backgroundSync.interval);
+    }
+    async backgroundSyncData() {
+        // Don't sync if already syncing or offline
+        if (this.servicesCache.isSyncing || this.offlineMode || !navigator.onLine) {
+            return;
+        }
+
+        // Don't sync if cache is still fresh
+        const now = Date.now();
+        if (now - this.servicesCache.lastSync < 10000) { // 10 seconds minimum between syncs
+            return;
+        }
+
+        try {
+            console.log('🔄 Background sync in progress...');
+            this.servicesCache.isSyncing = true;
+
+            const data = await this.fetchRequest('GET', '/services/public/services', null, 1, true); // background=true
+
+            if (data && data.success && Array.isArray(data.services)) {
+                const processedServices = this.processServiceData(data.services);
+
+                // Only update if data has changed
+                if (this.hasDataChanged(processedServices)) {
+                    this.servicesCache.data = processedServices;
+                    this.servicesCache.timestamp = now;
+                    this.servicesCache.lastSync = now;
+
+                    this.services = processedServices;
+                    this.filteredServices = [...this.services];
+
+                    console.log('✅ Background sync completed - data updated');
+
+                    // Update UI if on services page
+                    if (this.getCurrentPage() === 'services') {
+                        this.renderServices();
+                        this.updateCategoryFilters();
+                        this.showSyncNotification('Services updated', 'success');
+                    }
+                } else {
+                    console.log('✅ Background sync completed - no changes');
+                    this.servicesCache.lastSync = now; // Update sync time even if no changes
+                }
+            }
+
+        } catch (error) {
+            console.log('⚠️ Background sync failed:', error.message);
+            // Don't show error for background sync failures
+        } finally {
+            this.servicesCache.isSyncing = false;
+            this.backgroundSync.lastSync = Date.now();
+        }
+    }
+    // ENHANCED ERROR HANDLING WITH OFFLINE SUPPORT
+    handleCacheError(error) {
+        console.error('Cache error:', error);
+
+        // Use cached data even if expired
+        if (this.servicesCache.data) {
+            console.log('🔄 Using expired cache due to error');
+            this.services = this.servicesCache.data;
+            this.filteredServices = [...this.services];
+            this.renderServices();
+            this.updateCategoryFilters();
+
+            if (error.message.includes('Rate limit')) {
+                this.showWarning('Services loaded from cache. Rate limit exceeded, syncing paused.');
+                this.stopBackgroundSync();
+            } else if (error.message.includes('Network') || !navigator.onLine) {
+                this.showWarning('Offline mode: Using cached services');
+                this.offlineMode = true;
+            } else {
+                this.showWarning('Services loaded from cache. Connection issues.');
+            }
+        } else {
+            this.showError('Failed to load services. Please check your connection.');
+            this.showDatabaseError();
+        }
+    }
+    // DATA CHANGE DETECTION
+    hasDataChanged(newServices) {
+        if (!this.servicesCache.data || this.servicesCache.data.length !== newServices.length) {
+            return true;
+        }
+
+        // Simple check: compare service counts and names
+        const oldNames = this.servicesCache.data.map(s => s.Name).sort();
+        const newNames = newServices.map(s => s.Name).sort();
+
+        return JSON.stringify(oldNames) !== JSON.stringify(newNames);
+    }
 
     async init() {
         console.log('Initializing Customer Services...');
+
+        // Initialize servicesCache if it doesn't exist
+        if (!this.servicesCache) {
+            this.servicesCache = {
+                data: null,
+                timestamp: 0,
+                ttl: 60000, // 1 minute cache
+                lastSync: 0,
+                syncInterval: 30000,
+                isSyncing: false
+            };
+        }
+
+        // Check network status first
+        if (!this.checkNetworkStatus()) {
+            // Try to use cache if offline
+            if (this.servicesCache.data) {
+                this.services = this.servicesCache.data;
+                this.filteredServices = [...this.services];
+            }
+            this.offlineMode = true;
+            return;
+        }
+
         const currentPage = this.getCurrentPage();
 
         await this.loadServiceMetadata();
 
+        // Use appropriate methods based on page
         if (currentPage === 'services') {
-            await this.loadServices();
+            await this.loadServicesWithSmartCache();
             this.setupSearch();
             this.setupFilters();
+
         } else if (currentPage === 'home') {
+            // Use existing loadHomeServices method instead of non-existent loadHomeServicesWithCache
             await this.loadHomeServices();
         } else if (currentPage === 'booking') {
+            // Use existing setupBookingPage method instead of non-existent setupBookingPageWithCache
             await this.setupBookingPage();
         } else {
+            // Use existing loadHomeServices method
             await this.loadHomeServices();
         }
 
         this.setupEventListeners();
         this.checkPendingIntendedService();
-    }
 
+        // Start background sync if we're online
+        if (!this.offlineMode) {
+            this.startBackgroundSync();
+        }
+    }
+    async loadHomeServicesWithCache() {
+        const now = Date.now();
+
+        // Check cache first
+        if (this.servicesCache.data &&
+            (now - this.servicesCache.timestamp) < this.servicesCache.ttl) {
+            console.log('📦 Using cached services for home page');
+            this.renderHomeServices(this.servicesCache.data);
+            return;
+        }
+
+        // Fall back to original method
+        await this.loadHomeServices();
+    }
+    async setupBookingPageWithCache() {
+        const now = Date.now();
+
+        // Check cache first
+        if (this.servicesCache.data &&
+            (now - this.servicesCache.timestamp) < this.servicesCache.ttl) {
+            console.log('📦 Using cached services for booking page');
+            await this.setupBookingPageWithData(this.servicesCache.data);
+            return;
+        }
+
+        // Fall back to original method
+        await this.setupBookingPage();
+    }
+    async setupBookingPageWithData(services) {
+        try {
+            this.showBookingLoading();
+
+            // Use the provided services data instead of loading from API
+            this.services = services;
+
+            if (this.services && this.services.length > 0) {
+                this.populateBookingServiceDropdown();
+                this.setupUnifiedBookingForm('page');
+                this.hideBookingLoading();
+            } else {
+                this.showBookingError('No services available at the moment.');
+            }
+        } catch (error) {
+            console.error('Error setting up booking form with cache:', error);
+            this.showBookingError('Failed to load booking form. Please try again.');
+        }
+    }
     // UNIFIED BOOKING SYSTEM
     // ======================
 
@@ -639,7 +975,7 @@ class CustomerServices {
         // Auto-remove warning after 5 seconds
         setTimeout(() => {
             this.removeFieldWarning(fieldId, formId);
-        }, 3306);
+        }, 5000);
     }
 
     removeFieldWarning(fieldId, formId) {
@@ -856,14 +1192,23 @@ class CustomerServices {
     // Only the validation and error display methods have been modified
 
     // API & DATA METHODS
-    async fetchRequest(method, endpoint, data = null, attempt = 1) {
+    // ENHANCED FETCH REQUEST WITH BACKGROUND MODE
+    async fetchRequest(method, endpoint, data = null, attempt = 1, background = false) {
+        // Don't make background requests if we're rate limited
+        if (background && this.offlineMode) {
+            throw new Error('Background request skipped - offline mode');
+        }
+
         const now = Date.now();
         const timeSinceLastRequest = now - this.lastRequestTime;
 
-        if (timeSinceLastRequest < this.minRequestInterval) {
-            await new Promise(resolve =>
-                setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-            );
+        // More aggressive rate limiting for non-background requests
+        if (!background && timeSinceLastRequest < this.minRequestInterval) {
+            const waitTime = this.minRequestInterval - timeSinceLastRequest;
+            if (!background) {
+                console.log(`⏳ Rate limiting: waiting ${waitTime}ms before next request`);
+            }
+            await new Promise(resolve => setTimeout(resolve, waitTime));
         }
 
         try {
@@ -886,18 +1231,34 @@ class CustomerServices {
                 config.body = JSON.stringify(data);
             }
 
-            console.log(`Making ${method} request to: ${this.baseURL}${endpoint} (attempt ${attempt})`);
+            if (!background) {
+                console.log(`🌐 Making ${method} request to: ${this.baseURL}${endpoint} (attempt ${attempt})`);
+            }
 
             this.lastRequestTime = Date.now();
+
+            // Add timeout to prevent hanging requests
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), background ? 15000 : 10000);
+            config.signal = controller.signal;
+
             const response = await fetch(`${this.baseURL}${endpoint}`, config);
+            clearTimeout(timeoutId);
 
             if (response.status === 429) {
-                const retryAfter = response.headers.get('Retry-After') || this.retryDelay;
+                const retryAfter = parseInt(response.headers.get('Retry-After')) || (this.retryDelay * attempt);
+                if (!background) {
+                    console.warn(`🚨 Rate limited (429). Retrying after ${retryAfter}ms...`);
+                }
+
                 if (attempt <= this.retryAttempts) {
-                    console.log(`Rate limited. Retrying after ${retryAfter}ms...`);
                     await new Promise(resolve => setTimeout(resolve, retryAfter));
-                    return this.fetchRequest(method, endpoint, data, attempt + 1);
+                    return this.fetchRequest(method, endpoint, data, attempt + 1, background);
                 } else {
+                    // For background requests, don't throw error, just fail silently
+                    if (background) {
+                        throw new Error('Background request rate limited');
+                    }
                     throw new Error('Rate limit exceeded. Please try again later.');
                 }
             }
@@ -906,9 +1267,14 @@ class CustomerServices {
                 let errorDetails = '';
                 try {
                     const errorResponse = await response.json();
-                    errorDetails = JSON.stringify(errorResponse);
+                    errorDetails = errorResponse.message || JSON.stringify(errorResponse);
                 } catch (e) {
                     errorDetails = await response.text();
+                }
+
+                // For background requests, don't throw detailed errors
+                if (background) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
 
                 throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetails}`);
@@ -916,20 +1282,38 @@ class CustomerServices {
 
             return await response.json();
         } catch (error) {
-            console.error(`Fetch ${method} ${endpoint} failed:`, error);
+            if (!background) {
+                console.error(`❌ Fetch ${method} ${endpoint} failed:`, error);
+            }
 
-            if (attempt <= this.retryAttempts && !error.message.includes('Rate limit')) {
-                console.log(`Retrying request (attempt ${attempt + 1})...`);
-                await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
-                return this.fetchRequest(method, endpoint, data, attempt + 1);
+            // Don't retry on certain errors for background requests
+            if (error.name === 'AbortError') {
+                if (background) {
+                    throw new Error('Background request timeout');
+                }
+                throw new Error('Request timeout. Please check your connection and try again.');
+            }
+
+            if (attempt <= this.retryAttempts &&
+                !error.message.includes('Rate limit') &&
+                !error.message.includes('timeout')) {
+                const backoffDelay = this.retryDelay * Math.pow(2, attempt - 1);
+                if (!background) {
+                    console.log(`🔄 Retrying request (attempt ${attempt + 1}) after ${backoffDelay}ms...`);
+                }
+                await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                return this.fetchRequest(method, endpoint, data, attempt + 1, background);
             }
 
             throw error;
         }
     }
 
+    // Update the loadServices method with better error handling
     async loadServices() {
         const now = Date.now();
+
+        // Use cache more aggressively to avoid API calls
         if (this.servicesCache.data &&
             (now - this.servicesCache.timestamp) < this.servicesCache.ttl) {
             console.log('📦 Using cached services data');
@@ -952,7 +1336,7 @@ class CustomerServices {
                 this.servicesCache = {
                     data: this.services,
                     timestamp: Date.now(),
-                    ttl: 300000
+                    ttl: 300000 // 5 minutes
                 };
 
                 console.log(`✅ Successfully loaded ${this.services.length} services`);
@@ -971,15 +1355,25 @@ class CustomerServices {
         } catch (error) {
             console.error('❌ Error loading services:', error);
 
+            // More graceful fallback to cache
             if (this.servicesCache.data) {
                 console.log('🔄 Using expired cache due to API error');
                 this.services = this.servicesCache.data;
                 this.filteredServices = [...this.services];
                 this.renderServices();
                 this.updateCategoryFilters();
-                this.showWarning('Services loaded from cache. Some data may be outdated.');
+
+                if (error.message.includes('Rate limit')) {
+                    this.showWarning('Services loaded from cache. Rate limit exceeded, please try again later.');
+                } else {
+                    this.showWarning('Services loaded from cache. Some data may be outdated.');
+                }
             } else {
-                this.showError('Failed to load services. Please try again later.');
+                if (error.message.includes('Rate limit')) {
+                    this.showError('Rate limit exceeded. Please wait a moment and try again.');
+                } else {
+                    this.showError('Failed to load services. Please try again later.');
+                }
                 this.showDatabaseError();
             }
         } finally {
@@ -989,7 +1383,31 @@ class CustomerServices {
             this.hideLoading();
         }
     }
+    // NETWORK STATUS HANDLING
+    checkNetworkStatus() {
+        if (!navigator.onLine) {
+            this.offlineMode = true;
+            return false;
+        }
+        this.offlineMode = false;
+        return true;
+    }
+    // LISTEN FOR NETWORK CHANGES
+    setupNetworkListeners() {
+        window.addEventListener('online', () => {
+            console.log('🌐 Online - resuming sync');
+            this.offlineMode = false;
+            this.startBackgroundSync();
+            this.showSuccess('Connection restored');
+        });
 
+        window.addEventListener('offline', () => {
+            console.log('📴 Offline - pausing sync');
+            this.offlineMode = true;
+            this.stopBackgroundSync();
+            this.showWarning('Offline mode - using cached data');
+        });
+    }
     async checkBookingAvailabilityWithDuplicates(serviceId, date, customerId) {
         try {
             const user = window.authManager.getUser();
@@ -1265,8 +1683,8 @@ class CustomerServices {
     getImageUrl(imageUrl) {
         if (!imageUrl) return '';
         if (imageUrl.startsWith('http')) return imageUrl;
-        if (imageUrl.startsWith('/upload/')) return `http://localhost:3000${imageUrl}`;
-        if (imageUrl.includes('.')) return `http://localhost:3000/upload/services/${imageUrl}`;
+        if (imageUrl.startsWith('/upload/')) return `http://localhost:5000${imageUrl}`;
+        if (imageUrl.includes('.')) return `http://localhost:5000/upload/services/${imageUrl}`;
         return '';
     }
 
@@ -1812,7 +2230,7 @@ class CustomerServices {
 
         document.body.appendChild(notification);
 
-        const removeTime = type === 'error' ? 8000 : 3306;
+        const removeTime = type === 'error' ? 8000 : 5000;
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.remove();
@@ -2575,288 +2993,4 @@ style.textContent = `
     }
     
 `;
-// Quote Form Manager
-class QuoteForm {
-    constructor() {
-        this.baseURL = 'http://localhost:3000/api';
-        this.propertyTypes = [];
-        this.services = [];
-
-        this.init();
-    }
-
-    async init() {
-        console.log('Initializing Quote Form...');
-        await this.loadFormData();
-        this.setupEventListeners();
-    }
-
-    async loadFormData() {
-        try {
-            this.showLoading();
-
-            // Load property types and services in parallel
-            await Promise.all([
-                this.loadPropertyTypes(),
-                this.loadServices()
-            ]);
-
-            this.populateForm();
-            this.hideLoading();
-            this.showForm();
-
-        } catch (error) {
-            console.error('Error loading form data:', error);
-            this.showError('Failed to load form data. Please try again.');
-        }
-    }
-
-    async loadPropertyTypes() {
-        try {
-            // In a real implementation, this would fetch from your API
-            // For now, using static data that would come from your database
-            this.propertyTypes = [
-                { id: 'residential', name: 'Residential' },
-                { id: 'commercial', name: 'Commercial' },
-                { id: 'industrial', name: 'Industrial' },
-                { id: 'apartment', name: 'Apartment' },
-                { id: 'office', name: 'Office' },
-                { id: 'commercial-space', name: 'Commercial Space' }
-            ];
-
-            console.log('Loaded property types:', this.propertyTypes);
-
-        } catch (error) {
-            console.error('Error loading property types:', error);
-            // Fallback to default options
-            this.propertyTypes = [
-                { id: 'residential', name: 'Residential' },
-                { id: 'commercial', name: 'Commercial' },
-                { id: 'industrial', name: 'Industrial' }
-            ];
-        }
-    }
-
-    async loadServices() {
-        try {
-            // In a real implementation, this would fetch from your API
-            // Using the same endpoint as your services page
-            const response = await fetch(`${this.baseURL}/services/public/services`);
-
-            if (response.ok) {
-                const data = await response.json();
-
-                if (data && data.success && Array.isArray(data.services)) {
-                    this.services = data.services
-                        .filter(service => service.Is_Available !== false)
-                        .map(service => ({
-                            id: service.ID || service.id,
-                            name: service.Name || service.service_name,
-                            description: service.Description || service.description
-                        }));
-                } else {
-                    throw new Error('Invalid response format');
-                }
-            } else {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
-
-            console.log('Loaded services:', this.services);
-
-        } catch (error) {
-            console.error('Error loading services:', error);
-            // Fallback to default services
-            this.services = [
-                { id: 'standard', name: 'Standard Cleaning' },
-                { id: 'deep', name: 'Deep Cleaning' },
-                { id: 'window', name: 'Window Cleaning' },
-                { id: 'carpet', name: 'Carpet Cleaning' },
-                { id: 'upholstery', name: 'Upholstery Cleaning' },
-                { id: 'other', name: 'Other' }
-            ];
-        }
-    }
-
-    populateForm() {
-        this.populatePropertyTypes();
-        this.populateServices();
-    }
-
-    populatePropertyTypes() {
-        const select = document.getElementById('index-quoteType');
-        if (!select) return;
-
-        // Clear existing options (keeping the first placeholder)
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
-
-        // Add property types from database
-        this.propertyTypes.forEach(type => {
-            const option = document.createElement('option');
-            option.value = type.id;
-            option.textContent = type.name;
-            select.appendChild(option);
-        });
-    }
-
-    populateServices() {
-        const container = document.getElementById('services-checkbox-group');
-        if (!container) return;
-
-        // Clear existing content
-        container.innerHTML = '';
-
-        // Add services from database
-        this.services.forEach(service => {
-            const checkboxId = `index-service-${service.id}`;
-
-            const checkboxItem = document.createElement('div');
-            checkboxItem.className = 'index-checkbox-item';
-            checkboxItem.innerHTML = `
-                        <input type="checkbox" id="${checkboxId}" name="index-services" 
-                               value="${service.id}" class="index-checkbox-input">
-                        <label for="${checkboxId}" class="index-checkbox-label">${service.name}</label>
-                    `;
-
-            container.appendChild(checkboxItem);
-        });
-    }
-
-    setupEventListeners() {
-        const form = document.getElementById('index-quoteForm');
-        if (form) {
-            form.addEventListener('submit', (e) => this.handleSubmit(e));
-        }
-    }
-
-    async handleSubmit(event) {
-        event.preventDefault();
-
-        // Get form data
-        const formData = {
-            name: document.getElementById('index-quoteName').value,
-            email: document.getElementById('index-quoteEmail').value,
-            phone: document.getElementById('index-quotePhone').value,
-            propertyType: document.getElementById('index-quoteType').value,
-            services: Array.from(document.querySelectorAll('input[name="index-services"]:checked'))
-                .map(checkbox => checkbox.value),
-            details: document.getElementById('index-quoteDetails').value
-        };
-
-        // Validate form
-        if (!this.validateForm(formData)) {
-            return;
-        }
-
-        // Store form data for the booking page
-        this.storeFormData(formData);
-
-        // Redirect to booking page
-        window.location.href = 'booking.html';
-    }
-
-    validateForm(formData) {
-        // Simple validation
-        if (!formData.name.trim()) {
-            alert('Please enter your full name');
-            return false;
-        }
-
-        if (!formData.email.trim() || !this.isValidEmail(formData.email)) {
-            alert('Please enter a valid email address');
-            return false;
-        }
-
-        if (!formData.phone.trim()) {
-            alert('Please enter your phone number');
-            return false;
-        }
-
-        if (!formData.propertyType) {
-            alert('Please select a property type');
-            return false;
-        }
-
-        if (formData.services.length === 0) {
-            alert('Please select at least one service');
-            return false;
-        }
-
-        return true;
-    }
-
-    isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
-    storeFormData(formData) {
-        // Store in localStorage to pass to booking page
-        localStorage.setItem('quoteFormData', JSON.stringify(formData));
-    }
-
-    showLoading() {
-        document.getElementById('quote-loading').style.display = 'block';
-        document.getElementById('quote-error').style.display = 'none';
-        document.getElementById('index-quoteForm').style.display = 'none';
-    }
-
-    hideLoading() {
-        document.getElementById('quote-loading').style.display = 'none';
-    }
-
-    showForm() {
-        document.getElementById('index-quoteForm').style.display = 'block';
-    }
-
-    showError(message) {
-        document.getElementById('quote-loading').style.display = 'none';
-        document.getElementById('index-quoteForm').style.display = 'none';
-
-        const errorElement = document.getElementById('quote-error');
-        errorElement.style.display = 'block';
-
-        // Update error message if needed
-        const messageElement = errorElement.querySelector('p');
-        if (messageElement && message) {
-            messageElement.textContent = message;
-        }
-    }
-}
-// In your booking page JavaScript
-function prefillFromQuote() {
-    const quoteData = JSON.parse(localStorage.getItem('quoteFormData') || '{}');
-    
-    if (quoteData.name) {
-        document.getElementById('customer-name').value = quoteData.name;
-    }
-    
-    if (quoteData.email) {
-        document.getElementById('customer-email').value = quoteData.email;
-    }
-    
-    if (quoteData.phone) {
-        document.getElementById('customer-phone').value = quoteData.phone;
-    }
-    
-    if (quoteData.propertyType) {
-        document.getElementById('property-type').value = quoteData.propertyType;
-    }
-    
-    if (quoteData.details) {
-        document.getElementById('special-requests').value = quoteData.details;
-    }
-    
-    // Clear the stored data after use
-    localStorage.removeItem('quoteFormData');
-}
-
-// Call this when your booking page loads
-document.addEventListener('DOMContentLoaded', prefillFromQuote);
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.QuoteForm = new QuoteForm();
-});
 document.head.appendChild(style);

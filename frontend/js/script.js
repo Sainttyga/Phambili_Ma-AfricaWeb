@@ -4,7 +4,7 @@ class RateLimitManager {
     this.requests = new Map();
     this.maxRequests = 15; // Increased from 10
     this.windowMs = 60000; // 1 minute window
-    this.retryAfter = 3000; // Reduced from 3306
+    this.retryAfter = 3000; // Reduced from 5000
     this.globalRequestCount = 0;
     this.lastGlobalRequest = 0;
     this.globalDelay = 300; // Base delay between requests
@@ -72,7 +72,7 @@ class RateLimitManager {
 // ========== ENHANCED API CLIENT WITH RATE LIMIT COORDINATION ==========
 class EnhancedAPIClient {
   constructor() {
-    this.baseURL = 'http://localhost:3000/api';
+    this.baseURL = 'http://localhost:5000/api';
     this.pendingRequests = new Map();
     this.requestQueue = [];
     this.maxConcurrentRequests = 2;
@@ -148,25 +148,12 @@ class EnhancedAPIClient {
     const timeoutId = setTimeout(() => controller.abort(), options.timeout || 20000);
 
     try {
-      // Get authentication headers - but only for authenticated endpoints
-      const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-      };
-
-      // Only add authorization header for authenticated endpoints (not login/register)
-      const isPublicEndpoint = endpoint.includes('/auth/') ||
-        endpoint.includes('/register') ||
-        endpoint.includes('/forgot-password');
-
-      if (!isPublicEndpoint && window.authManager && window.authManager.isAuthenticated() && window.authManager.token) {
-        headers['Authorization'] = `Bearer ${window.authManager.token}`;
-        console.log('🔐 Adding auth token to request');
-      }
-
       const config = {
         method,
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
         signal: controller.signal
       };
 
@@ -177,17 +164,6 @@ class EnhancedAPIClient {
       console.log(`🌐 Making ${method} request to: ${endpoint}`);
 
       const response = await fetch(`${this.baseURL}${endpoint}`, config);
-
-      // Handle authentication errors
-      if (response.status === 401 && !isPublicEndpoint) {
-        console.error('❌ Authentication failed - redirecting to login');
-        if (window.authManager) {
-          window.authManager.logout();
-        } else {
-          window.location.href = 'login.html';
-        }
-        throw new Error('Authentication failed. Please log in again.');
-      }
 
       // Handle rate limiting from server
       if (response.status === 429) {
@@ -226,7 +202,7 @@ class EnhancedAPIClient {
       }
 
       if (error.status === 429) {
-        this.showRateLimitNotification(3306);
+        this.showRateLimitNotification(5000);
         throw new Error('Too many requests. Please slow down.');
       }
 
@@ -1067,42 +1043,42 @@ async function enhancedLogout() {
 }
 
 // Add authentication to quote form
-// function setupProtectedForms() {
-//   const quoteForm = document.getElementById('index-quoteForm');
-//   if (quoteForm) {
-//     quoteForm.addEventListener('submit', async function (e) {
-//       if (typeof authManager === 'undefined' || !authManager.isAuthenticated()) {
-//         e.preventDefault();
-//         window.beautifulLoader.show('Redirecting to login...');
+function setupProtectedForms() {
+  const quoteForm = document.getElementById('index-quoteForm');
+  if (quoteForm) {
+    quoteForm.addEventListener('submit', async function (e) {
+      if (typeof authManager === 'undefined' || !authManager.isAuthenticated()) {
+        e.preventDefault();
+        window.beautifulLoader.show('Redirecting to login...');
 
-//         setTimeout(() => {
-//           if (typeof authManager !== 'undefined') {
-//             authManager.redirectToLogin();
-//           } else {
-//             window.location.href = 'login.html';
-//           }
-//         }, 500);
-//         return;
-//       }
+        setTimeout(() => {
+          if (typeof authManager !== 'undefined') {
+            authManager.redirectToLogin();
+          } else {
+            window.location.href = 'login.html';
+          }
+        }, 500);
+        return;
+      }
 
-//       const submitBtn = this.querySelector('button[type="submit"]');
-//       const originalText = submitBtn.innerHTML;
-//       submitBtn.disabled = true;
-//       submitBtn.classList.add('btn-loading');
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.classList.add('btn-loading');
 
-//       const formData = new FormData(this);
-//       if (authManager.user && authManager.user.ID) {
-//         formData.append('userId', authManager.user.ID);
-//       }
+      const formData = new FormData(this);
+      if (authManager.user && authManager.user.ID) {
+        formData.append('userId', authManager.user.ID);
+      }
 
-//       setTimeout(() => {
-//         submitBtn.disabled = false;
-//         submitBtn.classList.remove('btn-loading');
-//         submitBtn.innerHTML = originalText;
-//       }, 3000);
-//     });
-//   }
-// }
+      setTimeout(() => {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-loading');
+        submitBtn.innerHTML = originalText;
+      }, 3000);
+    });
+  }
+}
 
 // ========== PASSWORD VALIDATION FUNCTIONS ==========
 function validatePasswordStrength(password) {
@@ -1631,15 +1607,6 @@ function showFirstLoginModal(email) {
     modal.style.display = 'flex';
     modal.classList.add('active');
 
-    // Add helpful information
-    const modalHeader = modal.querySelector('.modal-header');
-    if (modalHeader) {
-      const infoText = document.createElement('p');
-      infoText.style.cssText = 'color: #666; font-size: 14px; margin-top: 10px;';
-      infoText.innerHTML = '<i class="fas fa-info-circle"></i> This is your first login. Please set a new secure password.';
-      modalHeader.appendChild(infoText);
-    }
-
     const errorDiv = document.getElementById('first-login-error');
     if (errorDiv) {
       errorDiv.style.display = 'none';
@@ -1724,31 +1691,14 @@ function showFirstLoginError(message) {
   const errorText = document.getElementById('first-login-error-text');
 
   if (errorDiv && errorText) {
-    // Format error message for better readability
-    let formattedMessage = message;
-
-    if (message.includes('temporary password')) {
-      formattedMessage = 'The temporary password is incorrect. Please check and try again.';
-    } else if (message.includes('already set')) {
-      formattedMessage = 'Your password has already been set. Please use the regular login form.';
-    } else if (message.includes('requirements')) {
-      formattedMessage = message; // Keep the detailed password requirements
-    }
-
-    errorText.textContent = formattedMessage;
+    errorText.textContent = message;
     errorDiv.style.display = 'block';
     errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // Add shake animation
-    errorDiv.style.animation = 'shake 0.5s ease-in-out';
-    setTimeout(() => {
-      errorDiv.style.animation = '';
-    }, 500);
   }
 }
 
 // ========== HELPER FUNCTIONS ==========
-async function waitForAuthManager(maxWait = 3306) {
+async function waitForAuthManager(maxWait = 5000) {
   const startTime = Date.now();
 
   while (typeof authManager === 'undefined' && (Date.now() - startTime) < maxWait) {
@@ -2473,7 +2423,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Login Form Handler - ENHANCED WITH USER NOT FOUND HANDLING
-  // Login Form Handler - UPDATED FOR FIRST LOGIN FLOW
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async function (e) {
@@ -2511,22 +2460,22 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         window.beautifulLoader.show('Signing you in...');
 
-        console.log('🔐 Attempting login for:', Email);
-
-        // Use the EnhancedAPIClient for login
         const response = await window.apiClient.post('/auth/login', {
           Email: Email,
           Password: Password
         }, {
-          loadingMessage: 'Authenticating...',
-          background: false
+          loadingMessage: 'Authenticating...'
         });
 
-        console.log('✅ Login response received:', response);
+        console.log('Login response:', response);
 
-        // Handle first login scenario for admin
+        await waitForAuthManager();
+
+        if (typeof authManager === 'undefined') {
+          throw new Error('Authentication system not available. Please refresh the page.');
+        }
+
         if (response.requiresPasswordReset) {
-          console.log('🔄 Admin requires password reset - showing first login modal');
           window.beautifulLoader.hide();
           showFirstLoginModal(Email);
           submitBtn.disabled = false;
@@ -2535,51 +2484,32 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
 
-        // Wait for authManager to be available
-        await waitForAuthManager();
-
-        if (typeof authManager === 'undefined') {
-          throw new Error('Authentication system not available. Please refresh the page.');
-        }
-
         if (response.token) {
           const userType = response.role === 'admin' ? 'admin' : 'customer';
 
-          console.log('🔐 Processing login with token for:', userType);
-
-          // Use the authManager to handle login
-          const loginSuccess = authManager.login(
+          authManager.login(
             response.token,
             response.role,
             response.user,
             userType
           );
 
-          if (!loginSuccess) {
-            throw new Error('Failed to initialize user session.');
-          }
-
-          // Show success message
-          const successElement = document.getElementById('login-success');
-          if (successElement) {
-            successElement.style.display = 'block';
-            successElement.innerHTML = `<i class="fas fa-check-circle"></i> Login successful! Redirecting...`;
+          if (loginSuccess) {
+            loginSuccess.style.display = 'block';
+            loginSuccess.innerHTML = `<i class="fas fa-check-circle"></i> Login successful! Redirecting...`;
           }
 
           window.beautifulLoader.show('Welcome back! Redirecting...');
 
           setTimeout(() => {
             if (userType === 'admin') {
-              console.log('🔄 Redirecting to admin dashboard');
               window.location.href = 'admin-dashboard.html';
             } else {
               const returnUrl = localStorage.getItem('returnUrl');
               if (returnUrl) {
                 localStorage.removeItem('returnUrl');
-                console.log('🔄 Redirecting to return URL:', returnUrl);
                 window.location.href = returnUrl;
               } else {
-                console.log('🔄 Redirecting to index');
                 window.location.href = 'index.html';
               }
             }
@@ -2591,11 +2521,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
       } catch (error) {
         window.beautifulLoader.hide();
-        console.error('❌ Login error:', error);
+        console.error('Login error:', error);
 
-        let errorMessage = error.message || 'Login failed. Please check your credentials.';
+        let errorMessage = error.response?.data?.message ||
+          error.message ||
+          'Login failed. Please check your credentials.';
 
-        // Enhanced error handling
+        // Enhanced error handling for user not found
         if (error.response?.status === 404) {
           errorMessage = 'User not found. Please check your email or register for a new account.';
         } else if (error.response?.status === 401) {
@@ -2610,101 +2542,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
-  function setupFirstLoginForm() {
-    const form = document.getElementById('first-login-form');
-    const errorDiv = document.getElementById('first-login-error');
-    const errorText = document.getElementById('first-login-error-text');
 
-    if (!form) return;
-
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-
-    newForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      if (errorDiv) errorDiv.style.display = 'none';
-
-      const formData = {
-        Email: document.getElementById('first-login-email').value,
-        TemporaryPassword: document.getElementById('temporary-password').value,
-        NewPassword: document.getElementById('new-admin-password').value
-      };
-
-      const confirmPassword = document.getElementById('confirm-admin-password').value;
-
-      // Validation
-      if (formData.NewPassword !== confirmPassword) {
-        showFirstLoginError('Passwords do not match');
-        return;
-      }
-
-      if (formData.NewPassword.length < 8) {
-        showFirstLoginError('Password must be at least 8 characters long');
-        return;
-      }
-
-      // Enhanced password validation
-      const passwordErrors = validatePasswordStrength(formData.NewPassword);
-      if (passwordErrors.length > 0) {
-        showFirstLoginError(`Password requirements: ${passwordErrors.join(', ')}`);
-        return;
-      }
-
-      try {
-        window.beautifulLoader.show('Setting up your account...');
-
-        console.log('🔄 Sending first login setup for:', formData.Email);
-
-        // Use the correct endpoint for first login setup
-        const response = await window.apiClient.post('/admin/first-login', formData, {
-          loadingMessage: 'Finalizing your account...'
-        });
-
-        console.log('✅ First login setup response:', response);
-
-        if (response.success && response.token) {
-          // Wait for authManager to be available
-          await waitForAuthManager();
-
-          if (typeof authManager !== 'undefined') {
-            // Login the admin with the new token
-            const loginSuccess = authManager.login(
-              response.token,
-              response.role || 'admin',
-              response.user || { Email: formData.Email },
-              'admin'
-            );
-
-            if (loginSuccess) {
-              window.beautifulLoader.show('Account setup complete! Redirecting...');
-
-              closeFirstLoginModal();
-
-              setTimeout(() => {
-                window.location.href = 'admin-dashboard.html';
-              }, 2000);
-            } else {
-              throw new Error('Failed to initialize admin session');
-            }
-          } else {
-            throw new Error('Authentication system not available');
-          }
-        } else {
-          throw new Error(response.message || 'Failed to setup account');
-        }
-
-      } catch (error) {
-        window.beautifulLoader.hide();
-        console.error('❌ First login setup error:', error);
-
-        const errorMessage = error.response?.data?.message ||
-          error.message ||
-          'Error setting up account. Please try again.';
-        showFirstLoginError(errorMessage);
-      }
-    });
-  }
   // First login modal event listeners
   document.addEventListener('click', function (e) {
     const modal = document.getElementById('firstLoginModal');
@@ -2778,43 +2616,6 @@ document.addEventListener('DOMContentLoaded', function () {
       document.body.classList.add('fade-in');
     }, 500);
   }, 1000);
-
-  // ========== PROTECTED FORMS SETUP ==========
-  function setupProtectedForms() {
-    // Protect booking forms that require authentication
-    const bookingForms = document.querySelectorAll('#booking-form, .booking-form, #service-booking-form');
-
-    bookingForms.forEach(form => {
-      form.addEventListener('submit', async function (e) {
-        if (!window.authManager || !window.authManager.isAuthenticated()) {
-          e.preventDefault();
-
-          // Store form data for after login
-          const formData = new FormData(this);
-          const formDataObj = {};
-          for (let [key, value] of formData.entries()) {
-            formDataObj[key] = value;
-          }
-
-          localStorage.setItem('pendingFormData', JSON.stringify({
-            formData: formDataObj,
-            action: this.action,
-            method: this.method
-          }));
-
-          // Redirect to login
-          window.beautifulLoader.show('Redirecting to login...');
-          setTimeout(() => {
-            if (window.authManager) {
-              window.authManager.redirectToLogin();
-            } else {
-              window.location.href = 'login.html';
-            }
-          }, 500);
-        }
-      });
-    });
-  }
 
   // ========== NAVIGATION AND CART FUNCTIONALITY ==========
   const hamburgerBtn = document.getElementById('hamburger-btn');

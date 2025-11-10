@@ -60,7 +60,7 @@ class ProfileManager {
         try {
             this.showLoading('Loading profile...');
 
-            const response = await axios.get('http://localhost:3000/api/customer/profile', {
+            const response = await axios.get('http://localhost:5000/api/customer/profile', {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -375,7 +375,7 @@ class ProfileManager {
     async updateUserProfile(updatedData) {
         try {
             const response = await axios.put(
-                'http://localhost:3000/api/customer/profile',
+                'http://localhost:5000/api/customer/profile',
                 updatedData,
                 {
                     headers: authManager.getAuthHeaders()
@@ -419,7 +419,7 @@ class ProfileManager {
             this.showLoading('Loading your bookings...');
 
             // Use the customer-specific bookings endpoint
-            const response = await axios.get(`http://localhost:3000/api/bookings/customer/${this.user.ID}`, {
+            const response = await axios.get(`http://localhost:5000/api/bookings/customer/${this.user.ID}`, {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -454,7 +454,7 @@ class ProfileManager {
         try {
             console.log('Trying fallback method to load user bookings...');
 
-            const response = await axios.get('http://localhost:3000/api/bookings', {
+            const response = await axios.get('http://localhost:5000/api/bookings', {
                 headers: authManager.getAuthHeaders()
             });
 
@@ -586,9 +586,7 @@ class ProfileManager {
             </div>
             
             <div class="booking-footer">
-                <div class="booking-amount">
-                    ${totalAmount > 0 ? `<strong>R ${totalAmount}</strong>` : '<em>Quote Pending</em>'}
-                </div>
+                
                 <div class="booking-actions">
                     ${status === 'requested' || status === 'confirmed' ? `
                         <button class="btn-outline cancel-booking-btn" data-booking-id="${booking.ID}">
@@ -596,10 +594,7 @@ class ProfileManager {
                             Cancel
                         </button>
                     ` : ''}
-                    <button class="btn-outline view-booking-btn" data-booking-id="${booking.ID}">
-                        <i class="fas fa-eye"></i>
-                        View Details
-                    </button>
+                    
                 </div>
             </div>
         </div>
@@ -674,7 +669,7 @@ class ProfileManager {
             this.showLoading('Cancelling booking...');
 
             const response = await axios.put(
-                `http://localhost:3000/api/bookings/${bookingId}`,
+                `http://localhost:5000/api/bookings/${bookingId}`,
                 { Status: 'cancelled' },
                 {
                     headers: authManager.getAuthHeaders()
@@ -807,7 +802,7 @@ class ProfileManager {
             this.showLoading('Changing password...');
 
             const response = await axios.put(
-                'http://localhost:3000/api/customer/change-password',
+                'http://localhost:5000/api/customer/change-password',
                 {
                     currentPassword,
                     newPassword
@@ -977,7 +972,7 @@ class ProfileManager {
                     }
                 }, 300);
             }
-        }, 3306);
+        }, 5000);
     }
 
     showLoading(message = 'Loading...') {

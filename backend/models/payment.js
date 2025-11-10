@@ -1,22 +1,16 @@
-// models/Payment.js
-const BaseModel = require('./BaseModel');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config');
+const Booking = require('./booking');
 
-class Payment extends BaseModel {
-  constructor() {
-    super('payments');
-  }
+const Payment = sequelize.define('Payment', {
+  ID: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  Date: { type: DataTypes.DATEONLY, allowNull: false },
+  Amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
+  Method: { type: DataTypes.STRING(50), allowNull: false },
+  Status: { type: DataTypes.STRING(50), allowNull: false }
+});
 
-  async create(paymentData) {
-    return await super.create(paymentData);
-  }
+Booking.hasMany(Payment, { foreignKey: 'Booking_ID' });
+Payment.belongsTo(Booking, { foreignKey: 'Booking_ID' });
 
-  async findByBookingId(bookingId) {
-    return await this.findAll({ booking_id: bookingId });
-  }
-
-  async updateStatus(id, status) {
-    return await this.update(id, { status });
-  }
-}
-
-module.exports = new Payment();
+module.exports = Payment;

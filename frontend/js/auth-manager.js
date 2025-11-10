@@ -592,7 +592,7 @@ class AuthManager {
         }
 
         try {
-            const response = await axios.get('http://localhost:3000/api/customer/profile', {
+            const response = await axios.get('http://localhost:5000/api/customer/profile', {
                 headers: this.getAuthHeaders()
             });
 
@@ -643,16 +643,16 @@ class AuthManager {
         });
 
         // Protect form submissions
-        // const protectedForms = document.querySelectorAll('#index-quoteForm, .booking-form');
-        // protectedForms.forEach(form => {
-        //     form.addEventListener('submit', (e) => {
-        //         if (!this.isAuthenticated()) {
-        //             e.preventDefault();
-        //             this.redirectToLogin();
-        //             return;
-        //         }
-        //     });
-        // });
+        const protectedForms = document.querySelectorAll('#index-quoteForm, .booking-form');
+        protectedForms.forEach(form => {
+            form.addEventListener('submit', (e) => {
+                if (!this.isAuthenticated()) {
+                    e.preventDefault();
+                    this.redirectToLogin();
+                    return;
+                }
+            });
+        });
 
         // Handle "Book Services" button in empty cart
         document.addEventListener('click', (e) => {
@@ -682,34 +682,18 @@ class AuthManager {
 
     // Get authentication headers for API calls
     getAuthHeaders() {
-    const headers = {
-        'Content-Type': 'application/json'
-    };
-
-    // Check if authManager exists and user is authenticated
-    if (window.authManager && window.authManager.isAuthenticated()) {
-        const token = window.authManager.token;
-        if (token && token !== 'undefined' && token !== 'null') {
-            headers['Authorization'] = `Bearer ${token}`;
-            console.log('🔐 AdminAPI: Adding auth token to request');
-        } else {
-            console.warn('⚠️ AdminAPI: No valid token found');
-            this.handleAuthError();
-        }
-    } else {
-        console.warn('⚠️ AdminAPI: User not authenticated');
-        // Don't redirect here as it might be a public request
+        return {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json'
+        };
     }
-
-    return headers;
-}
 
     // Verify token validity
     async verifyToken() {
         if (!this.token) return false;
 
         try {
-            const response = await axios.get('http://localhost:3000/api/auth/verify', {
+            const response = await axios.get('http://localhost:5000/api/auth/verify', {
                 headers: this.getAuthHeaders()
             });
             return response.data.valid;
@@ -736,7 +720,7 @@ class AuthManager {
 // In your login.js or auth script
 async function handleLogin(email, password) {
     try {
-        const response = await axios.post('http://localhost:3000/api/auth/login', {
+        const response = await axios.post('http://localhost:5000/api/auth/login', {
             Email: email,
             Password: password
         });

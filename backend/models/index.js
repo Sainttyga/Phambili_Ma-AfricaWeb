@@ -1,15 +1,46 @@
 // models/index.js
-const Customer = require('./Customer');
-const Admin = require('./Admin');
-const Booking = require('./Booking');
-const Service = require('./Service');
-const Product = require('./Product');
-const Order = require('./Order');
-const Payment = require('./Payment');
-const Gallery = require('./Gallery');
+const Customer = require('./customer');
+const Admin = require('./admin');
+const Booking = require('./booking');
+const Service = require('./service');
+const Product = require('./product');
+const Order = require('./order');
+const Payment = require('./payment');
+const Gallery = require('./gallery');
+const sequelize = require('../config'); // Import sequelize instance
 
-// Note: Firebase doesn't need explicit associations like Sequelize
-// Relationships are handled through document references
+// Customer associations
+Customer.hasMany(Booking, { foreignKey: 'Customer_ID' });
+Customer.hasMany(Order, { foreignKey: 'Customer_ID' });
+
+// Booking associations
+Booking.belongsTo(Customer, { foreignKey: 'Customer_ID' });
+Booking.belongsTo(Service, { foreignKey: 'Service_ID' });
+Booking.hasOne(Payment, { foreignKey: 'Booking_ID' });
+
+// Service associations
+Service.hasMany(Booking, { foreignKey: 'Service_ID' });
+
+// Product associations
+Product.hasMany(Order, { foreignKey: 'Product_ID' });
+
+// Order associations
+Order.belongsTo(Customer, { foreignKey: 'Customer_ID' });
+Order.belongsTo(Product, { foreignKey: 'Product_ID' });
+Order.belongsTo(Payment, { 
+  foreignKey: 'Payment_ID',
+  allowNull: true // Payment is optional for orders
+});
+
+// Payment associations
+Payment.belongsTo(Booking, { foreignKey: 'Booking_ID' });
+Payment.hasOne(Order, { foreignKey: 'Payment_ID' });
+
+// Admin associations (self-referential for sub-admins)
+Admin.belongsTo(Admin, { 
+  as: 'Creator', 
+  foreignKey: 'Created_By' 
+});
 
 module.exports = {
   Customer,
@@ -19,5 +50,6 @@ module.exports = {
   Product,
   Order,
   Payment,
-  Gallery
+  Gallery,
+  sequelize
 };

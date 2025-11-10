@@ -64,7 +64,7 @@ exports.getAllMedia = async (req, res) => {
     // Add full URL to files - FIXED
     const mediaWithUrls = media.map(item => ({
       ...item.toJSON(),
-      url: `http://localhost:3000/upload/gallery/${item.filename}`
+      url: `http://localhost:5000/upload/gallery/${item.filename}`
     }));
 
     res.json({

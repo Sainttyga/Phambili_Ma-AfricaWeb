@@ -1,31 +1,35 @@
-// models/Gallery.js
-const BaseModel = require('./BaseModel');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config');
 
-class Gallery extends BaseModel {
-  constructor() {
-    super('gallery');
+const Gallery = sequelize.define('Gallery', {
+  ID: { 
+    type: DataTypes.INTEGER, 
+    autoIncrement: true, 
+    primaryKey: true,
+    field: 'id'
+  },
+  filename: { 
+    type: DataTypes.STRING(255), 
+    allowNull: false 
+  },
+  category: { 
+    type: DataTypes.STRING(50), 
+    allowNull: false,
+    defaultValue: 'general'
+  },
+  media_type: { 
+    type: DataTypes.ENUM('image', 'video'), 
+    allowNull: false 
+  },
+  is_active: { 
+    type: DataTypes.BOOLEAN, 
+    defaultValue: true 
   }
+}, {
+  tableName: 'gallery',
+  timestamps: true,
+  createdAt: 'uploaded_at',
+  updatedAt: false
+});
 
-  async create(galleryData) {
-    return await super.create({
-      ...galleryData,
-      media_type: galleryData.media_type || 'image',
-      category: galleryData.category || 'general',
-      is_active: galleryData.is_active !== undefined ? galleryData.is_active : true
-    });
-  }
-
-  async findActive() {
-    return await this.findAll({ is_active: true });
-  }
-
-  async findByCategory(category) {
-    return await this.findAll({ category, is_active: true });
-  }
-
-  async findByMediaType(mediaType) {
-    return await this.findAll({ media_type: mediaType, is_active: true });
-  }
-}
-
-module.exports = new Gallery();
+module.exports = Gallery;

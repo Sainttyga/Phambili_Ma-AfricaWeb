@@ -1,10 +1,13 @@
-// scripts/seed-admin.js (updated for Firebase)
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
-const Admin = require('../models/Admin');
+// seed-admin.js (updated with better env handling)
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+const bcrypt = require('bcryptjs');
+const { Admin } = require('../models');
+const sequelize = require('../config');
 
 async function seedAdmin() {
   try {
-    console.log('🔄 Seeding admin user...');
+    await sequelize.authenticate();
+    console.log('Database connected...');
 
     // Debug: Check what's actually being read
     const adminEmail = process.env.ADMIN_EMAIL;
@@ -39,22 +42,27 @@ async function seedAdmin() {
     }
 
     // Check if admin already exists
-    const existingAdmin = await Admin.findByEmail(adminEmail.toLowerCase().trim());
+    const existingAdmin = await Admin.findOne({ 
+      where: { 
+        Email: adminEmail.toLowerCase().trim() 
+      } 
+    });
     
     if (existingAdmin) {
       console.log('⚠️  Admin already exists. Skipping creation.');
-      console.log('ℹ️  Existing admin email:', existingAdmin.email);
+      console.log('ℹ️  Existing admin email:', existingAdmin.Email);
       return;
     }
 
-    // Create admin
+    // Create admin with hashed password
+    const hashedPassword = await bcrypt.hash(adminPassword, 12);
     const admin = await Admin.create({
-      name: 'System Administrator',
-      email: adminEmail,
-      password: adminPassword,
-      first_login: true,
-      role: 'main_admin',
-      created_by: null
+      Name: 'System Administrator',
+      Email: adminEmail,
+      Password: hashedPassword,
+      First_Login: true,
+      Role: 'main_admin',
+      Created_By: null
     });
 
     console.log('✅ Main admin created successfully!');
@@ -70,6 +78,8 @@ async function seedAdmin() {
     console.error('   - Verify there are no special characters causing issues');
     console.error('   - Check for trailing spaces in the .env file');
     process.exit(1);
+  } finally {
+    await sequelize.close();
   }
 }
 

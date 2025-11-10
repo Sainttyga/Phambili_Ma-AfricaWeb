@@ -2,6 +2,7 @@
 const { Customer } = require('../models');
 const bcrypt = require('bcryptjs');
 
+
 exports.getProfile = async (req, res) => {
   try {
     console.log('GET /api/customer/profile called for user:', req.user.id);

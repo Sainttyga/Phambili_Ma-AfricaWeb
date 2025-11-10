@@ -1,12 +1,11 @@
-// server.js - Updated for Firebase
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { db } = require('./config/firebase-admin'); // Firebase instead of Sequelize
-require('./models'); // This will load our Firebase models
+const sequelize = require('./config');
+require('./models');
 const security = require('./middleware/security');
 const swagger = require('./swagger');
 const helmet = require('helmet');
@@ -35,11 +34,10 @@ app.use(helmet({
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://localhost:3000',
-    'http://72.61.104.51:3000',
-    'http://localhost:3000',
     'http://127.0.0.1:5500',
-    'https://your-netlify-app.netlify.app' // Add your Netlify domain
+    'http://localhost:5000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8000'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -54,8 +52,7 @@ app.use(...security);
 const uploadDirs = [
   path.join(__dirname, 'public/upload/products'),
   path.join(__dirname, 'public/upload/services'),
-  path.join(__dirname, 'public/upload/general'),
-  path.join(__dirname, 'uploads') // Add the uploads directory you're trying to use
+  path.join(__dirname, 'public/upload/general')
 ];
 
 uploadDirs.forEach(dir => {
@@ -65,8 +62,8 @@ uploadDirs.forEach(dir => {
   }
 });
 
-// FIXED: Serve static files with proper CORS headers - SINGLE CONFIGURATION
-app.use('/uploads', (req, res, next) => {
+// FIXED: Serve static files with proper CORS headers
+app.use('/upload', (req, res, next) => {
   // Set CORS headers for all static files
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -83,31 +80,22 @@ app.use('/uploads', (req, res, next) => {
   redirect: false
 }));
 
+// Serve static files from uploads directory
+app.use('/upload', express.static(path.join(__dirname, 'public/upload')));
+
+// Add CORS headers for development
+app.use('/upload', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
+
 // DEBUG MIDDLEWARE - Add this to see incoming requests
 app.use((req, res, next) => {
   console.log(`📨 ${req.method} ${req.originalUrl}`);
-  
-  // Log parameters for debugging the undefined ID issue
-  if (req.params && Object.keys(req.params).length > 0) {
-    console.log('🔍 Params:', req.params);
-  }
-  
   if (req.method === 'POST' && req.body) {
     console.log('📦 Body:', JSON.stringify(req.body, null, 2));
   }
-  
-  // Specifically check for undefined IDs
-  if (req.params.id === 'undefined') {
-    console.error('❌ UNDEFINED ID DETECTED IN REQUEST!');
-    console.log('🔍 Full request details:', {
-      method: req.method,
-      url: req.originalUrl,
-      params: req.params,
-      query: req.query,
-      body: req.body
-    });
-  }
-  
   next();
 });
 
@@ -151,25 +139,13 @@ app.use('/api/gallery', galleryRoutes);
 console.log('✅ Gallery routes loaded: /api/gallery');
 
 // FIXED: Health check route with /api prefix
-app.get('/api/health', async (req, res) => {
-  try {
-    // Test Firebase connection
-    const testDoc = await db.collection('health_check').doc('test').get();
-    
-    res.json({ 
-      status: 'OK', 
-      timestamp: new Date().toISOString(),
-      database: 'Firebase Firestore - Connected',
-      uploadPath: path.join(__dirname, 'public/upload'),
-      message: 'Server is running correctly with Firebase'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      status: 'Error', 
-      message: 'Firebase connection failed',
-      error: error.message 
-    });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uploadPath: path.join(__dirname, 'public/upload'),
+    message: 'Server is running correctly'
+  });
 });
 
 // Special route to serve images with proper headers
@@ -248,33 +224,30 @@ app.use((error, req, res, next) => {
 
 swagger(app);
 
-// Firebase initialization and server start
-const PORT = process.env.PORT || 3000;
+// Sync database and start server
+const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    // Test Firebase connection
-    console.log('🔄 Testing Firebase connection...');
-    const testDoc = await db.collection('health_check').doc('test').set({
-      timestamp: new Date(),
-      message: 'Firebase connection test'
-    });
-    console.log('✅ Firebase connection established successfully.');
+    // Test database connection
+    await sequelize.authenticate();
+    console.log('✅ Database connection established successfully.');
+
+    // Sync all models with database
+    await sequelize.sync({ force: false });
+    console.log('✅ Database synchronized successfully.');
 
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server started on port ${PORT}`);
       console.log(`📁 Upload directory: ${path.join(__dirname, 'public/upload')}`);
-      console.log(`🌐 CORS enabled for: localhost:3000, Netlify app, etc.`);
+      console.log(`🌐 CORS enabled for: localhost:3000, 127.0.0.1:5500, localhost:5000`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
       console.log(`🔗 Auth test: http://localhost:${PORT}/api/test-auth`);
       console.log(`🔗 Login endpoint: http://localhost:${PORT}/api/auth/login`);
-      console.log(`🏠 Database: Firebase Firestore`);
-      console.log('🔍 Debug mode: Enabled - watching for undefined IDs');
     });
   } catch (error) {
     console.error('❌ Unable to start server:', error);
-    process.exit(1);
   }
 }
 

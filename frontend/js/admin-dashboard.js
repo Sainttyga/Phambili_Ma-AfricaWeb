@@ -947,12 +947,6 @@ class AdminDashboard {
           <td>${customer.Phone || 'No phone'}</td>
           <td>${customer.Address || 'No address'}</td>
           <td>${new Date(customer.createdAt || customer.Created_At || Date.now()).toLocaleDateString()}</td>
-          <td>
-            <!-- Remove action buttons - keep only view if needed -->
-            <button class="btn-icon" onclick="adminDashboard.viewCustomer(${customer.ID})" title="View Details">
-              <i class="fas fa-eye"></i>
-            </button>
-          </td>
         </tr>
       `).join('');
       } else {
@@ -975,53 +969,47 @@ class AdminDashboard {
     }
   }
   async loadServices() {
-  try {
-    this.showLoading('Loading services...');
-
-    let response;
     try {
-      response = await this.api.getServices();
-    } catch (error) {
-      console.warn('Using mock services data due to API error:', error);
-      response = {
-        success: true,
-        services: []
-      };
-    }
+      this.showLoading('Loading services...');
 
-    const grid = document.getElementById('servicesGrid');
-    if (!grid) return;
+      let response;
+      try {
+        response = await this.api.getServices();
+      } catch (error) {
+        console.warn('Using mock services data due to API error:', error);
+        response = {
+          success: true,
+          services: []
+        };
+      }
 
-    if (response.success && response.services && response.services.length > 0) {
-      console.log(`📊 Loaded ${response.services.length} services from admin API`);
-      
-      grid.innerHTML = response.services.map(service => {
-        // FIX: Validate service ID before using it
-        const serviceId = service.ID || service.id;
-        if (!serviceId) {
-          console.error('❌ Service missing ID:', service);
-          return ''; // Skip services without IDs
-        }
+      const grid = document.getElementById('servicesGrid');
+      if (!grid) return;
 
-        // Fix image URL
-        let imageUrl = service.Image_URL;
-        if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:3000${imageUrl}`;
-        }
+      if (response.success && response.services && response.services.length > 0) {
+        console.log(`📊 Loaded ${response.services.length} services from admin API`);
+        console.log(`📈 Available: ${response.services.filter(s => s.Is_Available).length}, Unavailable: ${response.services.filter(s => !s.Is_Available).length}`);
 
-        return `
-<div class="product-card" data-service-id="${serviceId}">
+        grid.innerHTML = response.services.map(service => {
+          // Fix image URL - use absolute URL for development
+          let imageUrl = service.Image_URL;
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            imageUrl = `http://localhost:5000${imageUrl}`;
+          }
+
+          return `
+<div class="product-card" data-service-id="${service.ID}">
   <div class="product-image">
     ${imageUrl ?
-      `<img src="${imageUrl}" alt="${service.Name}" 
-           crossorigin="anonymous"
-           loading="lazy"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-           onload="this.style.opacity='1'">` :
-      `<div class="product-image-placeholder">
-        <i class="fas fa-concierge-bell"></i>
-      </div>`
-    }
+              `<img src="${imageUrl}" alt="${service.Name}" 
+             crossorigin="anonymous"
+             loading="lazy"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+             onload="this.style.opacity='1'">` :
+              `<div class="product-image-placeholder">
+            <i class="fas fa-concierge-bell"></i>
+        </div>`
+            }
     <div class="product-status ${service.Is_Available ? 'available' : 'unavailable'}">
       ${service.Is_Available ? 'Available' : 'Unavailable'}
     </div>
@@ -1042,198 +1030,183 @@ class AdminDashboard {
     </div>
   </div>
   <div class="product-actions">
-    <button class="btn-icon" onclick="adminDashboard.editService('${serviceId}')" title="Edit">
+    <button class="btn-icon" onclick="adminDashboard.editService(${service.ID})" title="Edit">
       <i class="fas fa-edit"></i>
     </button>
     <button class="btn-icon toggle-availability ${service.Is_Available ? 'make-unavailable' : 'make-available'}" 
-            onclick="adminDashboard.toggleServiceAvailability('${serviceId}', ${!service.Is_Available})" 
+            onclick="adminDashboard.toggleServiceAvailability(${service.ID}, ${!service.Is_Available})" 
             title="${service.Is_Available ? 'Disable Service' : 'Enable Service'}">
       <i class="fas fa-${service.Is_Available ? 'eye-slash' : 'eye'}"></i>
     </button>
-    <button class="btn-icon delete" onclick="adminDashboard.deleteService('${serviceId}')" title="Delete">
+    <button class="btn-icon delete" onclick="adminDashboard.deleteService(${service.ID})" title="Delete">
       <i class="fas fa-trash"></i>
     </button>
   </div>
 </div>
-        `;
-      }).join('');
-    } else {
-      grid.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-concierge-bell"></i>
-          <p>No services available</p>
-          <button class="btn btn-primary" onclick="openServiceModal()">
-            <i class="fas fa-plus"></i> Add Your First Service
-          </button>
-        </div>
-      `;
+                `;
+        }).join('');
+      } else {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-concierge-bell"></i>
+                <p>No services available</p>
+                <button class="btn btn-primary" onclick="openServiceModal()">
+                    <i class="fas fa-plus"></i> Add Your First Service
+                </button>
+            </div>
+            `;
+      }
+    } catch (error) {
+      console.error('Error loading services:', error);
+      this.showNotification('Failed to load services', 'error');
+    } finally {
+      this.hideLoading();
     }
-  } catch (error) {
-    console.error('Error loading services:', error);
-    this.showNotification('Failed to load services', 'error');
-  } finally {
-    this.hideLoading();
   }
-}
+
+  // Service CRUD Operations
   // Service CRUD Operations - FIXED: Remove Price field
   async createService(serviceData) {
-  try {
-    this.showLoading('Creating service...');
+    try {
+      this.showLoading('Creating service...');
 
-    const formData = new FormData();
+      const formData = new FormData();
 
-    // Convert data to correct format using model field names
-    const name = serviceData.get('name') || serviceData.get('Name');
-    const description = serviceData.get('description') || serviceData.get('Description') || '';
-    const duration = serviceData.get('duration') || serviceData.get('Duration');
-    const category = serviceData.get('category') || serviceData.get('Category') || '';
-    const is_available = serviceData.get('is_available') === 'on' || 
-                        serviceData.get('Is_Available') === 'on' || 
-                        serviceData.get('is_available') === 'true' ||
-                        true; // Default to true
-    
-    const imageFile = serviceData.get('image');
-    const serviceId = serviceData.get('id');
-    const currentImage = serviceData.get('current_image');
+      // Convert data to correct format before sending
+      const name = serviceData.get('Name');
+      const description = serviceData.get('Description') || '';
+      const duration = parseInt(serviceData.get('Duration'));
+      const category = serviceData.get('Category') || '';
+      const isAvailable = serviceData.get('Is_Available') === 'on';
+      const imageFile = serviceData.get('image');
+      const serviceId = serviceData.get('id');
+      const currentImage = serviceData.get('current_image');
 
-    // Debug: Log form data
-    console.log('📝 Service Form Data:', {
-      name,
-      description,
-      duration,
-      category,
-      is_available,
-      hasImage: !!imageFile,
-      imageName: imageFile ? imageFile.name : 'No image'
-    });
+      // Debug: Log form data
+      console.log('📝 Service Form Data:', {
+        name,
+        description,
+        duration,
+        category,
+        isAvailable,
+        hasImage: !!imageFile,
+        imageName: imageFile ? imageFile.name : 'No image'
+      });
 
-    // Append data in correct format (model field names)
-    if (serviceId) formData.append('id', serviceId);
-    formData.append('name', name);
-    formData.append('description', description);
-    formData.append('duration', duration.toString());
-    formData.append('category', category);
-    formData.append('is_available', is_available.toString());
+      // Append data in correct format
+      if (serviceId) formData.append('id', serviceId);
+      formData.append('Name', name);
+      formData.append('Description', description);
+      formData.append('Duration', duration.toString());
+      formData.append('Category', category);
+      formData.append('Is_Available', isAvailable.toString());
 
-    // Append image file if exists
-    if (imageFile && imageFile.size > 0) {
-      formData.append('image', imageFile);
-      console.log('📸 Image file appended:', imageFile.name, imageFile.size);
-    }
-
-    if (currentImage) formData.append('current_image', currentImage);
-
-    const response = await this.api.createService(formData);
-
-    if (response.success) {
-      this.showNotification('Service created successfully', 'success');
-      this.closeServiceModal();
-      await this.loadServices();
-    }
-  } catch (error) {
-    console.error('❌ Create service error:', error);
-
-    // Enhanced error logging
-    if (error.response) {
-      console.error('📊 Backend response:', error.response.data);
-      console.error('🔧 Backend status:', error.response.status);
-
-      if (error.response.data.errors) {
-        const errorMessages = error.response.data.errors.map(err => err.msg || err.message).join(', ');
-        this.showNotification(`Validation failed: ${errorMessages}`, 'error');
-      } else {
-        this.showNotification(error.response.data.message || 'Failed to create service', 'error');
+      // Append image file if exists
+      if (imageFile && imageFile.size > 0) {
+        formData.append('image', imageFile);
+        console.log('📸 Image file appended:', imageFile.name, imageFile.size);
       }
-    } else if (error.request) {
-      console.error('🌐 No response received:', error.request);
-      this.showNotification('Network error: Could not connect to server', 'error');
-    } else {
-      this.showNotification('Error: ' + error.message, 'error');
+
+      if (currentImage) formData.append('current_image', currentImage);
+
+      const response = await this.api.createService(formData);
+
+      if (response.success) {
+        this.showNotification('Service created successfully', 'success');
+        this.closeServiceModal();
+        await this.loadServices();
+      }
+    } catch (error) {
+      console.error('❌ Create service error:', error);
+
+      // Enhanced error logging
+      if (error.response) {
+        console.error('📊 Backend response:', error.response.data);
+        console.error('🔧 Backend status:', error.response.status);
+
+        if (error.response.data.errors) {
+          const errorMessages = error.response.data.errors.map(err => err.msg || err.message).join(', ');
+          this.showNotification(`Validation failed: ${errorMessages}`, 'error');
+        } else {
+          this.showNotification(error.response.data.message || 'Failed to create service', 'error');
+        }
+      } else if (error.request) {
+        console.error('🌐 No response received:', error.request);
+        this.showNotification('Network error: Could not connect to server', 'error');
+      } else {
+        this.showNotification('Error: ' + error.message, 'error');
+      }
+    } finally {
+      this.hideLoading();
     }
-  } finally {
-    this.hideLoading();
   }
-}
+
   async updateService(id, serviceData) {
-  try {
-    this.showLoading('Updating service...');
+    try {
+      this.showLoading('Updating service...');
 
-    // Create FormData properly
-    const formData = new FormData();
+      // Create FormData properly
+      const formData = new FormData();
 
-    // Get values from form or serviceData - handle both naming conventions
-    const name = serviceData.get ? 
-                (serviceData.get('name') || serviceData.get('Name')) : 
-                (serviceData.name || serviceData.Name);
-    
-    const description = serviceData.get ? 
-                       (serviceData.get('description') || serviceData.get('Description')) : 
-                       (serviceData.description || serviceData.Description);
-    
-    const duration = serviceData.get ? 
-                    (serviceData.get('duration') || serviceData.get('Duration')) : 
-                    (serviceData.duration || serviceData.Duration);
-    
-    const category = serviceData.get ? 
-                    (serviceData.get('category') || serviceData.get('Category')) : 
-                    (serviceData.category || serviceData.Category);
-    
-    const is_available = serviceData.get ? 
-                        (serviceData.get('is_available') === 'on' || 
-                         serviceData.get('Is_Available') === 'on' ||
-                         serviceData.get('is_available') === 'true') : 
-                        (serviceData.is_available || serviceData.Is_Available);
-    
-    const imageFile = serviceData.get ? serviceData.get('image') : null;
-    const currentImage = serviceData.get ? serviceData.get('current_image') : serviceData.current_image;
+      // Append all fields including the ID
+      formData.append('id', id);
 
-    // Append data using model field names
-    formData.append('name', name);
-    if (description !== undefined) formData.append('description', description);
-    if (duration !== undefined) formData.append('duration', duration);
-    if (category !== undefined) formData.append('category', category);
-    formData.append('is_available', is_available.toString());
+      // Get values from form or serviceData
+      const name = serviceData.get ? serviceData.get('Name') : serviceData.Name;
+      const description = serviceData.get ? serviceData.get('Description') : serviceData.Description;
+      const duration = serviceData.get ? serviceData.get('Duration') : serviceData.Duration;
+      const category = serviceData.get ? serviceData.get('Category') : serviceData.Category;
+      const isAvailable = serviceData.get ? serviceData.get('Is_Available') === 'on' : serviceData.Is_Available;
+      const imageFile = serviceData.get ? serviceData.get('image') : null;
+      const currentImage = serviceData.get ? serviceData.get('current_image') : serviceData.current_image;
 
-    if (currentImage) {
-      formData.append('current_image', currentImage);
-    }
+      // Append data
+      formData.append('Name', name);
+      formData.append('Description', description || '');
+      formData.append('Duration', duration);
+      formData.append('Category', category || '');
+      formData.append('Is_Available', isAvailable.toString());
 
-    // Append image file if exists and is new
-    if (imageFile && imageFile.size > 0) {
-      formData.append('image', imageFile);
-    }
-
-    console.log('🔄 Updating service with data:', {
-      id, name, duration, is_available, hasImage: !!(imageFile && imageFile.size > 0)
-    });
-
-    const response = await this.api.updateService(id, formData);
-
-    if (response.success) {
-      this.showNotification('Service updated successfully', 'success');
-      this.closeServiceModal();
-      await this.loadServices();
-    } else {
-      throw new Error(response.message || 'Update failed');
-    }
-  } catch (error) {
-    console.error('❌ Update service error:', error);
-    
-    if (error.response?.data) {
-      const errorData = error.response.data;
-      if (errorData.errors) {
-        const errorMessages = errorData.errors.map(err => err.msg || err.message).join(', ');
-        this.showNotification(`Validation failed: ${errorMessages}`, 'error');
-      } else {
-        this.showNotification(errorData.message || 'Failed to update service', 'error');
+      if (currentImage) {
+        formData.append('current_image', currentImage);
       }
-    } else {
-      this.showNotification(error.message || 'Failed to update service', 'error');
+
+      // Append image file if exists
+      if (imageFile && imageFile.size > 0) {
+        formData.append('image', imageFile);
+      }
+
+      console.log('🔄 Updating service with data:', {
+        id, name, duration, hasImage: !!imageFile
+      });
+
+      const response = await this.api.updateService(id, formData);
+
+      if (response.success) {
+        this.showNotification('Service updated successfully', 'success');
+        this.closeServiceModal();
+        await this.loadServices();
+      } else {
+        throw new Error(response.message || 'Update failed');
+      }
+    } catch (error) {
+      console.error('❌ Update service error:', error);
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.errors) {
+          const errorMessages = errorData.errors.map(err => err.msg || err.message).join(', ');
+          this.showNotification(`Validation failed: ${errorMessages}`, 'error');
+        } else {
+          this.showNotification(errorData.message || 'Failed to update service', 'error');
+        }
+      } else {
+        this.showNotification(error.message || 'Failed to update service', 'error');
+      }
+    } finally {
+      this.hideLoading();
     }
-  } finally {
-    this.hideLoading();
   }
-}
 
   async editService(id) {
     try {
@@ -1269,29 +1242,19 @@ class AdminDashboard {
   }
 
   async toggleServiceAvailability(id, isAvailable) {
-  try {
-    console.log(`🔄 Toggling service ${id} to ${isAvailable}`);
-    
-    const response = await this.api.toggleServiceAvailability(id, isAvailable);
+    try {
+      const response = await this.api.toggleServiceAvailability(id, isAvailable);
 
-    if (response.success) {
-      this.showNotification(
-        `Service ${isAvailable ? 'enabled' : 'disabled'} successfully`, 
-        'success'
-      );
-      await this.loadServices();
-    } else {
-      throw new Error(response.message || 'Toggle failed');
+      if (response.success) {
+        this.showNotification(response.message, 'success');
+        await this.loadServices();
+      }
+    } catch (error) {
+      console.error('Toggle service availability error:', error);
+      this.showNotification(error.response?.data?.message || 'Failed to update service availability', 'error');
     }
-  } catch (error) {
-    console.error('❌ Toggle service availability error:', error);
-    this.showNotification(
-      error.response?.data?.message || 
-      'Failed to update service availability', 
-      'error'
-    );
   }
-}
+
   // Product Management Functions
   async loadProducts() {
     try {
@@ -1316,7 +1279,7 @@ class AdminDashboard {
           // Fix image URL
           let imageUrl = product.Image_URL;
           if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `http://localhost:3000${imageUrl}`;
+            imageUrl = `http://localhost:5000${imageUrl}`;
           }
 
           return `
@@ -1821,16 +1784,7 @@ class AdminDashboard {
               </span>
             </td>
             <td>${admin.Last_Login ? new Date(admin.Last_Login).toLocaleDateString() : 'Never'}</td>
-            <td>
-              <button class="btn-icon" onclick="adminDashboard.editAdmin(${admin.ID})" title="Edit">
-                <i class="fas fa-edit"></i>
-              </button>
-              ${admin.Role !== 'main_admin' || admin.ID !== window.authManager.user.ID ? `
-              <button class="btn-icon delete" onclick="adminDashboard.deleteAdmin(${admin.ID})" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
-              ` : ''}
-            </td>
+            
           </tr>
         `).join('');
       } else {
@@ -3029,19 +2983,13 @@ class AdminDashboard {
   }
   showBookingDetailsModal(booking) {
     try {
-      if (!booking) {
-      console.error('No booking data provided to showBookingDetailsModal');
-      this.showNotification('No booking data available', 'error');
-      return;
-    }
-
-    // Define statusInfo INSIDE the method, using the booking parameter
-    const statusInfo = {
-      label: this.formatStatus(booking.Status),
-      description: this.getStatusDescription(booking.Status),
-      color: this.getStatusColor(booking.Status),
-      icon: this.getStatusIcon(booking.Status)
-    };
+      // Simple status formatting using helper methods
+      const statusInfo = {
+        label: this.formatStatus(booking.Status),
+        description: this.getStatusDescription(booking.Status),
+        color: this.getStatusColor(booking.Status),
+        icon: this.getStatusIcon(booking.Status)
+      };
 
       const modal = document.createElement('div');
       modal.className = 'modal booking-details-modal';
@@ -4552,7 +4500,7 @@ class AdminDashboard {
         if (notification.parentNode) {
           notification.remove();
         }
-      }, 3306);
+      }, 5000);
     } catch (error) {
       console.error('Error showing notification:', error);
       // Fallback to console log
@@ -5165,7 +5113,7 @@ function openProductModal(product = null) {
       if (product.Image_URL && preview) {
         let imageUrl = product.Image_URL;
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:3000{imageUrl}`;
+          imageUrl = `http://localhost:5000${imageUrl}`;
         }
         preview.innerHTML = `
           <img src="${imageUrl}" alt="${product.Name}" 
@@ -5226,12 +5174,13 @@ function closeProductModal() {
   }
 }
 
-// Update your service modal form to use consistent field names
 function openServiceModal(service = null) {
   try {
     const modal = document.getElementById('serviceModal');
     const form = document.getElementById('service-form');
     const title = document.getElementById('serviceModalTitle');
+    const imagePreview = document.getElementById('serviceImagePreview');
+    const currentImage = document.getElementById('currentServiceImage');
 
     if (!modal || !form || !title) {
       console.error('Required service modal elements not found');
@@ -5243,14 +5192,18 @@ function openServiceModal(service = null) {
 
     // Clear hidden fields
     const serviceIdField = document.getElementById('service-id');
-    const currentImageField = document.getElementById('current-service-image');
     if (serviceIdField) serviceIdField.value = '';
-    if (currentImageField) currentImageField.value = '';
+    if (currentImage) currentImage.value = '';
 
     // Reset image preview
-    const imagePreview = document.getElementById('serviceImagePreview');
     if (imagePreview) {
       imagePreview.innerHTML = '<div class="no-image">No image selected</div>';
+    }
+
+    // Reset file input
+    const fileInput = document.getElementById('service-image');
+    if (fileInput) {
+      fileInput.value = '';
     }
 
     // Set availability checkbox to checked by default
@@ -5263,28 +5216,27 @@ function openServiceModal(service = null) {
       // Edit mode
       title.innerHTML = '<i class="fas fa-edit"></i> Edit Service';
 
-      // Safely populate form fields - handle both naming conventions
-      setFormValue('service-id', service.ID || service.id);
-      setFormValue('service-name', service.Name || service.name);
-      setFormValue('service-description', service.Description || service.description);
-      setFormValue('service-duration', service.Duration || service.duration);
-      setFormValue('service-category', service.Category || service.category);
-      setFormValue('current-service-image', service.Image_URL || service.image_url);
+      // Safely populate form fields
+      setFormValue('service-id', service.ID);
+      setFormValue('service-name', service.Name);
+      setFormValue('service-description', service.Description);
+      setFormValue('service-duration', service.Duration);
+      setFormValue('service-category', service.Category);
+      setFormValue('currentServiceImage', service.Image_URL);
 
-      // Set availability - handle both naming conventions
+      // Set availability
       if (availableCheckbox) {
-        const isAvailable = service.Is_Available !== undefined ? service.Is_Available : service.is_available;
-        availableCheckbox.checked = Boolean(isAvailable);
+        availableCheckbox.checked = Boolean(service.Is_Available);
       }
 
       // Set image preview if exists
-      if ((service.Image_URL || service.image_url) && imagePreview) {
-        let imageUrl = service.Image_URL || service.image_url;
+      if (service.Image_URL && imagePreview) {
+        let imageUrl = service.Image_URL;
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:3000${imageUrl}`;
+          imageUrl = `http://localhost:5000${imageUrl}`;
         }
         imagePreview.innerHTML = `
-          <img src="${imageUrl}" alt="${service.Name || service.name}" 
+          <img src="${imageUrl}" alt="${service.Name}" 
                onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-image\\'>Image not available</div>';"
                style="max-width: 200px; max-height: 200px; border-radius: 8px;">
         `;
@@ -5378,12 +5330,12 @@ const saveAdminNotes = (bookingId, notes) => {
   localStorage.setItem('bookingNotes', JSON.stringify(allNotes));
 };
 
-// const statusInfo = {
-//   label: this.formatStatus(booking.Status),
-//   description: this.getStatusDescription(booking.Status),
-//   color: this.getStatusColor(booking.Status),
-//   icon: this.getStatusIcon(booking.Status)
-// };
+const statusInfo = {
+  label: this.formatStatus(booking.Status),
+  description: this.getStatusDescription(booking.Status),
+  color: this.getStatusColor(booking.Status),
+  icon: this.getStatusIcon(booking.Status)
+};
 const getAdminNotes = (bookingId) => {
   const allNotes = JSON.parse(localStorage.getItem('bookingNotes') || '{}');
   return allNotes[bookingId]?.notes || '';

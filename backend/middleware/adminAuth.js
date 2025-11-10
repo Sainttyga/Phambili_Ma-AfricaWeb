@@ -1,4 +1,4 @@
-// middleware/adminAuth.js - FIXED VERSION
+// middleware/adminAuth.js - Fixed version
 const { Admin } = require('../models');
 
 const adminAuth = async (req, res, next) => {
@@ -42,7 +42,9 @@ const adminAuth = async (req, res, next) => {
     }
 
     // Verify admin exists - use only existing columns
-    const admin = await Admin.findById(decoded.id); // Use findById for Firestore
+    const admin = await Admin.findByPk(decoded.id, {
+      attributes: ['ID', 'Email', 'Name', 'Role'] // Only columns that exist
+    });
 
     if (!admin) {
       console.error('❌ Admin not found in database:', decoded.id);
@@ -52,15 +54,14 @@ const adminAuth = async (req, res, next) => {
       });
     }
 
-    // FIXED: Set req.user properly with the correct structure
     req.user = {
-      id: admin.id, // Use admin.id (Firestore ID)
-      email: admin.email,
+      id: admin.ID,
+      email: admin.Email,
       role: 'admin',
-      name: admin.name
+      name: admin.Name
     };
 
-    console.log(`✅ Admin access granted: ${admin.name} (${admin.email})`);
+    console.log(`✅ Admin access granted: ${admin.Name} (${admin.Email})`);
     
     next();
   } catch (error) {
